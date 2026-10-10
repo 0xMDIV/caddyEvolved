@@ -1,0 +1,230 @@
+{
+  "version": 1,
+  "entries": [
+    {
+      "id": "cloudflare",
+      "module": "github.com/caddy-dns/cloudflare",
+      "name": "Cloudflare",
+      "category": "dns",
+      "subcat": "dns01",
+      "registers": "dns.provider cloudflare",
+      "standard": true,
+      "docs": "https://caddyserver.com/docs/automatic-https#dns-challenge",
+      "env": [
+        { "name": "CLOUDFLARE_API_TOKEN", "label": "API Token", "help": "Zonales DNS:Read + Zone.Zone:Edit", "required": true, "secret": true }
+      ]
+    },
+    {
+      "id": "hetzner",
+      "module": "github.com/caddy-dns/hetzner",
+      "name": "Hetzner DNS Console",
+      "category": "dns",
+      "subcat": "dns01",
+      "registers": "dns.provider hetzner",
+      "standard": true,
+      "env": [
+        { "name": "HETZNER_API_TOKEN", "label": "API Token", "required": true, "secret": true }
+      ]
+    },
+    {
+      "id": "netcup",
+      "module": "github.com/caddy-dns/netcup",
+      "name": "Netcup",
+      "category": "dns",
+      "subcat": "dns01",
+      "registers": "dns.provider netcup",
+      "standard": true,
+      "env": [
+        { "name": "NETCUP_CUSTOMER_NUMBER", "label": "Kundennummer", "required": false, "secret": false },
+        { "name": "NETCUP_API_KEY", "label": "API Key", "required": true, "secret": true },
+        { "name": "NETCUP_API_PASSWORD", "label": "API Passwort", "required": true, "secret": true }
+      ]
+    },
+    {
+      "id": "inwx",
+      "module": "github.com/caddy-dns/inwx",
+      "name": "INWX",
+      "category": "dns",
+      "subcat": "dns01",
+      "registers": "dns.provider inwx",
+      "standard": true,
+      "env": [
+        { "name": "INWX_USERNAME", "label": "Benutzername", "required": true, "secret": false },
+        { "name": "INWX_PASSWORD", "label": "Passwort", "required": true, "secret": true }
+      ]
+    },
+    {
+      "id": "desec",
+      "module": "github.com/caddy-dns/desec",
+      "name": "deSEC",
+      "category": "dns",
+      "subcat": "dns01",
+      "registers": "dns.provider desec",
+      "standard": true,
+      "env": [
+        { "name": "DESEC_STACK_TOKEN", "label": "API Token", "required": true, "secret": true }
+      ]
+    },
+    {
+      "id": "route53",
+      "module": "github.com/caddy-dns/route53",
+      "name": "AWS Route 53",
+      "category": "dns",
+      "subcat": "dns01",
+      "registers": "dns.provider route53",
+      "standard": true,
+      "env": [
+        { "name": "AWS_ACCESS_KEY_ID", "label": "Access Key ID", "required": true, "secret": true },
+        { "name": "AWS_SECRET_ACCESS_KEY", "label": "Secret Key", "required": true, "secret": true },
+        { "name": "AWS_REGION", "label": "Region", "help": "z. B. eu-central-1", "required": true, "secret": false }
+      ]
+    },
+    {
+      "id": "digitalocean",
+      "module": "github.com/caddy-dns/digitalocean",
+      "name": "DigitalOcean",
+      "category": "dns",
+      "subcat": "dns01",
+      "registers": "dns.provider digitalocean",
+      "standard": true,
+      "env": [
+        { "name": "DO_AUTH_TOKEN", "label": "API Token", "required": true, "secret": true }
+      ]
+    },
+    {
+      "id": "docker-proxy",
+      "module": "github.com/lucaslorentz/caddy-docker-proxy/v2",
+      "name": "Docker Proxy (Labels)",
+      "category": "infra",
+      "subcat": "proxy",
+      "registers": "docker proxy config source",
+      "standard": true,
+      "note": "Benötigt Leserechte auf /var/run/docker.sock; ersetzt die Caddyfile-Quelle durch Label-Scans.",
+      "env": []
+    },
+    {
+      "id": "caddy-security",
+      "module": "github.com/greenpau/caddy-security",
+      "name": "Caddy Security (SSO/OIDC/JWT)",
+      "category": "auth",
+      "subcat": "authz",
+      "registers": "http.authenticationproviders / authorization",
+      "standard": true,
+      "note": "Großes Modulpaket; Config-Blöcke sind nicht trivial, Vorlagen in der UI nötig.",
+      "env": []
+    },
+    {
+      "id": "caddy-l4",
+      "module": "github.com/mholt/caddy-l4",
+      "name": "Layer 4 Proxy",
+      "category": "infra",
+      "subcat": "proxy",
+      "registers": "apps.l4_proxy / layer4",
+      "standard": true,
+      "env": []
+    },
+    {
+      "id": "storage-redis",
+      "module": "github.com/protozoa-plugins/storage-redis",
+      "name": "ACME Storage: Redis",
+      "category": "storage",
+      "subcat": "acme",
+      "registers": "caddy.storage redis",
+      "standard": true,
+      "env": [
+        { "name": "REDIS_ADDRESS", "label": "Redis Adresse", "help": "host:port", "required": true, "secret": false },
+        { "name": "REDIS_PASSWORD", "label": "Redis Passwort", "required": false, "secret": true }
+      ]
+    },
+    {
+      "id": "storage-s3",
+      "module": "github.com/protozoa-plugins/storage-s3",
+      "name": "ACME Storage: S3",
+      "category": "storage",
+      "subcat": "acme",
+      "registers": "caddy.storage s3",
+      "standard": true,
+      "env": [
+        { "name": "AWS_ACCESS_KEY_ID", "label": "Access Key ID", "required": true, "secret": true },
+        { "name": "AWS_SECRET_ACCESS_KEY", "label": "Secret Key", "required": true, "secret": true },
+        { "name": "AWS_REGION", "label": "Region", "required": true, "secret": false },
+        { "name": "AWS_BUCKET", "label": "Bucket", "required": true, "secret": false }
+      ]
+    },
+    {
+      "id": "ovh",
+      "module": "github.com/caddy-dns/ovh",
+      "name": "OVH",
+      "category": "dns",
+      "subcat": "dns01",
+      "registers": "dns.provider ovh",
+      "standard": false,
+      "env": [
+        { "name": "OVH_ENDPOINT", "label": "Endpoint", "help": "ovh-eu oder ovh-us", "required": true, "secret": false },
+        { "name": "OVH_APPLICATION_KEY", "label": "Application Key", "required": true, "secret": true },
+        { "name": "OVH_APPLICATION_SECRET", "label": "Application Secret", "required": true, "secret": true },
+        { "name": "OVH_CONSUMER_KEY", "label": "Consumer Key", "required": true, "secret": true }
+      ]
+    },
+    {
+      "id": "powerdns",
+      "module": "github.com/caddy-dns/powerdns",
+      "name": "PowerDNS",
+      "category": "dns",
+      "subcat": "dns01",
+      "registers": "dns.provider powerdns",
+      "standard": false,
+      "env": [
+        { "name": "PDNS_API_URL", "label": "API URL", "required": true, "secret": false },
+        { "name": "PDNS_API_KEY", "label": "API Key", "required": true, "secret": true }
+      ]
+    },
+    {
+      "id": "bunny",
+      "module": "github.com/caddy-dns/bunny",
+      "name": "Bunny.net",
+      "category": "dns",
+      "subcat": "dns01",
+      "registers": "dns.provider bunny",
+      "standard": false,
+      "env": [
+        { "name": "BUNNY_API_KEY", "label": "API Key", "required": true, "secret": true }
+      ]
+    },
+    {
+      "id": "porkbun",
+      "module": "github.com/caddy-dns/porkbun",
+      "name": "Porkbun",
+      "category": "dns",
+      "subcat": "dns01",
+      "registers": "dns.provider porkbun",
+      "standard": false,
+      "env": [
+        { "name": "PORKBUN_API_KEY", "label": "API Key", "required": true, "secret": true },
+        { "name": "PORKBUN_SECRET_API_KEY", "label": "Secret API Key", "required": true, "secret": true }
+      ]
+    },
+    {
+      "id": "googledomains",
+      "module": "github.com/caddy-dns/google-domains",
+      "name": "Google Domains",
+      "category": "dns",
+      "subcat": "dns01",
+      "registers": "dns.provider googledomains",
+      "standard": false,
+      "deprecated": true,
+      "note": "Repo ist archiviert und v0.0.2 ist nicht semver-kompatibel; für DNS-01 bei Google stattdessen googleclouddns verwenden.",
+      "env": []
+    },
+    {
+      "id": "geoblock",
+      "module": "github.com/caddy-patch/geoblock",
+      "name": "Geo Block",
+      "category": "auth",
+      "subcat": "geo",
+      "registers": "geoblock directive",
+      "standard": false,
+      "env": []
+    }
+  ]
+}

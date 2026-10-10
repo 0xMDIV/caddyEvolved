@@ -1,0 +1,34 @@
+# Build-Artefakte (nur an der Wurzel, sonst verschluckt das cmd/caddyforge/)
+/caddyforge
+/caddyforge.exe
+/bin/
+/dist/
+/out/
+
+# Frontend
+ui/node_modules/
+ui/dist/
+*.local
+.vite/
+
+# Go
+*.test
+*.out
+coverage.*
+vendor/
+
+# Eigene Test-Präfixe und staging-Bäume
+/.tmp/
+/tmp/
+/prefix/
+*.prefix/
+
+# Lokale Werkzeug-Konfiguration (Rechte-Profile, nicht Teil des Projekts)
+.qwen/
+
+# IDE / OS
+.idea/
+.vscode/
+*.swp
+Thumbs.db
+.DS_Store

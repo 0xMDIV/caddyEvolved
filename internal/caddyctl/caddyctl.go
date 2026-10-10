@@ -1,0 +1,225 @@
+// Package caddyctl talks to the caddy binary on disk.
+package caddyctl
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"strconv"
+	"strings"
+
+	"caddyforge/internal/cmdx"
+)
+
+// Client runs subcommands of one caddy binary.
+type Client struct {
+	bin    string
+	runner cmdx.Runner
+	// Env feeds the credential file values a module may need even offline.
+	Env []string
+}
+
+// New uses the binary at bin.
+func New(bin string, runner cmdx.Runner) *Client {
+	if runner == nil {
+		runner = cmdx.ExecRunner{}
+	}
+	return &Client{bin: bin, runner: runner}
+}
+
+// Find locates caddy: explicit path, PATH, then the usual install dirs.
+func Find(path string) (string, error) {
+	candidates := []string{}
+	if path != "" {
+		candidates = append(candidates, path)
+	}
+	if p, err := exec.LookPath("caddy"); err == nil {
+		candidates = append(candidates, p)
+	}
+	candidates = append(candidates, "/usr/local/bin/caddy", "/usr/bin/caddy", "/opt/caddyforge/bin/caddy")
+	for _, c := range candidates {
+		if st, err := os.Stat(c); err == nil && !st.IsDir() {
+			return c, nil
+		}
+		if c == path {
+			break
+		}
+	}
+	return "", fmt.Errorf("caddy binary not found (looked in %s)", strings.Join(candidates[:min(3, len(candidates))], ", "))
+}
+
+func min(a, b int) int {
+	if b < a {
+		return b
+	}
+	return a
+}
+
+// Exists reports whether the configured binary is present and executable.
+func (c *Client) Exists() bool {
+	st, err := os.Stat(c.bin)
+	return err == nil && !st.IsDir() && st.Mode().Perm()&0o111 != 0
+}
+
+// Version returns the short version string, e.g. "2.11.7".
+func (c *Client) Version(ctx context.Context) (string, error) {
+	out, err := c.run(ctx, "--version")
+	if err != nil {
+		return "", err
+	}
+	// "Caddy version v2.11.7 ..." -> "2.11.7"
+	line := strings.TrimSpace(firstLine(out))
+	_, rest, _ := strings.Cut(line, " ")
+	rest = strings.TrimSpace(rest)
+	return strings.TrimPrefix(rest, "v"), nil
+}
+
+// ModuleNames lists compiled-in module identifiers ("standard" or "nonstandard"
+// scopes) with optional versions.
+func (c *Client) ModuleNames(ctx context.Context, standard bool) ([]string, error) {
+	args := []string{"list-modules"}
+	if !standard {
+		args = append(args, "--nonstandard")
+	}
+	out, err := c.run(ctx, args...)
+	if err != nil {
+		return nil, err
+	}
+	var names []string
+	for _, line := range strings.Split(out, "\n") {
+		if s := strings.TrimSpace(line); s != "" {
+			names = append(names, s)
+		}
+	}
+	return names, nil
+}
+
+// HasModule reports whether a provider name is compiled in. DNS providers are
+// registered as "dns.providers.<name>", so a suffix match is the contract.
+func (c *Client) HasModule(ctx context.Context, name string) (bool, error) {
+	if _, err := os.Stat(c.bin); err != nil {
+		return false, fmt.Errorf("caddy binary at %s: %w", c.bin, err)
+	}
+	out, err := c.run(ctx, "list-modules", "--versions")
+	if err != nil {
+		return false, err
+	}
+	for _, line := range strings.Split(out, "\n") {
+		field := strings.Fields(line)
+		if len(field) == 0 {
+			continue
+		}
+		if field[0] == name || strings.HasSuffix(field[0], "."+name) {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+// Validate runs "caddy validate" over configPath and returns the process
+// output. The adapter names the config syntax, not the file extension.
+func (c *Client) Validate(ctx context.Context, configPath, adapter string) (string, error) {
+	if adapter == "" {
+		adapter = "caddyfile"
+	}
+	out, err := c.run(ctx, "validate", "--config", configPath, "--adapter", adapter)
+	if err != nil {
+		return out, fmt.Errorf("validate: %w", err)
+	}
+	return out, nil
+}
+
+// Fmt formats Caddyfile content through "caddy fmt --stdin".
+func (c *Client) Fmt(ctx context.Context, content []byte) ([]byte, error) {
+	return c.runner.Output(ctx, cmdx.Cmd{
+		Name:  c.bin,
+		Args:  []string{"fmt", "--stdin"},
+		Stdin: content,
+		Env:   c.Env,
+	})
+}
+
+// Reload asks a running caddy to re-read its config with zero downtime.
+func (c *Client) Reload(ctx context.Context, configPath string) error {
+	_, err := c.run(ctx, "reload", "--config", configPath, "--force")
+	return err
+}
+
+// StartArgs are the argv for the systemd ExecStart line.
+func StartArgs(configPath string) []string {
+	return []string{"run", "--config", configPath}
+}
+
+// AdminEndpoint is the parsed admin listen address from a global options block.
+func AdminEndpoint(globalOpts string) string {
+	for _, line := range strings.Split(globalOpts, "\n") {
+		if v, ok := strings.CutPrefix(strings.TrimSpace(line), "admin "); ok {
+			return strings.Trim(strings.TrimSpace(v), `"`)
+		}
+	}
+	return ""
+}
+
+// AdminURL normalises an admin listen address into a base URL.
+func AdminURL(listen string) string {
+	if listen == "" {
+		listen = "localhost:2019"
+	}
+	host, port, ok := strings.Cut(listen, ":")
+	if !ok {
+		host, port = listen, "2019"
+	}
+	switch host {
+	case "", "0.0.0.0", "::", "[::]":
+		host = "127.0.0.1"
+	}
+	if p, err := strconv.Atoi(port); err == nil && p == 0 {
+		return "http://" + host // admin disabled
+	}
+	return "http://" + host + ":" + port
+}
+
+// PIDFile reads a pid file written by our fallback supervisor.
+func PIDFile(path string) (int, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return 0, err
+	}
+	n, err := strconv.Atoi(strings.TrimSpace(string(data)))
+	if err != nil {
+		return 0, fmt.Errorf("%s: not a pid: %w", path, err)
+	}
+	return n, nil
+}
+
+// WritePIDFile stores a pid.
+func WritePIDFile(path string, pid int) error {
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return err
+	}
+	return os.WriteFile(path, []byte(strconv.Itoa(pid)+"\n"), 0o644)
+}
+
+func (c *Client) run(ctx context.Context, args ...string) (string, error) {
+	out, err := c.runner.Output(ctx, cmdx.Cmd{Name: c.bin, Args: args, Env: c.Env})
+	return string(out), err
+}
+
+func firstLine(s string) string {
+	if i := strings.IndexByte(s, '\n'); i >= 0 {
+		return s[:i]
+	}
+	return s
+}
+
+// JSON is a small helper for endpoints that return one document.
+func JSON(v any) string {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return "{}"
+	}
+	return string(b)
+}

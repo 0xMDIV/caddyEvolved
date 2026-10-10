@@ -1,0 +1,32 @@
+# CRLF in einer systemd-Unit ist ein Parse-Fehler, CRLF in einem Shell-Script ein
+# "bad interpreter". Also alles textuelle im Repo auf LF, egal wer wo checked out.
+* text=auto eol=lf
+
+*.go       text eol=lf
+*.mod      text eol=lf
+*.sum      text eol=lf
+*.json     text eol=lf
+*.tmpl     text eol=lf
+*.sh       text eol=lf
+*.service  text eol=lf
+*.yml      text eol=lf
+*.yaml     text eol=lf
+*.md       text eol=lf
+*.html     text eol=lf
+*.css      text eol=lf
+*.js       text eol=lf
+*.ts       text eol=lf
+*.tsx      text eol=lf
+*.jsx      text eol=lf
+
+# Binär bleibt binär
+*.png binary
+*.jpg binary
+*.ico binary
+*.gz binary
+*.tar binary
+*.zip binary
+*.wasm binary
+
+# Keine Zeilenenden in Vineyard-/Lock-Dateien
+Makefile text eol=lf

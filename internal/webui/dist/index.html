@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>caddyforge – Wartungsfenster</title>
+    <style>
+      :root { color-scheme: dark; }
+      body {
+        margin: 0; min-height: 100vh; display: grid; place-items: center;
+        font: 15px/1.55 ui-sans-serif, system-ui, "Segoe UI", sans-serif;
+        background: #0b0f14; color: #e6edf3;
+      }
+      main { max-width: 44rem; padding: 2rem; }
+      h1 { font-size: 1.5rem; margin: 0 0 .25rem; letter-spacing: -.01em; }
+      .sub { color: #8b98a5; margin: 0 0 1.25rem; }
+      .box {
+        background: #11181f; border: 1px solid #1f2a37; border-radius: 12px;
+        padding: 1rem 1.25rem; font-family: ui-monospace, "Cascadia Mono", monospace;
+        font-size: 13px; white-space: pre-wrap; word-break: break-word;
+      }
+      code { color: #7ee787; }
+      .hint { color: #8b98a5; font-size: 13px; margin-top: 1rem; }
+      a { color: #58a6ff; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>caddyforge</h1>
+      <p class="sub">Die WebUI ist in diesem Binary noch nicht eingebettet – Meilenstein M2.</p>
+      <div class="box">API funktioniert bereits:
+  <a href="/api/version">/api/version</a>  (ohne Login)
+  <a href="/api/status">/api/status</a>    (Login nötig)</div>
+      <p class="hint">
+        Gebaute UI landet in <code>internal/webui/dist/</code> und wird beim
+        Build von <code>go build</code> über <code>embed</code> aufgenommen.
+      </p>
+    </main>
+  </body>
+</html>
