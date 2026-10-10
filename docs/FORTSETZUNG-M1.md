@@ -4,6 +4,24 @@ Stand nach dieser Runde (vorher: `df19599`). Der Build ist **grün**, `go vet` s
 `gofmt -l .` leer, und die Installation ist in WSL **ohne root end-to-end durchgelaufen**.
 M1 fehlt nur noch die Verifikation auf echtem systemd (Proxmox-LXC).
 
+## 0. Kurzfassung
+
+**Gebaut und verifiziert (M1):**
+- Statische Go-Binary `caddyforge`, alle 14 CLI-Befehle implementiert; `proxy` (M5) und
+  `uninstall` (M7) sind bewusste Absagen statt halber Pfade.
+- Installation end-to-end in WSL als uid 1000 gegen einen `--prefix`-Baum: alle zwölf
+  Schritte `ok`/`skipped`, caddy 2.11.7 geladen und Digest geprüft, Caddyfile validiert,
+  UI-Zugang gesetzt, per Supervisor gestartet, Admin-API antwortet.
+- `status`, `validate`, `version`, `logs`, `stop`, `serve`, `token`, `do` gegen genau
+  diese Installation durchgetestet.
+- Build grün, `go vet` sauber, `gofmt -l .` leer, Tests in 7 Paketen (kein Netz, kein
+  root). Statisches Binary: `dist/caddyforge` (10 MB).
+- Sieben Fehler, die nur die echte Ausführung zeigen konnte, sind gefixt — siehe
+  Tabelle 3.
+
+**Offen (Exit-Kriterien für M1):** siehe Abschnitt 6 als Checkliste. Einzige echte
+Lücke ist die systemd-/LXC-Verifikation; der Prefix-Test in WSL kann sie nicht belegen.
+
 ## 1. Was jetzt funktioniert (verifiziert, nicht nur gebaut)
 
 Verifikation lief in WSL Ubuntu-24.04 als uid 1000 gegen einen Prefix-Baum
@@ -131,13 +149,20 @@ Worauf der LXC-Lauf besonders achtet (alles Punkte, die WSL nicht abdeckt):
 
 ## 6. Was vor M2 noch offen bleibt
 
-- `install`-Report nennt die WebUI-URL mit `<host-ip>` statt einer anklickbaren Adresse
-  (`displayHost` in `install/runtime.go`); schön wäre die tatsächliche LAN-Adresse.
-- LXC-Verifikation (Punkt 5) – M1 gilt erst danach als abgeschlossen.
-- Lizenz des Repos (öffentlich, bisher ohne `LICENSE`).
-- `caddy-security` in der Standard-Variante: Fläche groß, Binary größer – eher opt-in.
-- `Answers.Credentials` landet in `env` (0600) und in `answers.json`; das Beispiel
-  enthält Absichtswerte, aber die Doku sollte auf Dateirechte hinweisen.
+Exit-Kriterien, Reihenfolge egal bis auf den ersten Punkt:
+
+- [ ] **LXC-Verifikation (Abschnitt 5)** — blockiert den M1-Abschluss als einziger Punkt.
+      Belegen muss sie: `useradd --system caddy` + `chown`, `CAP_NET_BIND_SERVICE` auf
+      80/443, `Type=notify` für caddy, `ProtectSystem=full` mit `ReadWritePaths`,
+      UI-Login vom LAN auf `0.0.0.0`.
+- [ ] **`LICENSE` fehlt** — das Repo ist öffentlich. Ist eine Entscheidung, kein Bug.
+- [ ] Install-Report nennt die WebUI-URL mit `<host-ip>` statt einer anklickbaren Adresse
+      (`displayHost` in `install/runtime.go`); schön wäre die tatsächliche LAN-Adresse.
+- [ ] `caddy-security` in der Standard-Variante: Fläche groß, Binary größer – eher opt-in.
+- [ ] Doku soll auf die Dateirechte für `Answers.Credentials` hinweisen: es landet in
+      `env` (0600) **und** in `answers.json`. Die Beispiele enthalten Absichtswerte.
+
+Erledigt: Commit `aba04ba` ist gepusht (`origin/main`).
 
 ## 7. Fallstricke (aktualisiert)
 
