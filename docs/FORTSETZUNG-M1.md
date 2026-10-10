@@ -1,3 +1,45 @@
+# Stand: läuft auf dem LXC (Builder + WebUI + Sites)
+
+**2026-10-10, nach M1.** Ziel-LXC `192.168.10.27` (Ubuntu 26.04, 2 vCPU, 4 GB, systemd).
+Zugang per SSH-Key `~/.ssh/caddyforge_lxc` **in WSL** (nicht im Windows-Profil).
+
+## Was jetzt auf dem LXC verifiziert ist
+
+- `caddyforge install --unattended` auf echtem systemd: alle Schritte `ok`, caddy als User
+  `caddy` mit `CAP_NET_BIND_SERVICE` auf 80/443, `Type=notify` startet sauber.
+- WebUI auf `https://192.168.10.27:8484` (self-signed), Login aus dem LAN.
+- **Sites:** anlegen → validate → reload, HTTPS mit `tls internal` erreichbar; ungültige
+  Raw-Site wird abgelehnt und vollständig zurückgerollt; Injection über Domain/Upstream
+  wird vor caddy abgefangen.
+- **Lokaler Build:** erster Build (inkl. Go-Download von go.dev mit SHA-256, xcaddy-Install)
+  caddy v2.11.7 + `caddy-dns/cloudflare` in **108 s**, 48 MB; `list-modules` bestätigt das
+  Modul, aktuelles Caddyfile mit neuer Binary validiert.
+- **Aktivieren** (Backup → atomarer Tausch → Restart → Admin-API-Check) und **Rollback**
+  in beide Richtungen; die Site antwortete bei jedem Schritt mit 200.
+
+## Auf dem Server gefundene und behobene Fehler
+
+| Fehler | Folge | Fix |
+|---|---|---|
+| `caddy validate` provisioniert die lokale CA und schreibt nach `$HOME/.local` | im gehärteten Daemon (`ProtectSystem`, read-only `/root`) scheitert jede Validierung mit `tls internal`; in caddys Datenverzeichnis hätte es root-eigene Dateien hinterlassen | `caddyctl.ScratchEnv`: validate läuft mit eigenem Wegwerf-`XDG_DATA_HOME` |
+| `caddyforge.service` hat `UMask=0077` | vom Daemon geschriebene Snippets/Caddyfile wären `0600`, caddy (User `caddy`) könnte sie nicht lesen | explizites `chmod 0644` / Verzeichnisse `0755` |
+| `ProtectSystem=full` ohne `/usr/local/bin` in `ReadWritePaths` | Binary-Tausch nach Build unmöglich | `ReadWritePaths` erweitert |
+| `install --dry-run` legte den System-User `caddy` an | Trockenlauf verändert das System | Dry-Run-Guard in `stepSystemUser` |
+| `list-modules --nonstandard` (gibt es nicht) | Plugin-Erkennung immer leer | `--skip-standard`, Parser ignoriert die eingerückte Zusammenfassung |
+
+## Offen
+
+- Bestehende Installationen bekommen die neue `caddyforge.service` (ReadWritePaths) nur durch
+  erneutes `caddyforge install --force` bzw. manuelles Anpassen der Unit.
+- Rollback bei *ungesundem* Start ist implementiert, aber nur der Erfolgspfad ist auf dem LXC
+  getestet.
+- Builds laufen als root im Daemon (Go-Toolchain unter `/var/lib/caddyforge`). Ein eigener
+  Build-User wäre sauberer.
+- Caddyfile-Revisionsverlauf (M4), Zertifikatsübersicht (Admin-API-Endpunkt prüfen), Auth-Hardening (M7).
+- `internal/forge` (externer Build-Service) ist durch `internal/builder` ersetzt und kann weg.
+
+---
+
 # M1-Status: Build grün, CLI fertig, lokal verifiziert
 
 Stand nach dieser Runde (vorher: `df19599`). Der Build ist **grün**, `go vet` sauber,

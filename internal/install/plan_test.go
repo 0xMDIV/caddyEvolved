@@ -4,6 +4,8 @@ import (
 	"context"
 	"strings"
 	"testing"
+
+	"caddyforge/internal/sites"
 )
 
 func baseAnswers() Answers {
@@ -126,6 +128,11 @@ func TestRenderCaddyfileSiteBlockUsesDNS01WhenChosen(t *testing.T) {
 	a.SiteDomain = "proxy.example.org"
 	a.SiteTarget = "http://127.0.0.1:3000"
 	got := render(t, a)
+	if !strings.Contains(got, "import ") || !strings.Contains(got, "/etc/caddy/sites/*.caddy") {
+		t.Errorf("Caddyfile importiert die Sites nicht:\n%s", got)
+	}
+	// The site itself is a managed snippet now.
+	got = renderSite(t, a)
 
 	// Most caddy-dns modules read no env on their own: the value has to be
 	// interpolated explicitly or the config validates and issuance fails later.
@@ -148,6 +155,21 @@ func TestRenderCaddyfileWithoutSiteKeepsPlaceholder(t *testing.T) {
 	if strings.Contains(got, "email ") {
 		t.Errorf("unmanaged setzte trotzdem ein ACME-Konto:\n%s", got)
 	}
+}
+
+// renderSite returns the snippet of the first site from the answers.
+func renderSite(t *testing.T, a Answers) string {
+	t.Helper()
+	a.Defaults()
+	plan, err := NewPlan(context.Background(), Options{Answers: a, Prefix: t.TempDir(), DryRun: true})
+	if err != nil {
+		t.Fatalf("NewPlan: %v", err)
+	}
+	site, ok := plan.initialSite()
+	if !ok {
+		t.Fatalf("keine strukturierte erste Site für %+v", a)
+	}
+	return sites.Render(site)
 }
 
 // render builds a plan in a throwaway prefix and returns its Caddyfile.

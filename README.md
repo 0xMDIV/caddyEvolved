@@ -4,11 +4,10 @@ Advanced Caddy installer + modern web admin UI. Ein einzelnes Go-Binary, das auf
 Proxmox-LXC Caddy installiert, die bekannten Caddy-Module mit einrichtet und alles über
 eine WebGUI verwaltbar macht.
 
-**Status: Arbeitsprototyp, Meilenstein M1.** Der Code kompiliert noch nicht
-(`internal/cli` ist unvollständig). Der konkrete Wiedereinstieg — Fehlerliste,
-Reihenfolge, verifizierte Fakten, offene Entscheidungen — steht in
-[`docs/FORTSETZUNG-M1.md`](docs/FORTSETZUNG-M1.md). Siehe auch
-[Struktur](#struktur) und [Roadmap](#roadmap).
+**Status: läuft auf dem Ziel-LXC.** Installation, WebUI, Sites-Verwaltung und der
+lokale Custom-Build sind auf echtem systemd (Ubuntu 26.04, Proxmox-LXC) verifiziert.
+API-Vertrag: [`docs/API.md`](docs/API.md), Stand und Fallstricke:
+[`docs/FORTSETZUNG-M1.md`](docs/FORTSETZUNG-M1.md).
 
 ## Warum
 
@@ -24,16 +23,33 @@ Caddy ist ein hervorragender Reverse Proxy mit automatischem HTTPS — aber:
 
 caddyforge löst das mit drei Schichten statt mit einem Kompromiss.
 
-## Plugin-Modell
+## Plugin-Modell: Caddy wird auf dem Server gebaut
 
-| Schicht | Was passiert | Zeit |
-|---|---|---|
-| **Varianten** `caddy` / `standard` / `custom` | Vorgebaute Binaries; der Installer wählt die passende | Sekunden |
-| **Profile** (Häkchen in der UI) | Steuert, welche Module **konfiguriert** werden und welche Credentials in `/etc/caddyforge/env` landen | sofort |
-| **Custom-Build** | Gewünschtes Modul outside Bundle → Build-Job (xcaddy), mit Live-Log und Digest-Prüfung | Minuten, asynchron |
+Caddy-Module werden einkompiliert. caddyforge baut die Binary deshalb **auf dem
+Server selbst**: In der WebUI unter *Plugins & Build* Module ankreuzen (oder einen
+freien Go-Modulpfad angeben), Caddy-Version wählen, Build starten.
 
-Ehrliche Randbedingung: Ein Abwählen häkelt nur die Konfiguration ab — es macht die Binary
-nicht kleiner. Und ein Modul outside der Variante ist erst nach einem Build benutzbar.
+1. Beim ersten Build lädt caddyforge Go von go.dev (**SHA-256 gegen den offiziellen
+   Index geprüft**) und installiert xcaddy – alles unter `/var/lib/caddyforge/`,
+   nichts systemweit.
+2. `xcaddy build` läuft mit Live-Log in der UI (SSE). Modul-Cache bleibt erhalten,
+   Folge-Builds sind deutlich schneller.
+3. Die neue Binary wird geprüft: startet sie, enthält sie jedes gewünschte Modul
+   (`list-modules --packages`), akzeptiert sie das aktuelle Caddyfile?
+4. **Aktivieren** sichert die laufende Binary, tauscht atomar, startet caddy neu und
+   wartet auf die Admin-API. Wird caddy nicht gesund, kommt die alte Binary
+   automatisch zurück. *Rollback* ist jederzeit ein Klick.
+
+## Sites (Reverse Proxy)
+
+Jede Site ist eine Datei `/etc/caddy/sites/<id>.caddy`, das Caddyfile bindet sie mit
+`import /etc/caddy/sites/*.caddy` ein. Änderungen in der UI laufen als Transaktion:
+schreiben → `caddy validate` → reload; lehnt caddy ab, wird der alte Stand
+wiederhergestellt und die Fehlermeldung angezeigt. Modi: Reverse Proxy (mehrere
+Upstreams, Load-Balancing, Health-Check, Upstream-TLS), Weiterleitung, statische
+Dateien, Raw. TLS: automatisch (ACME), intern (lokale CA), DNS-01 über ein
+eingebautes DNS-Plugin, oder nur HTTP. Das Caddyfile selbst bleibt im
+Expertenmodus der UI editierbar.
 
 ## Architektur
 
@@ -71,13 +87,15 @@ LXC-spezifisch berücksichtigt: `CAP_NET_BIND_SERVICE` für Ports < 1024, kein `
 
 ## Bauen
 
-Go 1.27+ (Entwicklung auf diesem Rechner in WSL Ubuntu-24.04):
+Go 1.27+ (Backend, in WSL Ubuntu-24.04), Node 24 (Frontend):
 
 ```bash
-go build ./...                 # Backend
-go vet ./... && go test ./...  # Prüfung
-cd ui && npm install && npm run build   # Frontend nach internal/webui/dist
+cd ui && npm ci && npm run build        # Frontend nach internal/webui/dist (eingecheckt)
+go vet ./... && go test ./...           # Prüfung
+CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags '-s -w' -o dist/caddyforge ./cmd/caddyforge   # statisches Binary für den LXC
 ```
+
+Frontend-Entwicklung: `npm run dev` in `ui/` proxyt `/api` auf `https://127.0.0.1:8484`.
 
 ## Struktur
 
@@ -94,7 +112,10 @@ internal/fetch/          Download, Digest-Prüfung (SHA-256/SHA-512), tar.gz-Ext
 internal/releases/     GitHub-Releases, Asset-Namen, Custom-Build-URL
 internal/plugins/      kuratierter Modul-Katalog + Go-Proxy-Validierung freier Pfade
 internal/secrets/      EnvironmentFile-Verwaltung (Namen-only Reports)
-internal/forge/        Client für den Build-Service (asynchrone Custom-Builds)
+internal/builder/      lokaler xcaddy-Build: Go-Toolchain, Jobs, Live-Log, Aktivierung + Rollback
+internal/sites/        Reverse-Proxy-Sites als Caddyfile-Snippets, transaktional
+internal/forge/        (alt) Client für einen externen Build-Service, ungenutzt
+ui/                    React + Vite + TypeScript, Build landet in internal/webui/dist
 internal/api/          HTTP-Routen, Auth-Middleware, SSE, self-signed TLS
 internal/auth/         PBKDF2-Passwort, Sessions, Lockout
 internal/events/       events.jsonl + Live-Fan-out für die UI
@@ -103,11 +124,11 @@ internal/webui/        embed.FS für das gebaute Frontend
 
 ## Roadmap
 
-- [~] **M1** Gerüst, Install-Engine, systemd — *gebaut, lokal verifiziert; LXC-Verifikation offen*
-- [ ] **M2** WebUI-Shell + Dashboard
-- [ ] **M3** Plugin-Katalog + Credentials
-- [ ] **M4** Caddyfile-Editor + Validate/Reload + Revisionen
-- [ ] **M5** Reverse-Proxy-Wizard
+- [x] **M1** Gerüst, Install-Engine, systemd — auf dem LXC verifiziert
+- [x] **M2** WebUI-Shell + Dashboard
+- [x] **M3** Plugin-Katalog + Credentials + **lokaler Custom-Build mit Rollback**
+- [~] **M4** Caddyfile-Editor + Validate/Reload — *Revisionsverlauf offen*
+- [x] **M5** Reverse-Proxy-Sites
 - [ ] **M6** Zertifikate (ACME, DNS-Provider, Renew)
 - [ ] **M7** Auth/Hardening
 - [ ] **M8** CI für Bundle-Varianten + Releases, LXC-Testharness

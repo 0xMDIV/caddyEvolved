@@ -1,0 +1,186 @@
+import { useEffect } from "react";
+import { api, CfEvent, fmtTime, StatusResponse } from "../api";
+import { navigate } from "../router";
+import { Badge, ErrorBox, PageHead, Spinner, useAction, useLoad } from "../components/ui";
+
+export default function Dashboard() {
+  const status = useLoad(() => api.get<StatusResponse>("/api/status"));
+  const events = useLoad(() => api.get<{ events: CfEvent[] | null }>("/api/events?limit=200"));
+  const { busy, run } = useAction();
+
+  useEffect(() => {
+    const t = setInterval(() => {
+      status.reload();
+      events.reload();
+    }, 15000);
+    return () => clearInterval(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  async function service(action: string) {
+    await run(action, () => api.post(`/api/service/${action}?unit=caddy.service`), `caddy: ${action} ausgeführt`);
+    status.reload();
+    events.reload();
+  }
+
+  const s = status.data;
+  const recent = (events.data?.events ?? []).slice(-12).reverse();
+  const modules = (s?.enabledPlugins ?? []).filter((p) => p.detected);
+
+  return (
+    <>
+      <PageHead title="Dashboard" sub={s?.host.hostname ? `Host ${s.host.hostname}` : undefined}>
+        <button className="btn" onClick={() => (status.reload(), events.reload())} disabled={status.loading}>
+          {status.loading ? <Spinner /> : "↻"} Aktualisieren
+        </button>
+      </PageHead>
+      <ErrorBox error={status.error} />
+      {s && (
+        <div className="stack">
+          {s.warnings && s.warnings.length > 0 && (
+            <div className="alert warn">
+              {s.warnings.map((w) => (
+                <div key={w}>{w}</div>
+              ))}
+            </div>
+          )}
+          <div className="grid grid-3">
+            <div className="card stat">
+              <div className="label">Caddy-Dienst</div>
+              <div className="value">
+                {s.serviceActive ? <Badge kind="ok">● läuft</Badge> : <Badge kind="err">● gestoppt</Badge>}
+              </div>
+              <div className="small muted" style={{ marginTop: 6 }}>
+                {s.serviceState || "–"}
+              </div>
+            </div>
+            <div className="card stat">
+              <div className="label">Caddy-Version</div>
+              <div className="value">{s.caddyVersion ? `v${s.caddyVersion.replace(/^v/, "")}` : "nicht installiert"}</div>
+              <div className="small muted" style={{ marginTop: 6 }}>
+                {s.variant ? `Variante ${s.variant}` : ""}
+              </div>
+            </div>
+            <div className="card stat">
+              <div className="label">Admin-API</div>
+              <div className="value">
+                {s.adminReachable ? <Badge kind="ok">erreichbar</Badge> : <Badge kind="warn">nicht erreichbar</Badge>}
+              </div>
+              <div className="small muted mono" style={{ marginTop: 6 }}>
+                {s.adminUrl}
+              </div>
+            </div>
+            <div className="card stat">
+              <div className="label">Host</div>
+              <div className="value" style={{ fontSize: 16 }}>
+                {[s.host.distro, s.host.distroVersion].filter(Boolean).join(" ") || "–"}
+              </div>
+              <div className="small muted" style={{ marginTop: 6 }}>
+                {s.host.init}
+                {s.host.virt ? ` · ${s.host.virt}` : ""}
+                {s.host.unprivilegedLxc ? " · unprivilegiert" : ""}
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-2">
+            <div className="card">
+              <h2>Steuerung</h2>
+              <div className="row">
+                {(["start", "stop", "restart", "reload"] as const).map((a) => (
+                  <button key={a} className={`btn ${a === "stop" ? "danger" : ""}`} disabled={!!busy} onClick={() => service(a)}>
+                    {busy === a && <Spinner />}
+                    {{ start: "Starten", stop: "Stoppen", restart: "Neu starten", reload: "Neu laden" }[a]}
+                  </button>
+                ))}
+              </div>
+              <p className="small muted" style={{ marginBottom: 0 }}>
+                „Neu laden“ prüft das Caddyfile vorher und übernimmt es ohne Unterbrechung.
+              </p>
+              <h3>Ports</h3>
+              <div className="chips">
+                {(s.ports ?? []).map((p) => (
+                  <Badge key={p.Port} kind={p.Own ? "ok" : p.Free ? undefined : "warn"}>
+                    :{p.Port} {p.Own ? "caddy" : p.Free ? "frei" : p.UsedBy || "belegt"}
+                  </Badge>
+                ))}
+                {(s.ports ?? []).length === 0 && <span className="muted small">keine Angaben</span>}
+              </div>
+            </div>
+
+            <div className="card">
+              <div className="row">
+                <h2 style={{ margin: 0 }}>Eingebaute Plugins</h2>
+                <span className="spacer" />
+                <button className="btn sm" onClick={() => navigate("/build")}>
+                  Plugins verwalten
+                </button>
+              </div>
+              <div className="chips" style={{ marginTop: 12 }}>
+                {modules.map((p) => (
+                  <Badge key={p.id} kind={p.active && !p.complete ? "warn" : "info"}>
+                    {p.name}
+                    {p.active && !p.complete ? " · Zugangsdaten fehlen" : ""}
+                  </Badge>
+                ))}
+                {modules.length === 0 && <span className="muted small">Keine Zusatz-Plugins im Binary (Standard-Caddy).</span>}
+              </div>
+              {s.certificates && s.certificates.length > 0 && (
+                <>
+                  <h3>Zertifikate</h3>
+                  <ul className="list-plain">
+                    {s.certificates.map((c, i) => (
+                      <li key={i} className="row">
+                        <span className="mono small">{c.sans.join(", ")}</span>
+                        <span className="spacer" />
+                        <Badge kind={c.expiresInDays < 7 ? "err" : c.expiresInDays < 21 ? "warn" : "ok"}>noch {c.expiresInDays} Tage</Badge>
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              )}
+            </div>
+          </div>
+
+          <div className="card">
+            <h2>Letzte Ereignisse</h2>
+            <ErrorBox error={events.error} />
+            {recent.length === 0 ? (
+              <div className="empty">Noch keine Ereignisse.</div>
+            ) : (
+              <div className="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Zeit</th>
+                      <th>Art</th>
+                      <th>Ereignis</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {recent.map((e) => (
+                      <tr key={e.id}>
+                        <td className="small muted" style={{ whiteSpace: "nowrap" }}>
+                          {fmtTime(e.ts)}
+                        </td>
+                        <td>
+                          <Badge>{e.kind}</Badge>
+                        </td>
+                        <td>
+                          {e.summary || e.step}
+                          {e.error && <div className="small" style={{ color: "var(--danger)" }}>{e.error}</div>}
+                        </td>
+                        <td>{e.ok ? <Badge kind="ok">ok</Badge> : <Badge kind="err">Fehler</Badge>}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </>
+  );
+}

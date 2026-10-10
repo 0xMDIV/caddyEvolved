@@ -20,6 +20,7 @@ import (
 	"caddyforge/internal/plugins"
 	"caddyforge/internal/releases"
 	"caddyforge/internal/secrets"
+	"caddyforge/internal/sites"
 )
 
 // isMissingUser recognises getent's "key not found" exit code (2).
@@ -43,6 +44,9 @@ func (p *Plan) stepSystemUser(ctx context.Context, s *Step) error {
 		// getent exits non-zero when the key is unknown; other failures
 		// (no nss, odd systems) must not be mistaken for "absent".
 		return fmt.Errorf("getent passwd caddy: %w", err)
+	}
+	if p.opts.DryRun {
+		return skip(s, StatusPlanned, "Benutzer caddy würde angelegt (groupadd/useradd --system)")
 	}
 
 	commands := []cmdx.Cmd{
@@ -255,8 +259,21 @@ func (p *Plan) stepCaddyfile(ctx context.Context, s *Step) error {
 	// Validate what we are about to install, not what is on disk: on a first
 	// install the target does not exist yet, and on a rerun the old file may be
 	// perfectly valid while the new one is broken.
+	// The first site goes into the snippet directory the new file imports, so
+	// the validation below covers it as well.
+	if site, ok := p.initialSite(); ok {
+		if err := sites.WriteInitial(p.paths.SitesFile, p.paths.SitesDir, site); err != nil {
+			return fmt.Errorf("erste Site: %w", err)
+		}
+	} else if err := os.MkdirAll(p.paths.SitesDir, 0o755); err != nil {
+		return err
+	}
+	// 0644: caddy runs as its own user and must read the file.
 	tmp := p.paths.Caddyfile + ".caddyforge-new"
-	if err := os.WriteFile(tmp, []byte(content), 0o640); err != nil {
+	if err := os.WriteFile(tmp, []byte(content), 0o644); err != nil {
+		return err
+	}
+	if err := os.Chmod(tmp, 0o644); err != nil {
 		return err
 	}
 	defer os.Remove(tmp)

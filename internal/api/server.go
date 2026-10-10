@@ -16,11 +16,13 @@ import (
 	"time"
 
 	"caddyforge/internal/auth"
+	"caddyforge/internal/builder"
 	"caddyforge/internal/caddyctl"
 	"caddyforge/internal/cmdx"
 	"caddyforge/internal/config"
 	"caddyforge/internal/events"
 	"caddyforge/internal/forge"
+	"caddyforge/internal/sites"
 	"caddyforge/internal/supervisor"
 	"caddyforge/internal/systemd"
 	"caddyforge/internal/webui"
@@ -36,11 +38,14 @@ type Server struct {
 	Sup      *supervisor.Manager
 	Caddy    *caddyctl.Client
 	Forge    *forge.Client
+	Builder  *builder.Manager
+	Sites    *sites.Manager
 	Bind     string
 	Port     int
 	Insecure bool
 
-	runs *runs
+	runs     *runs
+	versions versionCache
 
 	mux *http.ServeMux
 	srv *http.Server
@@ -68,6 +73,21 @@ func New(s *Server) *Server {
 	}
 	if s.Forge == nil {
 		s.Forge = forge.New()
+	}
+	if s.Sites == nil {
+		s.Sites = sites.New(s.Paths.SitesFile, s.Paths.SitesDir, s.Paths.Caddyfile)
+	}
+	if s.Builder == nil {
+		b, err := builder.New(builder.Config{
+			Dir: s.Paths.StateDir, CaddyBin: s.Paths.CaddyBin,
+			Caddyfile: s.Paths.Caddyfile, EnvFile: s.Paths.EnvFile,
+		})
+		if err != nil {
+			// Builds are unavailable, everything else still works; the
+			// handlers answer 503 instead of the daemon refusing to start.
+			fmt.Fprintf(os.Stderr, "caddyforge: Builder nicht verfügbar: %v\n", err)
+		}
+		s.Builder = b
 	}
 	if s.runs == nil {
 		s.runs = newRuns()
@@ -149,7 +169,41 @@ func (s *Server) routes() *http.ServeMux {
 	m.HandleFunc("GET /api/host", s.auth(s.handleHostStatus))
 	m.HandleFunc("POST /api/cert", s.auth(s.handleCert))
 
+	m.HandleFunc("GET /api/build/toolchain", s.auth(s.needBuilder(s.handleBuildToolchain)))
+	m.HandleFunc("GET /api/build/versions", s.auth(s.handleBuildVersions))
+	m.HandleFunc("GET /api/builds", s.auth(s.needBuilder(s.handleBuildList)))
+	m.HandleFunc("POST /api/builds", s.auth(s.needBuilder(s.handleBuildStart)))
+	m.HandleFunc("POST /api/builds/rollback", s.auth(s.needBuilder(s.handleBuildRollback)))
+	m.HandleFunc("GET /api/builds/{id}", s.auth(s.needBuilder(s.handleBuildGet)))
+	m.HandleFunc("GET /api/builds/{id}/stream", s.auth(s.needBuilder(s.handleBuildStream)))
+	m.HandleFunc("POST /api/builds/{id}/cancel", s.auth(s.needBuilder(s.handleBuildCancel)))
+	m.HandleFunc("POST /api/builds/{id}/activate", s.auth(s.needBuilder(s.handleBuildActivate)))
+	m.HandleFunc("DELETE /api/builds/{id}", s.auth(s.needBuilder(s.handleBuildDelete)))
+
+	m.HandleFunc("GET /api/sites", s.auth(s.handleSitesList))
+	m.HandleFunc("POST /api/sites/preview", s.auth(s.handleSitePreview))
+	m.HandleFunc("POST /api/sites", s.auth(s.handleSiteCreate))
+	m.HandleFunc("PUT /api/sites/{id}", s.auth(s.handleSiteUpdate))
+	m.HandleFunc("DELETE /api/sites/{id}", s.auth(s.handleSiteDelete))
+	m.HandleFunc("POST /api/sites/{id}/enabled", s.auth(s.handleSiteEnabled))
+
+	m.HandleFunc("GET /api/caddyfile", s.auth(s.handleCaddyfileGet))
+	m.HandleFunc("PUT /api/caddyfile", s.auth(s.handleCaddyfileSave))
+	m.HandleFunc("POST /api/caddyfile/validate", s.auth(s.handleCaddyfileValidate))
+	m.HandleFunc("POST /api/caddyfile/fmt", s.auth(s.handleCaddyfileFmt))
+
 	// Everything else is the SPA.
 	m.Handle("/", webui.Handler())
 	return m
+}
+
+// needBuilder answers 503 when the build directory could not be prepared.
+func (s *Server) needBuilder(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if s.Builder == nil {
+			writeErr(w, http.StatusServiceUnavailable, "no_builder", "Builder nicht verfügbar – Rechte auf "+s.Paths.StateDir+" prüfen")
+			return
+		}
+		next(w, r)
+	}
 }

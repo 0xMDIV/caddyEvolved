@@ -66,6 +66,30 @@ func Latest(ctx context.Context, repo string) (Release, error) {
 	return build(raw.TagName, raw.Assets), nil
 }
 
+// Recent lists the newest stable release tags, newest first.
+func Recent(ctx context.Context, repo string, n int) ([]string, error) {
+	var raw []struct {
+		TagName    string `json:"tag_name"`
+		Draft      bool   `json:"draft"`
+		Prerelease bool   `json:"prerelease"`
+	}
+	u := fmt.Sprintf("%s/repos/%s/releases?per_page=%d", GitHubAPI, repo, n*2)
+	if err := getJSON(ctx, u, &raw); err != nil {
+		return nil, fmt.Errorf("releases of %s: %w", repo, err)
+	}
+	var out []string
+	for _, r := range raw {
+		if r.Draft || r.Prerelease {
+			continue
+		}
+		out = append(out, r.TagName)
+		if len(out) == n {
+			break
+		}
+	}
+	return out, nil
+}
+
 // ByTag resolves a specific version tag, e.g. "v2.11.7".
 func ByTag(ctx context.Context, repo, tag string) (Release, error) {
 	var raw struct {

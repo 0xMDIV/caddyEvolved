@@ -31,6 +31,8 @@ type Paths struct {
 	LogFile    string
 	EventsFile string
 	EnvFile    string
+	SitesFile  string // /etc/caddyforge/sites.json
+	SitesDir   string // /etc/caddy/sites
 }
 
 // NewPaths builds the layout. An empty root means absolute FHS paths.
@@ -53,6 +55,8 @@ func NewPaths(root string) Paths {
 			EventsFile: join(root, "/var/lib/caddyforge/events.jsonl"),
 			PIDFile:    join(root, "/var/lib/caddyforge/caddy.pid"),
 			EnvFile:    join(root, "/etc/caddyforge/env"),
+			SitesFile:  join(root, "/etc/caddyforge/sites.json"),
+			SitesDir:   join(root, "/etc/caddy/sites"),
 		}
 		return p
 	}

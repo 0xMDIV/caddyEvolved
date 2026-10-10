@@ -17,8 +17,9 @@ NoNewPrivileges=true
 PrivateTmp=true
 ProtectHome=true
 ProtectSystem=full
-# caddyforge schreibt Caddyfile, Env-Datei und ruft systemctl/caddy:
-ReadWritePaths=/etc/caddyforge /etc/caddy /var/lib/caddyforge
+# caddyforge schreibt Caddyfile, Sites, Env-Datei, baut caddy (Toolchain und
+# Cache unter /var/lib/caddyforge) und tauscht danach /usr/local/bin/caddy aus:
+ReadWritePaths=/etc/caddyforge /etc/caddy /var/lib/caddyforge /usr/local/bin
 User=root
 Group=root
 

@@ -93,16 +93,21 @@ func (c *Client) Version(ctx context.Context) (string, error) {
 func (c *Client) ModuleNames(ctx context.Context, standard bool) ([]string, error) {
 	args := []string{"list-modules"}
 	if !standard {
-		args = append(args, "--nonstandard")
+		args = append(args, "--skip-standard")
 	}
 	out, err := c.run(ctx, args...)
 	if err != nil {
 		return nil, err
 	}
+	// Module lines start in column 0; the trailing summary ("  Standard
+	// modules: 120") is indented and must not be mistaken for a module.
 	var names []string
 	for _, line := range strings.Split(out, "\n") {
-		if s := strings.TrimSpace(line); s != "" {
-			names = append(names, s)
+		if line == "" || line[0] == ' ' || line[0] == '\t' {
+			continue
+		}
+		if f := strings.Fields(line); len(f) > 0 {
+			names = append(names, f[0])
 		}
 	}
 	return names, nil
@@ -136,11 +141,31 @@ func (c *Client) Validate(ctx context.Context, configPath, adapter string) (stri
 	if adapter == "" {
 		adapter = "caddyfile"
 	}
-	out, err := c.run(ctx, "validate", "--config", configPath, "--adapter", adapter)
+	// validate provisions every module, and the local CA writes a root
+	// certificate to $XDG_DATA_HOME/caddy. Run as root inside the hardened
+	// daemon that is a read-only /root; pointed at caddy's own data dir it
+	// would leave root-owned files the service user cannot read. A scratch
+	// directory keeps both away.
+	env := append([]string(nil), c.Env...)
+	if scratch, err := os.MkdirTemp("", "caddyforge-validate-"); err == nil {
+		defer os.RemoveAll(scratch)
+		env = append(env, ScratchEnv(scratch)...)
+	}
+	outb, err := c.runner.Output(ctx, cmdx.Cmd{Name: c.bin, Args: []string{"validate", "--config", configPath, "--adapter", adapter}, Env: env})
+	out := string(outb)
 	if err != nil {
 		return out, fmt.Errorf("validate: %w", err)
 	}
 	return out, nil
+}
+
+// ScratchEnv points caddy's data and config storage into dir.
+func ScratchEnv(dir string) []string {
+	return []string{
+		"HOME=" + dir,
+		"XDG_DATA_HOME=" + filepath.Join(dir, "data"),
+		"XDG_CONFIG_HOME=" + filepath.Join(dir, "config"),
+	}
 }
 
 // Fmt formats Caddyfile content through "caddy fmt --stdin".
