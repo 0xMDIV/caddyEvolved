@@ -155,7 +155,11 @@ Exit-Kriterien, Reihenfolge egal bis auf den ersten Punkt:
       Belegen muss sie: `useradd --system caddy` + `chown`, `CAP_NET_BIND_SERVICE` auf
       80/443, `Type=notify` für caddy, `ProtectSystem=full` mit `ReadWritePaths`,
       UI-Login vom LAN auf `0.0.0.0`.
-- [ ] **`LICENSE` fehlt** — das Repo ist öffentlich. Ist eine Entscheidung, kein Bug.
+- [x] `LICENSE` — **MIT**, Copyright 2026 `0xMDIV` (Repo-Inhaber, wie in `git config`).
+      Andere Inhaber-Zeile → `LICENSE` ändern und neu committen, bevor das breit genutzt wird.
+      Caddy selbst ist **Apache-2.0** (verifiziert über die GitHub-API), wir bündeln es aber
+      nur zur Installationszeit über den Download. **Sobald M8 Bundle-Releases mit
+      caddy-Binary ausliefert, verlangt Apache-2.0 Lizenz- und NOTICE-Texte im Bundle.**
 - [ ] Install-Report nennt die WebUI-URL mit `<host-ip>` statt einer anklickbaren Adresse
       (`displayHost` in `install/runtime.go`); schön wäre die tatsächliche LAN-Adresse.
 - [ ] `caddy-security` in der Standard-Variante: Fläche groß, Binary größer – eher opt-in.

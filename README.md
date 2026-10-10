@@ -90,7 +90,7 @@ internal/platform/     Host-Erkennung: Distro, systemd, LXC, Portbelegung
 internal/caddyctl/     caddy-Binary (validate/fmt/reload/list-modules) + Admin-API
 internal/systemd/      systemctl-Aktionen, Unit-Installation
 internal/supervisor/     Prozessverwaltung ohne systemd (--root-Tests)
-internal/fetch/          Download, SHA256-Prüfung, tar.gz-Extraktion, atomarer Write
+internal/fetch/          Download, Digest-Prüfung (SHA-256/SHA-512), tar.gz-Extraktion, atomarer Write
 internal/releases/     GitHub-Releases, Asset-Namen, Custom-Build-URL
 internal/plugins/      kuratierter Modul-Katalog + Go-Proxy-Validierung freier Pfade
 internal/secrets/      EnvironmentFile-Verwaltung (Namen-only Reports)
@@ -103,7 +103,7 @@ internal/webui/        embed.FS für das gebaute Frontend
 
 ## Roadmap
 
-- [~] **M1** Gerüst, Install-Engine, systemd — *läuft, CLI noch nicht fertig*
+- [~] **M1** Gerüst, Install-Engine, systemd — *gebaut, lokal verifiziert; LXC-Verifikation offen*
 - [ ] **M2** WebUI-Shell + Dashboard
 - [ ] **M3** Plugin-Katalog + Credentials
 - [ ] **M4** Caddyfile-Editor + Validate/Reload + Revisionen
@@ -124,4 +124,4 @@ internal/webui/        embed.FS für das gebaute Frontend
 
 ## Lizenz
 
-noch offen (TODO: bevor das öffentlich genutzt wird).
+MIT — siehe [LICENSE](LICENSE).
