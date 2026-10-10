@@ -1,190 +1,135 @@
-# caddyforge
+# caddyEvolved
 
-Advanced Caddy installer + modern web admin UI. Ein einzelnes Go-Binary, das auf einem
-Proxmox-LXC Caddy installiert, die bekannten Caddy-Module mit einrichtet und alles über
-eine WebGUI verwaltbar macht.
-
-**Status: läuft auf dem Ziel-LXC.** Installation, WebUI, Sites-Verwaltung und der
-lokale Custom-Build sind auf echtem systemd (Ubuntu 26.04, Proxmox-LXC) verifiziert.
-API-Vertrag: [`docs/API.md`](docs/API.md), Stand und Fallstricke:
-[`docs/FORTSETZUNG-M1.md`](docs/FORTSETZUNG-M1.md).
-
-## Warum
-
-Caddy ist ein hervorragender Reverse Proxy mit automatischem HTTPS — aber:
-
-- Die Konfiguration ist eine Textdatei, was für Homelabs und kleine Teams unnötig Hürde ist.
-- Caddy-"Plugins" sind **keine** Runtime-Plugins. Community-Module (DNS-Provider, SSO,
-  Layer-4-Proxy, ACME-Storage) werden mit `xcaddy` in die Binary **hineinkompiliert**.
-  "Ein Plugin installieren" heißt also "eine neue Binary bauen".
-- Der offizielle Weg (`caddyserver.com/api/download`) kompiliert serverseitig auf
-  Bestellung — im Test **~114 Sekunden** pro Anfrage. Für einen Installer, der "sofort
-  läuft", unbrauchbar.
-
-caddyforge löst das mit drei Schichten statt mit einem Kompromiss.
-
-## Plugin-Modell: Caddy wird auf dem Server gebaut
-
-Caddy-Module werden einkompiliert. caddyforge baut die Binary deshalb **auf dem
-Server selbst**: In der WebUI unter *Plugins & Build* Module ankreuzen (oder einen
-freien Go-Modulpfad angeben), Caddy-Version wählen, Build starten.
-
-1. Beim ersten Build lädt caddyforge Go von go.dev (**SHA-256 gegen den offiziellen
-   Index geprüft**) und installiert xcaddy – alles unter `/var/lib/caddyforge/`,
-   nichts systemweit.
-2. `xcaddy build` läuft mit Live-Log in der UI (SSE). Modul-Cache bleibt erhalten,
-   Folge-Builds sind deutlich schneller.
-3. Die neue Binary wird geprüft: startet sie, enthält sie jedes gewünschte Modul
-   (`list-modules --packages`), akzeptiert sie das aktuelle Caddyfile?
-4. **Aktivieren** sichert die laufende Binary, tauscht atomar, startet caddy neu und
-   wartet auf die Admin-API. Wird caddy nicht gesund, kommt die alte Binary
-   automatisch zurück. *Rollback* ist jederzeit ein Klick.
-
-## Sites (Reverse Proxy)
-
-Jede Site ist eine Datei `/etc/caddy/sites/<id>.caddy`, das Caddyfile bindet sie mit
-`import /etc/caddy/sites/*.caddy` ein. Änderungen in der UI laufen als Transaktion:
-schreiben → `caddy validate` → reload; lehnt caddy ab, wird der alte Stand
-wiederhergestellt und die Fehlermeldung angezeigt. Modi: Reverse Proxy (mehrere
-Upstreams, Load-Balancing, Health-Check, Upstream-TLS), Weiterleitung, statische
-Dateien, Raw. TLS: automatisch (ACME), intern (lokale CA), DNS-01 über ein
-eingebautes DNS-Plugin, oder nur HTTP. Das Caddyfile selbst bleibt im
-Expertenmodus der UI editierbar.
-
-## Sicherheit, Analytics, Import, KI
-
-- **Access Lists:** IP-Freigabe/-Sperre, Länder (Plugin `maxmind-geolocation`) und
-  Basic-Auth-Benutzer (bcrypt über `caddy hash-password`, Klartext nie auf Platte). Pro
-  Site zuweisbar; die Prüfungen laufen in einem `route`-Block vor dem Login.
-- **Schutz pro Site** (nur sichtbar, wenn das Plugin eingebaut ist): WAF (Coraza + OWASP
-  CRS, Modus blockieren/nur protokollieren), Bot-Abwehr (`caddy-defender`, z. B. KI-Crawler),
-  Rate Limit (`caddy-ratelimit`). Plugins mit eigener Seite erscheinen automatisch in der
-  Sidebar, sobald sie in der laufenden Binary stecken.
-- **Zertifikate:** Übersicht aus caddys Speicher (die Admin-API listet keine ACME-Zertifikate),
-  Download der internen Root-CA.
-- **Analytics:** alle Sites schreiben ein JSON-Access-Log; caddyforge aggregiert Minuten
-  (48 h) und Stunden (35 Tage): Anfragen nach Statusklasse, Geblockt, Latenz (Ø/p95),
-  Top-Pfade/-IPs/-Agents/-Referer, Live-Liste.
-- **Audit Log:** jeder ändernde API-Aufruf mit Session bzw. Token-Name.
-- **Import:** Caddyfile, Zoraxy (Backup-ZIP), Traefik (YAML/TOML, docker-compose-Labels),
-  Nginx Proxy Manager (API-JSON oder `sqlite3 -json`) – mit Vorschau, Warnungen und
-  Einzelübernahme.
-- **API-Tokens + MCP:** gehashte Tokens mit Scope `read`/`write`; `POST /mcp` ist ein
-  MCP-Server (Spezifikation 2026-07-28, abwärtskompatibel), über den eine KI Sites,
-  Access Lists, Builds, Logs und Analytics bedienen kann.
-
-## Architektur
-
-- **Ein statisches Go-Binary** (`caddyforge`): Installer, Daemon, REST-API, SSE-Streams und
-  das per `embed.FS` eingebaute React-Frontend. Im LXC braucht es danach kein Node, kein
-  Docker und keine Internet-Abhängigkeit.
-- **Caddyfile bleibt Source of Truth.** Validierung und Formatierung laufen über die
-  *installierte* `caddy`-Binary (`caddy validate`, `caddy fmt --stdin`), deshalb keine
-  Versionskopplung an Caddy. Reload ohne Downtime.
-- **Auth:** UI bindet `0.0.0.0` mit Login (PBKDF2-HMAC-SHA256, 600k Iterationen —
-  bewusst stdlib statt `x/crypto`, damit `go build` ohne Netzwerkmodule läuft),
-  HttpOnly-Session-Cookie, Lockout nach 5 Fehlversuchen, Session-Revocation.
-- **FHS-Layout:** `/usr/local/bin/caddyforge`, `/etc/caddyforge/{state.json,auth.json,env,ui.crt}`,
-  `/var/lib/caddyforge/`, UI-Port Standard `8484`.
-- **Testbarkeit:** Jeder Pfad geht über `config.Paths`, das mit `--root <prefix>` complete
-  in einen Staging-Baum umgebogen wird. Damit ist die Install-Engine unprivileged in einem
-  Temp-Verzeichnis testbar, ohne ein echtes System anzufassen.
-
-## Installation
-
-Auf jedem Linux mit systemd (amd64/arm64):
+**Caddy als Reverse Proxy – mit WebUI, Plugins per Klick und allem, was ein Homelab
+oder kleines Team braucht.** Ein einzelnes Programm installiert
+[Caddy](https://caddyserver.com) auf einem Linux-Server, baut es mit den gewünschten
+Plugins und macht alles über den Browser verwaltbar.
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/0xMDIV/caddyEvolved/main/install.sh | sudo sh
 ```
 
-Lädt das neueste [Release](https://github.com/0xMDIV/caddyEvolved/releases), prüft die
-SHA-256-Summe und startet den Assistenten; erneut ausgeführt ist es ein Update.
-Schritt für Schritt inklusive Übernahme bestehender Seiten:
-[`docs/ANLEITUNG.md`](docs/ANLEITUNG.md).
+Danach `https://<server-ip>:8484` öffnen. Ausführlich, inklusive Router, DNS und Übernahme
+bestehender Seiten: **[INSTALLATION.md](INSTALLATION.md)**.
+
+## Funktionen
+
+| | |
+|---|---|
+| **Sites** | Reverse Proxy, Weiterleitung, statische Dateien oder eigene Konfiguration. Mehrere Upstreams mit Lastverteilung und Health-Check, Upstreams mit HTTPS. Jede Änderung wird von Caddy geprüft, bevor sie live geht – sonst bleibt der alte Stand. |
+| **Automatisches HTTPS** | Zertifikat pro Domain über Let's Encrypt/ZeroSSL, DNS-Challenge für Wildcards, interne CA fürs LAN. Zertifikatsübersicht mit Ablaufdaten. |
+| **Plugins per Klick** | Caddy-Plugins werden einkompiliert – caddyEvolved baut die Binary direkt auf dem Server, mit Live-Log, Prüfung und automatischem Rollback. Caddy-Version ebenso wählbar. |
+| **Access Lists** | IPs erlauben/sperren, Länder (GeoIP), Benutzer mit Passwort – pro Site. |
+| **Schutz** | WAF (Coraza + OWASP Core Rule Set), Bot- und KI-Crawler-Abwehr, Rate Limit. |
+| **Analytics** | Graphen für Anfragen, Fehler, Geblockte und Antwortzeiten; Top-Pfade, IPs, User-Agents; Live-Liste. |
+| **Audit Log** | Wer hat wann was geändert – per Login, API-Token oder KI. |
+| **Import** | aus Caddyfile, Zoraxy, Traefik (inkl. docker-compose-Labels) und Nginx Proxy Manager, mit Vorschau. |
+| **API und KI** | REST-API mit Tokens (lesen/schreiben) und eingebauter **MCP-Server**: Claude & Co. können Sites anlegen, Logs lesen und Builds starten. |
+
+Plugins mit eigener Seite (WAF, Bot-Abwehr, Geo-Blocking, Rate Limit) erscheinen
+automatisch in der Sidebar, sobald sie in der laufenden Caddy-Binary stecken.
+
+## Voraussetzungen
+
+Linux mit systemd (Debian, Ubuntu, Proxmox-LXC, Raspberry Pi OS, …) auf **amd64** oder
+**arm64**, root-Rechte, Ports 80 und 443. Kein Docker, kein Node, keine Datenbank –
+caddyEvolved ist ein statisches Go-Programm mit eingebauter WebUI.
+
+## Warum
+
+Caddy ist ein hervorragender Reverse Proxy mit automatischem HTTPS, aber:
+
+- Die Konfiguration ist eine Textdatei.
+- Caddy-„Plugins“ sind keine Laufzeit-Plugins. Module (DNS-Provider, WAF, Rate Limit, …)
+  werden mit `xcaddy` in die Binary **hineinkompiliert** – ein Plugin installieren heißt
+  eine neue Binary bauen.
+- Der offizielle Download mit Zusatzmodulen kompiliert serverseitig auf Bestellung und
+  braucht im Test rund zwei Minuten pro Anfrage.
+
+caddyEvolved baut deshalb lokal: Beim ersten Build lädt es Go von go.dev (SHA-256 gegen den
+offiziellen Index geprüft) und xcaddy nach `/var/lib/caddyevolved/`. Die neue Binary wird
+geprüft – startet sie, enthält sie jedes Modul, akzeptiert sie das Caddyfile? – und erst
+dann atomar getauscht. Wird Caddy danach nicht gesund, kommt die alte Binary automatisch
+zurück.
+
+## Wie es arbeitet
+
+- **Caddyfile bleibt die Quelle der Wahrheit.** Jede Site ist eine Datei
+  `/etc/caddy/sites/<id>.caddy`, eingebunden per `import`. Änderungen laufen als
+  Transaktion: schreiben → `caddy validate` → Reload ohne Unterbrechung; bei Fehlern wird
+  der alte Stand wiederhergestellt. Das Caddyfile bleibt im Expertenmodus editierbar.
+- **Validierung über die installierte Caddy-Binary** – keine Versionskopplung.
+- **Sicherheit:** WebUI nur mit Login (PBKDF2-HMAC-SHA256, 600k Iterationen), HttpOnly-Session,
+  Sperre nach Fehlversuchen, CSRF-Schutz, selbstsigniertes TLS. API-Tokens werden nur
+  gehasht gespeichert. Basic-Auth-Passwörter gehen als bcrypt-Hash an Caddy, nie im Klartext
+  auf die Platte. Der Dienst läuft mit systemd-Härtung.
+- **MCP:** `POST /mcp` spricht das Model Context Protocol (Spezifikation 2026-07-28,
+  abwärtskompatibel bis 2024-11-05); Anleitung und fertige Client-Konfiguration auf der
+  Seite *KI / MCP* der WebUI.
+
+API-Referenz: [`docs/API.md`](docs/API.md).
+
+## Entwicklung
+
+Go 1.27+ für das Backend, Node 24 für das Frontend.
 
 ```bash
-sudo ./caddyforge install                      # interaktiver Wizard
-sudo ./caddyforge install --unattended a.json  # headless, für Cloud-Init
+cd ui && npm ci && npm run build      # Frontend nach internal/webui/dist (eingecheckt)
+go vet ./... && go test ./...         # Prüfung
+CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags '-s -w' -o dist/caddyevolved ./cmd/caddyevolved
 ```
 
-Release bauen: `git tag v0.x.y && git push origin v0.x.y` – der Workflow
-`.github/workflows/release.yml` baut über `scripts/release.sh` die Archive und
-veröffentlicht sie. Lokal: `scripts/release.sh v0.x.y` → `dist/release/`.
+Frontend-Entwicklung: `npm run dev` in `ui/` leitet `/api` an `https://127.0.0.1:8484` weiter.
 
-Ablauf: Preflight (root/systemd/LXC-Detect, Ports 80/443/2019/8484, bestehendes Caddy) →
-Variante + Modul-Häkchen → Credentials pro Provider → User/Group `caddy` + Verzeichnisse →
-Binary-Download **mit SHA256-Abgleich gegen das offizielle `checksums.txt`** → Caddyfile →
-UI-Zugang (generiertes Passwort, wird genau einmal ausgegeben) → systemd-Units (Basis:
-offizielles Vorbild aus `caddyserver/dist@master:init/caddy.service`, plus
-`EnvironmentFile`) → `enable --now` → Health-Check über die Admin-API → Report.
+Jeder Dateipfad läuft über `config.Paths`, das sich mit `--root <prefix>` in einen
+Staging-Baum umbiegen lässt – die Install-Engine ist so ohne root in einem Temp-Verzeichnis
+testbar (`caddyevolved install --prefix /tmp/x --dry-run`).
 
-LXC-spezifisch berücksichtigt: `CAP_NET_BIND_SERVICE` für Ports < 1024, kein `--resume`
-(das Caddyfile gewinnt beim Neustart), `Type=notify`, unprivileged-Container-Erkennung.
+**Release:** `git tag v0.x.y && git push origin v0.x.y`. Der Workflow
+`.github/workflows/release.yml` testet, baut über `scripts/release.sh` die Archive für
+amd64/arm64 samt `SHA256SUMS` und veröffentlicht sie. Lokal: `scripts/release.sh v0.x.y`
+→ `dist/release/`.
 
-## Bauen
-
-Go 1.27+ (Backend, in WSL Ubuntu-24.04), Node 24 (Frontend):
-
-```bash
-cd ui && npm ci && npm run build        # Frontend nach internal/webui/dist (eingecheckt)
-go vet ./... && go test ./...           # Prüfung
-CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags '-s -w' -o dist/caddyforge ./cmd/caddyforge   # statisches Binary für den LXC
-```
-
-Frontend-Entwicklung: `npm run dev` in `ui/` proxyt `/api` auf `https://127.0.0.1:8484`.
-
-## Struktur
+### Struktur
 
 ```
-cmd/caddyforge/        Einstiegspunkt
-internal/cli/          Befehle: install, serve, status, start/stop/reload, proxy, token, do
-internal/install/      Schritt-Engine (idempotent, dry-run), Preflight, Units, Caddyfile
-internal/config/       FHS-Layout mit --root-Prefix, state.json
-internal/platform/     Host-Erkennung: Distro, systemd, LXC, Portbelegung
-internal/caddyctl/     caddy-Binary (validate/fmt/reload/list-modules) + Admin-API
-internal/systemd/      systemctl-Aktionen, Unit-Installation
-internal/supervisor/     Prozessverwaltung ohne systemd (--root-Tests)
-internal/fetch/          Download, Digest-Prüfung (SHA-256/SHA-512), tar.gz-Extraktion, atomarer Write
-internal/releases/     GitHub-Releases, Asset-Namen, Custom-Build-URL
-internal/plugins/      kuratierter Modul-Katalog + Go-Proxy-Validierung freier Pfade
-internal/secrets/      EnvironmentFile-Verwaltung (Namen-only Reports)
-internal/builder/      lokaler xcaddy-Build: Go-Toolchain, Jobs, Live-Log, Aktivierung + Rollback
-internal/sites/        Reverse-Proxy-Sites, Access Lists, WAF/Bot/Rate-Limit-Rendering, transaktional
-internal/certs/        Zertifikate aus caddys Storage lesen
-internal/analytics/    Access-Log-Follower und Aggregation (Minute/Stunde, Top-Listen)
-internal/importer/     Import aus Caddyfile, Zoraxy, Traefik, Nginx Proxy Manager
-internal/forge/        (alt) Client für einen externen Build-Service, ungenutzt
-ui/                    React + Vite + TypeScript, Build landet in internal/webui/dist
-internal/api/          HTTP-Routen, Auth-Middleware, SSE, self-signed TLS
-internal/auth/         PBKDF2-Passwort, Sessions, Lockout
-internal/events/       events.jsonl + Live-Fan-out für die UI
-internal/webui/        embed.FS für das gebaute Frontend
+cmd/caddyevolved/     Einstiegspunkt
+internal/cli/         Befehle: install, serve, status, start/stop/reload, passwd, token, do
+internal/install/     Schritt-Engine (idempotent, dry-run), Preflight, Units, Caddyfile
+internal/config/      FHS-Layout mit --root-Prefix, state.json
+internal/platform/    Host-Erkennung: Distro, systemd, LXC, Portbelegung
+internal/caddyctl/    caddy-Binary (validate/fmt/reload/list-modules) + Admin-API
+internal/systemd/     systemctl-Aktionen, Unit-Installation
+internal/supervisor/  Prozessverwaltung ohne systemd (--root-Tests)
+internal/fetch/       Download, Digest-Prüfung, tar.gz-Extraktion, atomarer Write
+internal/releases/    GitHub-Releases, Asset-Namen
+internal/plugins/     kuratierter Modul-Katalog + Go-Proxy-Validierung freier Pfade
+internal/secrets/     EnvironmentFile-Verwaltung
+internal/builder/     lokaler xcaddy-Build: Go-Toolchain, Jobs, Live-Log, Aktivierung + Rollback
+internal/sites/       Sites, Access Lists, WAF/Bot/Rate-Limit-Rendering, transaktional
+internal/certs/       Zertifikate aus Caddys Speicher lesen
+internal/analytics/   Access-Log-Follower und Aggregation (Minute/Stunde, Top-Listen)
+internal/importer/    Import aus Caddyfile, Zoraxy, Traefik, Nginx Proxy Manager
+internal/api/         HTTP-Routen, Auth-Middleware, SSE, MCP, self-signed TLS
+internal/auth/        PBKDF2-Passwort, Sessions, API-Tokens, Lockout
+internal/events/      events.jsonl + Live-Fan-out für die UI
+internal/webui/       embed.FS für das gebaute Frontend
+ui/                   React + Vite + TypeScript + Tabler Icons
 ```
 
 ## Roadmap
 
-- [x] **M1** Gerüst, Install-Engine, systemd — auf dem LXC verifiziert
-- [x] **M2** WebUI-Shell + Dashboard
-- [x] **M3** Plugin-Katalog + Credentials + **lokaler Custom-Build mit Rollback**
-- [~] **M4** Caddyfile-Editor + Validate/Reload — *Revisionsverlauf offen*
-- [x] **M5** Reverse-Proxy-Sites
-- [~] **M6** Zertifikate — *Übersicht + DNS-01 fertig; manuelles Erneuern/Hochladen offen*
+- [x] Install-Engine, systemd, WebUI, Dashboard
+- [x] Plugin-Katalog, Zugangsdaten, lokaler Custom-Build mit Rollback
+- [x] Reverse-Proxy-Sites, Caddyfile-Editor mit Validate/Reload
 - [x] Access Lists, WAF/Bot-Abwehr/Rate Limit, Plugin-Seiten in der Sidebar
-- [x] Analytics, Audit Log, Import (Caddyfile/Zoraxy/Traefik/NPM), API-Tokens, MCP
-- [ ] **M7** Auth/Hardening (Mehrbenutzer, 2FA)
-- [ ] **M8** CI für Bundle-Varianten + Releases, LXC-Testharness
-
-## Verifizierte Faktengrundlage
-
-- Caddy aktuell: **v2.11.7** (2026-10-03)
-- Offizielle systemd-Unit: `caddyserver/dist@master:init/caddy.service`
-- DNS-Provider unter `github.com/caddy-dns/*` sind meist unterrepräsentiert: `all-inkl` hat
-  **keinen** caddy-dns-Ableger (nur `gregormuehlberger/caddy-dns-all-inkl`, 5 ★),
-  `servercow` ebenso. `caddy-dns/google-domains` ist archiviert *und* v0.0.2 (pre-semver) →
-  als nicht wählbar markiert.
-- Katalog-Importpfade werden gegen `proxy.golang.org` geprüft, nicht geraten.
+- [x] Analytics, Audit Log, Import, API-Tokens, MCP
+- [x] Releases für amd64/arm64 mit Installationsskript
+- [ ] Caddyfile-Revisionsverlauf
+- [ ] Zertifikate manuell erneuern und hochladen
+- [ ] Mehrbenutzer, 2FA
+- [ ] `caddyevolved uninstall`, vorgebaute Bundle-Varianten
 
 ## Lizenz
 
-MIT — siehe [LICENSE](LICENSE).
+MIT – siehe [LICENSE](LICENSE).

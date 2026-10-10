@@ -1,6 +1,6 @@
 // Package webui serves the compiled single-page app out of the binary.
 //
-// CADDYFORGE_UI_DIST overrides the embedded copy with a directory, which is how
+// CADDYEVOLVED_UI_DIST overrides the embedded copy with a directory, which is how
 // `npm run dev` output gets tested without rebuilding Go.
 package webui
 
@@ -18,16 +18,16 @@ import (
 var embedded embed.FS
 
 // DevDist is the override directory, empty unless the env var is set.
-var DevDist = os.Getenv("CADDYFORGE_UI_DIST")
+var DevDist = os.Getenv("CADDYEVOLVED_UI_DIST")
 
 // Handler returns the SPA filesystem as an http.Handler.
 func Handler() http.Handler {
 	if DevDist != "" {
 		if st, err := os.Stat(DevDist); err == nil && st.IsDir() {
-			log.Printf("webui: ausgeliefert aus %s (CADDYFORGE_UI_DIST)", DevDist)
+			log.Printf("webui: ausgeliefert aus %s (CADDYEVOLVED_UI_DIST)", DevDist)
 			return spa(os.DirFS(DevDist).(fs.FS))
 		}
-		log.Printf("webui: CADDYFORGE_UI_DIST=%s nicht lesbar, nutze eingebettete Assets", DevDist)
+		log.Printf("webui: CADDYEVOLVED_UI_DIST=%s nicht lesbar, nutze eingebettete Assets", DevDist)
 	}
 	sub, err := fs.Sub(embedded, "dist")
 	if err != nil {

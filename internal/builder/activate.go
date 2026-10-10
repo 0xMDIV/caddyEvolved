@@ -209,7 +209,7 @@ func installBinary(src, dst string) error {
 	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
 		return err
 	}
-	tmp := dst + ".caddyforge-new"
+	tmp := dst + ".caddyevolved-new"
 	if err := copyFile(src, tmp); err != nil {
 		return err
 	}

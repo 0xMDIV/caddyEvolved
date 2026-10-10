@@ -3,7 +3,7 @@ package main
 import (
 	"os"
 
-	"caddyforge/internal/cli"
+	"caddyevolved/internal/cli"
 )
 
 func main() {

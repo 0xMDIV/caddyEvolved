@@ -129,7 +129,7 @@ export default function Analytics() {
                 <b>Noch kein Traffic im gewählten Zeitraum.</b>
               </p>
               <p className="small muted" style={{ marginBottom: 0 }}>
-                Jede Site schreibt automatisch ein JSON-Access-Log nach <code>{data.data?.accessLog}</code>. caddyforge liest es mit –
+                Jede Site schreibt automatisch ein JSON-Access-Log nach <code>{data.data?.accessLog}</code>. caddyEvolved liest es mit –
                 sobald Anfragen eingehen, erscheinen sie hier.
               </p>
             </div>

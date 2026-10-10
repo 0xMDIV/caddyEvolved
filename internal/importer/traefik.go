@@ -9,11 +9,11 @@ import (
 	"github.com/BurntSushi/toml"
 	"gopkg.in/yaml.v3"
 
-	"caddyforge/internal/sites"
+	"caddyevolved/internal/sites"
 )
 
 // Traefik v3 dynamic configuration (file provider), the subset that maps
-// onto caddyforge sites.
+// onto caddyevolved sites.
 type tkDynamic struct {
 	HTTP tkHTTP `yaml:"http" toml:"http"`
 }
@@ -202,7 +202,7 @@ func importTraefik(res *Result, files []plainFile) error {
 			case mw.ForwardAuth != nil:
 				c.Warnings = append(c.Warnings, "forwardAuth ("+mw.ForwardAuth.Address+") nicht übernommen – im Zusatzfeld mit forward_auth nachbauen")
 			default:
-				c.Warnings = append(c.Warnings, "Middleware "+mwName+" hat kein caddyforge-Gegenstück und wurde ausgelassen")
+				c.Warnings = append(c.Warnings, "Middleware "+mwName+" hat kein caddyEvolved-Gegenstück und wurde ausgelassen")
 			}
 		}
 		c.Site = s
@@ -231,7 +231,7 @@ func traefikACL(res *Result, name string, mw *tkMiddleware) string {
 			if strings.HasPrefix(hash, "$2") {
 				acl.Users = append(acl.Users, sites.ACLUser{Username: user, Hash: strings.Replace(hash, "$2y$", "$2a$", 1)})
 			} else {
-				c.Warnings = append(c.Warnings, "Benutzer "+user+": Hash-Verfahren nicht bcrypt – Passwort in caddyforge neu setzen")
+				c.Warnings = append(c.Warnings, "Benutzer "+user+": Hash-Verfahren nicht bcrypt – Passwort in caddyEvolved neu setzen")
 			}
 		}
 	}

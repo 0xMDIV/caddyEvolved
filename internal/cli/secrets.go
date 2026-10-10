@@ -13,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-	"caddyforge/internal/auth"
+	"caddyevolved/internal/auth"
 )
 
 // cmdToken mints a session id for the CLI or a script, so an operator can drive
@@ -24,7 +24,7 @@ import (
 func cmdToken(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 	fs := flag.NewFlagSet("token", flag.ContinueOnError)
 	fs.SetOutput(stderr)
-	root := fs.String("root", envDefault("CADDYFORGE_ROOT", ""), "Installation in diesem Baum")
+	root := fs.String("root", envDefault("CADDYEVOLVED_ROOT", ""), "Installation in diesem Baum")
 	ttlHours := fs.Float64("ttl", 24, "Gültigkeit in Stunden (nur ohne laufenden Daemon)")
 	port := fs.Int("port", 0, "Port des Dienstes (Standard: aus state.json)")
 	jsonOut := fs.Bool("json", false, "JSON ausgeben")
@@ -45,7 +45,7 @@ func cmdToken(ctx context.Context, args []string, stdout, stderr io.Writer) erro
 		return fmt.Errorf("Auth-Store %s: %w", l.paths.AuthFile, err)
 	}
 	if !store.HasPassword() {
-		return fmt.Errorf("kein UI-Passwort gesetzt – zuerst `caddyforge install` oder `caddyforge passwd`")
+		return fmt.Errorf("kein UI-Passwort gesetzt – zuerst `caddyevolved install` oder `caddyevolved passwd`")
 	}
 	password, err := readPassword(stderr, "UI-Passwort")
 	if err != nil {
@@ -73,7 +73,7 @@ func cmdToken(ctx context.Context, args []string, stdout, stderr io.Writer) erro
 			if *jsonOut {
 				return encode(stdout, map[string]any{"token": out.SessionID, "expires": out.Expires, "source": "daemon"})
 			}
-			fmt.Fprintf(stdout, "Token (gültig bis %s):\n  %s\n\nBeispiel:\n  caddyforge do GET /api/status --token %s\n",
+			fmt.Fprintf(stdout, "Token (gültig bis %s):\n  %s\n\nBeispiel:\n  caddyevolved do GET /api/status --token %s\n",
 				out.Expires.Format(time.RFC3339), out.SessionID, out.SessionID)
 			return nil
 		}
@@ -82,7 +82,7 @@ func cmdToken(ctx context.Context, args []string, stdout, stderr io.Writer) erro
 
 	// Nothing is listening: the token has to come from the store, and the daemon
 	// will accept it as soon as it starts.
-	sess, err := store.Login(password, "caddyforge-cli", "cli", time.Duration(*ttlHours*float64(time.Hour)))
+	sess, err := store.Login(password, "caddyevolved-cli", "cli", time.Duration(*ttlHours*float64(time.Hour)))
 	if err != nil {
 		return err
 	}
@@ -92,7 +92,7 @@ func cmdToken(ctx context.Context, args []string, stdout, stderr io.Writer) erro
 		})
 	}
 	fmt.Fprintf(stderr, "Hinweis: kein Dienst auf Port %d erreichbar – Token aus der Datei; ein laufender Dienst liest sie nicht nachträglich.\n", listenPort)
-	fmt.Fprintf(stdout, "Token (einmalig, gültig bis %s):\n  %s\n\nBeispiel:\n  caddyforge do GET /api/status --token %s\n",
+	fmt.Fprintf(stdout, "Token (einmalig, gültig bis %s):\n  %s\n\nBeispiel:\n  caddyevolved do GET /api/status --token %s\n",
 		sess.Expires.Format(time.RFC3339), sess.ID, sess.ID)
 	return nil
 }
@@ -102,7 +102,7 @@ func cmdToken(ctx context.Context, args []string, stdout, stderr io.Writer) erro
 func cmdPasswd(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 	fs := flag.NewFlagSet("passwd", flag.ContinueOnError)
 	fs.SetOutput(stderr)
-	root := fs.String("root", envDefault("CADDYFORGE_ROOT", ""), "Installation in diesem Baum")
+	root := fs.String("root", envDefault("CADDYEVOLVED_ROOT", ""), "Installation in diesem Baum")
 	fromFile := fs.String("password-file", "", "neues Passwort aus dieser Datei (0600 empfohlen)")
 	generate := fs.Bool("generate", false, "sicheres Passwort erzeugen und ausgeben")
 	if err := fs.Parse(args); err != nil {
@@ -158,7 +158,7 @@ func cmdPasswd(ctx context.Context, args []string, stdout, stderr io.Writer) err
 		defer cancel()
 		if _, _, err := callLocalAPI(probeCtx, net.JoinHostPort("127.0.0.1", fmt.Sprint(listenPort)),
 			http.MethodGet, "/api/version", nil, ""); err == nil {
-			fmt.Fprintln(stderr, "Der Dienst läuft noch: systemctl restart caddyforge (ohne systemd: `caddyforge serve` neu starten), sonst gilt das alte Passwort.")
+			fmt.Fprintln(stderr, "Der Dienst läuft noch: systemctl restart caddyevolved (ohne systemd: `caddyevolved serve` neu starten), sonst gilt das alte Passwort.")
 		}
 	}
 	return nil
@@ -167,7 +167,7 @@ func cmdPasswd(ctx context.Context, args []string, stdout, stderr io.Writer) err
 // readPassword reads one line from the terminal. The standard library has no
 // hidden-input primitive, so the prompt states plainly that the value is shown.
 func readPassword(stderr io.Writer, label string) (string, error) {
-	if v := os.Getenv("CADDYFORGE_UI_PASSWORD"); v != "" {
+	if v := os.Getenv("CADDYEVOLVED_UI_PASSWORD"); v != "" {
 		return v, nil
 	}
 	fmt.Fprintf(stderr, "%s (Eingabe ist sichtbar): ", label)

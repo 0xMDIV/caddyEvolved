@@ -11,12 +11,12 @@ import (
 	"strings"
 	"time"
 
-	"caddyforge/internal/caddyctl"
-	"caddyforge/internal/config"
-	"caddyforge/internal/events"
-	"caddyforge/internal/plugins"
-	"caddyforge/internal/secrets"
-	"caddyforge/internal/sites"
+	"caddyevolved/internal/caddyctl"
+	"caddyevolved/internal/config"
+	"caddyevolved/internal/events"
+	"caddyevolved/internal/plugins"
+	"caddyevolved/internal/secrets"
+	"caddyevolved/internal/sites"
 )
 
 // caddyWithEnv is a caddy client that sees the credential file, because
@@ -282,7 +282,7 @@ func (s *Server) validateContent(ctx context.Context, content string) (string, e
 	if !s.Caddy.Exists() {
 		return "", errors.New("keine caddy-Binary installiert")
 	}
-	probe := filepath.Join(filepath.Dir(s.Paths.Caddyfile), ".Caddyfile.caddyforge-check")
+	probe := filepath.Join(filepath.Dir(s.Paths.Caddyfile), ".Caddyfile.caddyevolved-check")
 	if err := os.WriteFile(probe, []byte(content), 0o600); err != nil {
 		return "", err
 	}
@@ -333,10 +333,10 @@ func (s *Server) handleCaddyfileSave(w http.ResponseWriter, r *http.Request) {
 	}
 	before, readErr := os.ReadFile(s.Paths.Caddyfile)
 	if readErr == nil {
-		backup := s.Paths.Caddyfile + ".caddyforge-prev"
+		backup := s.Paths.Caddyfile + ".caddyevolved-prev"
 		os.WriteFile(backup, before, 0o644)
 	}
-	tmp := s.Paths.Caddyfile + ".caddyforge-new"
+	tmp := s.Paths.Caddyfile + ".caddyevolved-new"
 	// Explicit chmod: the daemon's UMask=0077 would leave caddy unable to read.
 	err := os.WriteFile(tmp, []byte(content), 0o644)
 	if err == nil {

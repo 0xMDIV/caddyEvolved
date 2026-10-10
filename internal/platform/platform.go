@@ -1,4 +1,4 @@
-// Package platform describes the host caddyforge runs on. Everything here is
+// Package platform describes the host caddyevolved runs on. Everything here is
 // read-only probing; install steps consult it and never write.
 package platform
 

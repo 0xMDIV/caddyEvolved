@@ -9,9 +9,9 @@ import (
 	"strings"
 	"testing"
 
-	"caddyforge/internal/auth"
-	"caddyforge/internal/config"
-	"caddyforge/internal/events"
+	"caddyevolved/internal/auth"
+	"caddyevolved/internal/config"
+	"caddyevolved/internal/events"
 )
 
 func testServer(t *testing.T) (*Server, string, string) {
@@ -99,7 +99,7 @@ func TestMCPLegacyAndModern(t *testing.T) {
 		t.Errorf("unbekannte Version: %d %v", code, out)
 	}
 
-	code, _ = rpc(t, s, "cfx_falsch", `{"jsonrpc":"2.0","id":6,"method":"tools/list"}`, nil)
+	code, _ = rpc(t, s, "cev_falsch", `{"jsonrpc":"2.0","id":6,"method":"tools/list"}`, nil)
 	if code != 401 {
 		t.Errorf("falsches Token: %d", code)
 	}

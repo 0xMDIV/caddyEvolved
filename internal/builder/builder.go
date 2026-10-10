@@ -25,8 +25,8 @@ import (
 	"sync"
 	"time"
 
-	"caddyforge/internal/caddyctl"
-	"caddyforge/internal/secrets"
+	"caddyevolved/internal/caddyctl"
+	"caddyevolved/internal/secrets"
 )
 
 // Status of a build.
@@ -97,7 +97,7 @@ type Hooks struct {
 
 // Config locates everything the builder touches.
 type Config struct {
-	Dir       string // state directory, e.g. /var/lib/caddyforge
+	Dir       string // state directory, e.g. /var/lib/caddyevolved
 	CaddyBin  string // the live binary, e.g. /usr/local/bin/caddy
 	Caddyfile string
 	EnvFile   string
@@ -158,7 +158,7 @@ func New(c Config) (*Manager, error) {
 			continue
 		}
 		if !b.Status.Done() {
-			b.Status, b.Error = StatusFailed, "caddyforge wurde während des Builds neu gestartet"
+			b.Status, b.Error = StatusFailed, "caddyEvolved wurde während des Builds neu gestartet"
 			m.save(b)
 		}
 		m.builds[b.ID] = b

@@ -99,7 +99,7 @@ func TestParseChecksumFileAlgorithms(t *testing.T) {
 }
 
 func TestToFileVerifiesBothAlgorithms(t *testing.T) {
-	payload := []byte("caddyforge test payload")
+	payload := []byte("caddyevolved test payload")
 	sum256 := "sha256:" + hex.EncodeToString(sha256Sum(payload))
 	sum512 := "sha512:" + hex.EncodeToString(sha512Sum(payload))
 

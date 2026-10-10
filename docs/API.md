@@ -1,11 +1,11 @@
-# caddyforge HTTP-API (v1)
+# caddyevolved HTTP-API (v1)
 
 Alle Routen unter `/api`. Antworten sind JSON. Fehler haben immer die Form
 `{"error": "Text", "code": "stabiler_code", "details": ["…"]}`.
 
-**Auth:** Session-Cookie `cfx_session` (HttpOnly) aus `POST /api/login`, alternativ
+**Auth:** Session-Cookie `cev_session` (HttpOnly) aus `POST /api/login`, alternativ
 `Authorization: Bearer <id>`. **Jede nicht-GET-Anfrage braucht den Header
-`X-Caddyforge: 1`** (CSRF-Schutz), sonst 403 `csrf`. 401 `unauthenticated` → Login-Seite.
+`X-CaddyEvolved: 1`** (CSRF-Schutz), sonst 403 `csrf`. 401 `unauthenticated` → Login-Seite.
 
 ## Bestehend (M1)
 
@@ -19,8 +19,8 @@ Alle Routen unter `/api`. Antworten sind JSON. Fehler haben immer die Form
 | `GET /api/status` | Dashboard-Daten (siehe `handlers_status.go`) |
 | `GET /api/plugins` | Katalog mit `detected`, `active`, `credentialState`, `complete` |
 | `POST /api/plugins/check` `{module}` | freien Modulpfad gegen proxy.golang.org prüfen |
-| `POST /api/plugins/credentials` | Credentials in `/etc/caddyforge/env` schreiben (siehe Handler) |
-| `GET /api/logs?unit=caddy|caddyforge&lines=200&grep=` | `{unit, lines[], count, source}` |
+| `POST /api/plugins/credentials` | Credentials in `/etc/caddyevolved/env` schreiben (siehe Handler) |
+| `GET /api/logs?unit=caddy|caddyevolved&lines=200&grep=` | `{unit, lines[], count, source}` |
 | `POST /api/service/{start|stop|restart|reload}?unit=caddy.service` | |
 | `GET /api/events` / `GET /api/events/stream` (SSE) | Ereignisprotokoll |
 
@@ -138,7 +138,7 @@ Eingabe (`POST`/`PUT`):
   "deny": ["192.168.10.99"],
   "allowCountries": ["DE", "AT"],
   "denyCountries": [],
-  "geoDb": "/var/lib/caddyforge/GeoLite2-Country.mmdb",
+  "geoDb": "/var/lib/caddyevolved/GeoLite2-Country.mmdb",
   "users": [{"username": "nico", "password": "neu, oder leer = unverändert"}]
 }
 ```
@@ -178,7 +178,7 @@ tragen dasselbe Feld als `ui: {page, label, icon}`.
 ## Analytics
 
 Alle Sites schreiben ein JSON-Access-Log nach `/var/log/caddy/access.log` (pro Site
-abschaltbar mit `Site.noLog`). caddyforge liest es mit und aggregiert pro Minute (48 h)
+abschaltbar mit `Site.noLog`). caddyevolved liest es mit und aggregiert pro Minute (48 h)
 und pro Stunde (35 Tage). `blocked` zählt 403 und 429 (Access List, WAF, Bot-Abwehr, Rate Limit).
 
 | Route | Antwort |
@@ -232,15 +232,15 @@ im JSON (ZIP wird entpackt).
 
 ## API-Tokens
 
-Für Skripte und KI-Clients: `Authorization: Bearer cfx_…`. Gespeichert wird nur der
+Für Skripte und KI-Clients: `Authorization: Bearer cev_…`. Gespeichert wird nur der
 SHA-256-Hash; der Klartext kommt genau einmal bei der Erstellung zurück. Mit Bearer-Auth
-entfällt der `X-Caddyforge`-Header. Scope `read` darf nur GET, `write` alles außer
+entfällt der `X-CaddyEvolved`-Header. Scope `read` darf nur GET, `write` alles außer
 Token-Verwaltung (die geht nur mit Login-Session).
 
 | Route | Antwort |
 |---|---|
 | `GET /api/tokens` | `{tokens:[{id, name, scope, prefix, created, lastUsed, expires}]}` |
-| `POST /api/tokens` `{name, scope: read\|write, ttlDays: 0 = unbegrenzt}` | 201 `{token: "cfx_…" (einmalig), info}` |
+| `POST /api/tokens` `{name, scope: read\|write, ttlDays: 0 = unbegrenzt}` | 201 `{token: "cev_…" (einmalig), info}` |
 | `DELETE /api/tokens/{id}` | `{ok}` |
 
 Im Audit Log erscheinen Token-Aufrufe als `actor: "token <name>"`, über MCP als `"token <name> (mcp)"`.
@@ -248,7 +248,7 @@ Im Audit Log erscheinen Token-Aufrufe als `actor: "token <name>"`, über MCP als
 ## MCP (KI-Anbindung)
 
 `POST /mcp` – Model Context Protocol, Streamable HTTP, nur JSON-Antworten (kein SSE).
-Auth: `Authorization: Bearer cfx_…` (API-Token). Dual-era: moderne Clients (2026-07-28,
+Auth: `Authorization: Bearer cev_…` (API-Token). Dual-era: moderne Clients (2026-07-28,
 `server/discover`, `_meta` pro Request) und ältere (`initialize`, 2025-11-25 … 2024-11-05).
 
 Tools (Lese-Token sehen nur die lesenden): `get_status`, `list_sites`, `get_site_preview`,
@@ -261,13 +261,13 @@ Tools (Lese-Token sehen nur die lesenden): `get_status`, `list_sites`, `get_site
 Client-Konfiguration (Beispiel Claude Code):
 
 ```bash
-claude mcp add --transport http caddyforge https://<host>:8484/mcp \
-  --header "Authorization: Bearer cfx_…"
+claude mcp add --transport http caddyevolved https://<host>:8484/mcp \
+  --header "Authorization: Bearer cev_…"
 ```
 
 Das UI-Zertifikat ist selbstsigniert: entweder dem Client vertrauen
 (`NODE_EXTRA_CA_CERTS=/pfad/ui.crt` für Node-basierte Clients, Datei liegt unter
-`/etc/caddyforge/ui.crt`, Download über die UI) oder caddyforge als eigene Site hinter caddy
+`/etc/caddyevolved/ui.crt`, Download über die UI) oder caddyevolved als eigene Site hinter caddy
 veröffentlichen (Upstream `https://127.0.0.1:8484`, `upstreamInsecure: true`, mit Access List).
 
 | Route | Antwort |

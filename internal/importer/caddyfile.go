@@ -3,7 +3,7 @@ package importer
 import (
 	"strings"
 
-	"caddyforge/internal/sites"
+	"caddyevolved/internal/sites"
 )
 
 // block is one top-level Caddyfile block.

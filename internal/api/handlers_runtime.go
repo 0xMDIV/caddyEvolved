@@ -9,9 +9,9 @@ import (
 	"strings"
 	"time"
 
-	"caddyforge/internal/events"
-	"caddyforge/internal/platform"
-	"caddyforge/internal/supervisor"
+	"caddyevolved/internal/events"
+	"caddyevolved/internal/platform"
+	"caddyevolved/internal/supervisor"
 )
 
 // handleEventStream is the live feed: install progress plus every later event.
@@ -85,10 +85,10 @@ func (s *Server) handleLogs(w http.ResponseWriter, r *http.Request) {
 	switch unit {
 	case "caddy", "caddy.service":
 		unit = "caddy.service"
-	case "caddyforge", "caddyforge.service":
-		unit = "caddyforge.service"
+	case "caddyevolved", "caddyevolved.service":
+		unit = "caddyevolved.service"
 	default:
-		writeErr(w, http.StatusBadRequest, "bad_unit", "unit ist caddy oder caddyforge")
+		writeErr(w, http.StatusBadRequest, "bad_unit", "unit ist caddy oder caddyevolved")
 		return
 	}
 
@@ -133,8 +133,8 @@ func (s *Server) handleService(w http.ResponseWriter, r *http.Request) {
 	if unit == "" {
 		unit = "caddy.service"
 	}
-	if unit != "caddy.service" && unit != "caddyforge.service" {
-		writeErr(w, http.StatusBadRequest, "bad_unit", "unit ist caddy.service oder caddyforge.service")
+	if unit != "caddy.service" && unit != "caddyevolved.service" {
+		writeErr(w, http.StatusBadRequest, "bad_unit", "unit ist caddy.service oder caddyevolved.service")
 		return
 	}
 	allowed := map[string]bool{"start": true, "stop": true, "restart": true, "reload": true, "enable": true, "disable": true}

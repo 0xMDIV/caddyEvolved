@@ -12,8 +12,8 @@ import (
 	"sync"
 	"time"
 
-	"caddyforge/internal/events"
-	"caddyforge/internal/install"
+	"caddyevolved/internal/events"
+	"caddyevolved/internal/install"
 )
 
 // run is one install execution, tracked so the UI can poll or stream it.

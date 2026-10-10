@@ -6,7 +6,7 @@ import (
 	"regexp"
 	"strings"
 
-	"caddyforge/internal/plugins"
+	"caddyevolved/internal/plugins"
 )
 
 // Normalize trims input and fills defaults.
@@ -135,7 +135,7 @@ func Render(s Site) string { return RenderWith(s, nil, Options{}) }
 // handler.
 func RenderWith(s Site, acl *AccessList, opt Options) string {
 	var b strings.Builder
-	fmt.Fprintf(&b, "# %s – verwaltet von caddyforge. Änderungen über die WebUI, sonst überschrieben.\n", s.ID)
+	fmt.Fprintf(&b, "# %s – verwaltet von caddyevolved. Änderungen über die WebUI, sonst überschrieben.\n", s.ID)
 	addrs := make([]string, 0, len(s.Domains))
 	for _, d := range s.Domains {
 		if s.TLS == TLSOff && !strings.HasPrefix(d, ":") {

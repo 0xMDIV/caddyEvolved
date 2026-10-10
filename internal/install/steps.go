@@ -13,14 +13,14 @@ import (
 	"strings"
 	"time"
 
-	"caddyforge/internal/caddyctl"
-	"caddyforge/internal/cmdx"
-	"caddyforge/internal/config"
-	"caddyforge/internal/fetch"
-	"caddyforge/internal/plugins"
-	"caddyforge/internal/releases"
-	"caddyforge/internal/secrets"
-	"caddyforge/internal/sites"
+	"caddyevolved/internal/caddyctl"
+	"caddyevolved/internal/cmdx"
+	"caddyevolved/internal/config"
+	"caddyevolved/internal/fetch"
+	"caddyevolved/internal/plugins"
+	"caddyevolved/internal/releases"
+	"caddyevolved/internal/secrets"
+	"caddyevolved/internal/sites"
 )
 
 // isMissingUser recognises getent's "key not found" exit code (2).
@@ -145,7 +145,7 @@ func (p *Plan) stepCredentials(ctx context.Context, s *Step) error {
 	}
 	store := secrets.New(p.paths.EnvFile)
 	header := []string{
-		"Verwaltet von caddyforge – Änderungen über die WebUI oder `caddyforge secrets set`.",
+		"Verwaltet von caddyEvolved – Änderungen über die WebUI oder `caddyevolved secrets set`.",
 		"Rechte 0600, nur der caddy-Prozess liest diese Datei.",
 	}
 	changes, err := store.Apply(secrets.Apply{
@@ -167,7 +167,7 @@ func (p *Plan) stepCredentials(ctx context.Context, s *Step) error {
 	return nil
 }
 
-// stepBinary installs caddy and the caddyforge service binary.
+// stepBinary installs caddy and the caddyevolved service binary.
 func (p *Plan) stepBinary(ctx context.Context, s *Step) error {
 	if err := p.resolveBinary(ctx); err != nil {
 		return err
@@ -184,7 +184,7 @@ func (p *Plan) stepBinary(ctx context.Context, s *Step) error {
 	if p.resolved.slowDownload {
 		p.opts.Logf("Achtung: benannter Build wird auf caddyserver.com kompiliert – 1 bis 3 Minuten")
 	}
-	archive := filepath.Join(os.TempDir(), "caddyforge-download.tar.gz")
+	archive := filepath.Join(os.TempDir(), "caddyevolved-download.tar.gz")
 	defer os.Remove(archive)
 
 	var last int64
@@ -269,7 +269,7 @@ func (p *Plan) stepCaddyfile(ctx context.Context, s *Step) error {
 		return err
 	}
 	// 0644: caddy runs as its own user and must read the file.
-	tmp := p.paths.Caddyfile + ".caddyforge-new"
+	tmp := p.paths.Caddyfile + ".caddyevolved-new"
 	if err := os.WriteFile(tmp, []byte(content), 0o644); err != nil {
 		return err
 	}
@@ -282,7 +282,7 @@ func (p *Plan) stepCaddyfile(ctx context.Context, s *Step) error {
 	}
 
 	if err == nil && !p.opts.Force {
-		backup := p.paths.Caddyfile + ".caddyforge-backup-" + time.Now().Format("20060102-150405")
+		backup := p.paths.Caddyfile + ".caddyevolved-backup-" + time.Now().Format("20060102-150405")
 		if err := os.WriteFile(backup, existing, 0o640); err != nil {
 			return err
 		}
@@ -291,8 +291,8 @@ func (p *Plan) stepCaddyfile(ctx context.Context, s *Step) error {
 	return os.Rename(tmp, p.paths.Caddyfile)
 }
 
-// stepForgeConfig persists the state file the daemon and UI read.
-func (p *Plan) stepForgeConfig(ctx context.Context, s *Step) error {
+// stepDaemonConfig persists the state file the daemon and UI read.
+func (p *Plan) stepDaemonConfig(ctx context.Context, s *Step) error {
 	st, err := config.LoadState(p.paths.StateFile)
 	if err != nil {
 		return err

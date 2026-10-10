@@ -6,8 +6,8 @@ import (
 	"os"
 	"time"
 
-	"caddyforge/internal/auth"
-	"caddyforge/internal/events"
+	"caddyevolved/internal/auth"
+	"caddyevolved/internal/events"
 )
 
 // tokenAdmin refuses token management through an API token: a leaked token
@@ -80,7 +80,7 @@ func (s *Server) handleUICert(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "application/x-pem-file")
-	w.Header().Set("Content-Disposition", `attachment; filename="caddyforge-ui.crt"`)
+	w.Header().Set("Content-Disposition", `attachment; filename="caddyevolved-ui.crt"`)
 	w.Write(data)
 }
 

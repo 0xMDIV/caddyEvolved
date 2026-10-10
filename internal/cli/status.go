@@ -11,38 +11,38 @@ import (
 	"strings"
 	"time"
 
-	"caddyforge/internal/buildinfo"
-	"caddyforge/internal/caddyctl"
-	"caddyforge/internal/config"
-	"caddyforge/internal/platform"
-	"caddyforge/internal/plugins"
+	"caddyevolved/internal/buildinfo"
+	"caddyevolved/internal/caddyctl"
+	"caddyevolved/internal/config"
+	"caddyevolved/internal/platform"
+	"caddyevolved/internal/plugins"
 )
 
 // statusView is everything `status` reports, assembled once so the text and the
 // JSON output cannot disagree with each other.
 type statusView struct {
-	Forge        string               `json:"forge"`
-	Commit       string               `json:"commit,omitempty"`
-	Root         string               `json:"root"`
-	Host         platform.Info        `json:"host"`
-	Installed    bool                 `json:"installed"`
-	CaddyVersion string               `json:"caddyVersion,omitempty"`
-	BinarySource string               `json:"binarySource,omitempty"`
-	Variant      string               `json:"variant,omitempty"`
-	CaddyBin     string               `json:"caddyBin,omitempty"`
-	BinaryError  string               `json:"binaryError,omitempty"`
-	Enabled      []string             `json:"enabledPlugins,omitempty"`
-	Modules      []moduleState        `json:"modules,omitempty"`
-	Service      serviceState         `json:"service"`
-	ForgeService *serviceState        `json:"forgeService,omitempty"`
-	Admin        endpointState        `json:"admin"`
-	UI           endpointState        `json:"ui"`
-	Ports        []platform.PortState `json:"ports,omitempty"`
-	StateFile    string               `json:"stateFile"`
-	UpdatedAt    string               `json:"updatedAt,omitempty"`
-	Email        string               `json:"email,omitempty"`
-	Managed      bool                 `json:"managed"`
-	Problems     []string             `json:"problems,omitempty"`
+	Version       string               `json:"version"`
+	Commit        string               `json:"commit,omitempty"`
+	Root          string               `json:"root"`
+	Host          platform.Info        `json:"host"`
+	Installed     bool                 `json:"installed"`
+	CaddyVersion  string               `json:"caddyVersion,omitempty"`
+	BinarySource  string               `json:"binarySource,omitempty"`
+	Variant       string               `json:"variant,omitempty"`
+	CaddyBin      string               `json:"caddyBin,omitempty"`
+	BinaryError   string               `json:"binaryError,omitempty"`
+	Enabled       []string             `json:"enabledPlugins,omitempty"`
+	Modules       []moduleState        `json:"modules,omitempty"`
+	Service       serviceState         `json:"service"`
+	DaemonService *serviceState        `json:"daemonService,omitempty"`
+	Admin         endpointState        `json:"admin"`
+	UI            endpointState        `json:"ui"`
+	Ports         []platform.PortState `json:"ports,omitempty"`
+	StateFile     string               `json:"stateFile"`
+	UpdatedAt     string               `json:"updatedAt,omitempty"`
+	Email         string               `json:"email,omitempty"`
+	Managed       bool                 `json:"managed"`
+	Problems      []string             `json:"problems,omitempty"`
 }
 
 // serviceState is one unit as this host reports it.
@@ -72,7 +72,7 @@ type moduleState struct {
 func cmdStatus(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 	fs := flag.NewFlagSet("status", flag.ContinueOnError)
 	fs.SetOutput(stderr)
-	root := fs.String("root", envDefault("CADDYFORGE_ROOT", ""), "Installation in diesem Baum prüfen")
+	root := fs.String("root", envDefault("CADDYEVOLVED_ROOT", ""), "Installation in diesem Baum prüfen")
 	jsonOut := fs.Bool("json", false, "JSON ausgeben")
 	showPorts := fs.Bool("ports", true, "Belegung der Ports anzeigen")
 	if err := fs.Parse(args); err != nil {
@@ -97,7 +97,7 @@ func cmdStatus(ctx context.Context, args []string, stdout, stderr io.Writer) err
 func collectStatus(ctx context.Context, root string, showPorts bool) (statusView, error) {
 	l := newLayout(ctx, root)
 	v := statusView{
-		Forge:     buildinfo.Version,
+		Version:   buildinfo.Version,
 		Commit:    buildinfo.Commit,
 		Root:      displayRoot(l.paths.Root),
 		Host:      l.host,
@@ -144,15 +144,15 @@ func collectStatus(ctx context.Context, root string, showPorts bool) (statusView
 
 	v.Service = collectService(ctx, l, useSystemd)
 	if useSystemd {
-		fs := collectUnit(ctx, l, "caddyforge.service")
-		v.ForgeService = &fs
+		fs := collectUnit(ctx, l, "caddyevolved.service")
+		v.DaemonService = &fs
 		if fs.Problem != "" {
 			v.Problems = append(v.Problems, fs.Problem)
 		}
 	} else if v.Installed && l.host.Init != platform.InitSystemd {
 		// Only a host without an init is a problem; a staging prefix skips
 		// systemd on purpose and must not be reported as broken.
-		v.Problems = append(v.Problems, "kein systemd: caddy mit `caddyforge start`, WebUI mit `caddyforge serve`")
+		v.Problems = append(v.Problems, "kein systemd: caddy mit `caddyevolved start`, WebUI mit `caddyevolved serve`")
 	}
 
 	if v.Installed {
@@ -183,7 +183,7 @@ func collectService(ctx context.Context, l *layout, useSystemd bool) serviceStat
 	if running {
 		s.Active = "running"
 	} else if l.paths.IsPrefixed() {
-		s.Problem = "Prefix-Installation: läuft nur, wenn `caddyforge start` es gestartet hat"
+		s.Problem = "Prefix-Installation: läuft nur, wenn `caddyevolved start` es gestartet hat"
 	} else {
 		s.Problem = "caddy läuft nicht (kein systemd)"
 	}
@@ -297,20 +297,20 @@ func checkModules(ctx context.Context, c *caddyctl.Client, ids []string) []modul
 }
 
 func printStatus(w io.Writer, v statusView) {
-	fmt.Fprintf(w, "caddyforge %s (%s) · Root %s\n", v.Forge, orDefault(v.Commit, "unknown"), v.Root)
+	fmt.Fprintf(w, "caddyEvolved %s (%s) · Root %s\n", v.Version, orDefault(v.Commit, "unknown"), v.Root)
 	fmt.Fprintf(w, "Host       %s %s · init %s · Virtualisierung %s · uid %d\n",
 		v.Host.Distro, v.Host.DistroVer, v.Host.Init, orDefault(v.Host.Virt, "unknown"), v.Host.UID)
 	fmt.Fprintf(w, "State      %s\n", v.StateFile)
 	if !v.Installed {
-		fmt.Fprintf(w, "\nInstallation: nicht installiert – `caddyforge install` ausführen\n")
+		fmt.Fprintf(w, "\nInstallation: nicht installiert – `caddyevolved install` ausführen\n")
 		return
 	}
 	fmt.Fprintf(w, "\nInstallation: vorhanden · caddy %s · Quelle %s · Variante %s\n",
 		orDefault(v.CaddyVersion, "unbekannt"), orDefault(v.BinarySource, "?"), orDefault(v.Variant, "?"))
 	fmt.Fprintf(w, "Binary     %s%s\n", orDefault(v.CaddyBin, "nicht gefunden"), indentLine(v.BinaryError))
 	fmt.Fprintf(w, "Dienst     %s: %s%s\n", v.Service.Managed, orDefault(v.Service.Active, "?"), indentLine(orDefault(v.Service.Summary, v.Service.Problem)))
-	if v.ForgeService != nil {
-		fmt.Fprintf(w, "UI-Dienst  %s: %s%s\n", v.ForgeService.Managed, orDefault(v.ForgeService.Active, "?"), indentLine(orDefault(v.ForgeService.Problem, "")))
+	if v.DaemonService != nil {
+		fmt.Fprintf(w, "UI-Dienst  %s: %s%s\n", v.DaemonService.Managed, orDefault(v.DaemonService.Active, "?"), indentLine(orDefault(v.DaemonService.Problem, "")))
 	}
 	fmt.Fprintf(w, "Admin-API  %s: %s%s\n", orDefault(v.Admin.URL, "-"), v.Admin.Reach, indentLine(v.Admin.Problem))
 	fmt.Fprintf(w, "WebUI      %s: %s%s\n", orDefault(v.UI.URL, "-"), v.UI.Reach, indentLine(v.UI.Problem))
@@ -335,7 +335,7 @@ func printStatus(w io.Writer, v statusView) {
 				line = fmt.Sprintf("  %-6d belegt von %s", p.Port, orDefault(p.UsedBy, "?"))
 			}
 			if p.Own {
-				line += " (caddyforge selbst)"
+				line += " (caddyEvolved selbst)"
 			}
 			fmt.Fprintln(w, line)
 		}

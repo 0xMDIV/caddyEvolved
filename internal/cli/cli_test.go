@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"caddyforge/internal/config"
+	"caddyevolved/internal/config"
 )
 
 func TestPartitionFlagsKeepsPositionalsInOrder(t *testing.T) {
@@ -121,11 +121,11 @@ func TestSplitIDs(t *testing.T) {
 }
 
 func TestEnvDefault(t *testing.T) {
-	t.Setenv("CADDYFORGE_TEST_VAR", "gesetzte")
-	if got := envDefault("CADDYFORGE_TEST_VAR", "standard"); got != "gesetzte" {
+	t.Setenv("CADDYEVOLVED_TEST_VAR", "gesetzte")
+	if got := envDefault("CADDYEVOLVED_TEST_VAR", "standard"); got != "gesetzte" {
 		t.Errorf("envDefault = %q", got)
 	}
-	if got := envDefault("CADDYFORGE_TEST_UNSET", "standard"); got != "standard" {
+	if got := envDefault("CADDYEVOLVED_TEST_UNSET", "standard"); got != "standard" {
 		t.Errorf("envDefault ohne Umgebung = %q", got)
 	}
 }
@@ -180,7 +180,7 @@ func TestCommandTableIsComplete(t *testing.T) {
 		if strings.TrimSpace(cmd.usage) == "" || strings.TrimSpace(cmd.summary) == "" {
 			t.Errorf("%s hat keine Nutzung oder Zusammenfassung", name)
 		}
-		if !strings.HasPrefix(cmd.usage, "caddyforge "+name) {
+		if !strings.HasPrefix(cmd.usage, "caddyevolved "+name) {
 			t.Errorf("%s: usage %q fängt nicht mit dem Befehl an", name, cmd.usage)
 		}
 	}

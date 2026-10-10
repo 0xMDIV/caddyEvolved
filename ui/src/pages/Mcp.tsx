@@ -30,9 +30,9 @@ export default function Mcp() {
   const token = created?.token ?? TOKEN_PLACEHOLDER;
   const tools = info.data?.tools ?? [];
 
-  const cli = `claude mcp add --transport http caddyforge ${endpoint} --header "Authorization: Bearer ${token}"`;
+  const cli = `claude mcp add --transport http caddyevolved ${endpoint} --header "Authorization: Bearer ${token}"`;
   const json = JSON.stringify(
-    { mcpServers: { caddyforge: { type: "http", url: endpoint, headers: { Authorization: `Bearer ${token}` } } } },
+    { mcpServers: { caddyevolved: { type: "http", url: endpoint, headers: { Authorization: `Bearer ${token}` } } } },
     null,
     2,
   );
@@ -44,7 +44,7 @@ export default function Mcp() {
   async function downloadCert() {
     setCertBusy(true);
     try {
-      await downloadFile("/api/ui.crt", "caddyforge-ui.crt");
+      await downloadFile("/api/ui.crt", "caddyevolved-ui.crt");
     } catch (e) {
       toast("err", errMsg(e));
     } finally {
@@ -56,7 +56,7 @@ export default function Mcp() {
     <>
       <PageHead
         title="KI / MCP"
-        sub="Model Context Protocol: KI-Assistenten wie Claude können caddyforge direkt bedienen – Sites anlegen, Logs lesen, Analytics auswerten."
+        sub="Model Context Protocol: KI-Assistenten wie Claude können caddyEvolved direkt bedienen – Sites anlegen, Logs lesen, Analytics auswerten."
       />
 
       <div className="grid grid-2" style={{ alignItems: "start" }}>
@@ -64,7 +64,7 @@ export default function Mcp() {
           <h2 style={{ margin: 0 }}>Endpoint</h2>
           <CopyBlock text={endpoint} />
           <p className="small muted" style={{ margin: 0 }}>
-            Streamable HTTP, nur POST. Authentifizierung ausschließlich per API-Token im Header <span className="mono">Authorization: Bearer cfx_…</span>.
+            Streamable HTTP, nur POST. Authentifizierung ausschließlich per API-Token im Header <span className="mono">Authorization: Bearer cev_…</span>.
             Unterstützt aktuelle (2026-07-28) und ältere MCP-Clients.
           </p>
           {info.error ? <div className="alert warn small">Server-Infos nicht abrufbar ({errMsg(info.error)}) – der Endpoint ist aus der aktuellen Adresse abgeleitet.</div> : null}
@@ -129,10 +129,10 @@ export default function Mcp() {
         </div>
         <ul className="small" style={{ margin: 0, paddingLeft: 18 }}>
           <li>
-            Node-basierte Clients (Claude Code, viele MCP-Clients): <span className="mono">NODE_EXTRA_CA_CERTS=/pfad/caddyforge-ui.crt</span> setzen.
+            Node-basierte Clients (Claude Code, viele MCP-Clients): <span className="mono">NODE_EXTRA_CA_CERTS=/pfad/caddyevolved-ui.crt</span> setzen.
           </li>
           <li>
-            Alternativ caddyforge als eigene Site hinter Caddy veröffentlichen (Ziel <span className="mono">https://127.0.0.1:8484</span>, „Upstream-Zertifikat
+            Alternativ caddyEvolved als eigene Site hinter Caddy veröffentlichen (Ziel <span className="mono">https://127.0.0.1:8484</span>, „Upstream-Zertifikat
             nicht prüfen“, mit Access List) – dann gilt ein echtes Zertifikat. → {link("/sites", "Sites")}
           </li>
         </ul>

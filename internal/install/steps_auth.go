@@ -7,8 +7,8 @@ import (
 	"os"
 	"strings"
 
-	"caddyforge/internal/auth"
-	"caddyforge/internal/platform"
+	"caddyevolved/internal/auth"
+	"caddyevolved/internal/platform"
 )
 
 // stepUIAuth guarantees the daemon can log anybody in.
@@ -62,7 +62,7 @@ func (p *Plan) Warnings() []string {
 		out = append(out, "UI-Passwort existiert bereits – es wird nicht ersetzt")
 	}
 	if p.host.Init != platform.InitSystemd {
-		out = append(out, "Kein systemd: caddy mit `caddyforge start`, die WebUI mit `caddyforge serve` laufen lassen")
+		out = append(out, "Kein systemd: caddy mit `caddyevolved start`, die WebUI mit `caddyevolved serve` laufen lassen")
 	}
 	if !p.host.CanBind && !p.host.IsRoot {
 		out = append(out, "Ports <1024 nur mit CAP_NET_BIND_SERVICE in der Unit")

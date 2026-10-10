@@ -165,7 +165,7 @@ function ACLEditor({ initial, geoAvailable, onDone }: { initial: AccessList | nu
   const [deny, setDeny] = useState((initial?.deny ?? []).join("\n"));
   const [allowCountries, setAllowCountries] = useState((initial?.allowCountries ?? []).join(" "));
   const [denyCountries, setDenyCountries] = useState((initial?.denyCountries ?? []).join(" "));
-  const [geoDb, setGeoDb] = useState(initial?.geoDb || "/var/lib/caddyforge/GeoLite2-Country.mmdb");
+  const [geoDb, setGeoDb] = useState(initial?.geoDb || "/var/lib/caddyevolved/GeoLite2-Country.mmdb");
   const [users, setUsers] = useState<UserRow[]>((initial?.users ?? []).map((u) => ({ username: u.username, password: "", hasPassword: u.hasPassword })));
   const [err, setErr] = useState<unknown>(null);
   const [saving, setSaving] = useState(false);

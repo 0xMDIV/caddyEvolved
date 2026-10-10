@@ -9,12 +9,12 @@ import (
 	"strconv"
 	"strings"
 
-	"caddyforge/internal/caddyctl"
-	"caddyforge/internal/cmdx"
-	"caddyforge/internal/config"
-	"caddyforge/internal/platform"
-	"caddyforge/internal/supervisor"
-	"caddyforge/internal/systemd"
+	"caddyevolved/internal/caddyctl"
+	"caddyevolved/internal/cmdx"
+	"caddyevolved/internal/config"
+	"caddyevolved/internal/platform"
+	"caddyevolved/internal/supervisor"
+	"caddyevolved/internal/systemd"
 )
 
 // layout is everything a command needs once --root/--prefix is known: the

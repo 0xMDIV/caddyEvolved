@@ -11,8 +11,8 @@ import (
 	"strings"
 	"time"
 
-	"caddyforge/internal/events"
-	"caddyforge/internal/sites"
+	"caddyevolved/internal/events"
+	"caddyevolved/internal/sites"
 )
 
 var analyticsRanges = map[string]time.Duration{
@@ -104,7 +104,7 @@ func (s *Server) audit(w http.ResponseWriter, r *http.Request, sess Session, nex
 	switch {
 	case sess.Token != "":
 		actor = "token " + sess.Token
-		if via := r.Header.Get("X-Caddyforge-Via"); via != "" {
+		if via := r.Header.Get("X-CaddyEvolved-Via"); via != "" {
 			actor += " (" + via + ")"
 		}
 	case sess.Bearer:
@@ -136,7 +136,7 @@ func (s *Server) StartBackground(ctx context.Context) {
 	}
 	if !s.Paths.IsPrefixed() {
 		if err := ensureCaddyOwned(filepath.Dir(s.Paths.AccessLog)); err != nil {
-			fmt.Fprintf(os.Stderr, "caddyforge: Log-Verzeichnis: %v\n", err)
+			fmt.Fprintf(os.Stderr, "caddyevolved: Log-Verzeichnis: %v\n", err)
 		}
 		s.ensureAccessLog()
 	}

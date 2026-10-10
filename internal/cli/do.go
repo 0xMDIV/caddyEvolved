@@ -14,8 +14,8 @@ import (
 	"strings"
 	"time"
 
-	"caddyforge/internal/api"
-	"caddyforge/internal/config"
+	"caddyevolved/internal/api"
+	"caddyevolved/internal/config"
 )
 
 // doFlagArgs are the flags that consume a following value, so the partitioner
@@ -32,9 +32,9 @@ func cmdDo(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 	flags, rest := partitionFlags(args, doFlagArgs)
 	fs := flag.NewFlagSet("do", flag.ContinueOnError)
 	fs.SetOutput(stderr)
-	root := fs.String("root", envDefault("CADDYFORGE_ROOT", ""), "Installation in diesem Baum")
+	root := fs.String("root", envDefault("CADDYEVOLVED_ROOT", ""), "Installation in diesem Baum")
 	port := fs.Int("port", 0, "Port des Dienstes (Standard: aus state.json)")
-	token := fs.String("token", os.Getenv("CADDYFORGE_SESSION"), "Sitzungs-Token für die Authorization")
+	token := fs.String("token", os.Getenv("CADDYEVOLVED_SESSION"), "Sitzungs-Token für die Authorization")
 	timeout := fs.Duration("timeout", 30*time.Second, "Zeit für die Anfrage")
 	if err := fs.Parse(flags); err != nil {
 		return err
@@ -43,7 +43,7 @@ func cmdDo(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 		rest = append(fs.Args(), rest...)
 	}
 	if len(rest) < 2 {
-		return fmt.Errorf("Aufruf: caddyforge do METHODE PFAD [BODY], z. B. do GET /api/status")
+		return fmt.Errorf("Aufruf: caddyevolved do METHODE PFAD [BODY], z. B. do GET /api/status")
 	}
 	method := strings.ToUpper(rest[0])
 	path := rest[1]
@@ -154,12 +154,12 @@ func cmdUninstall(ctx context.Context, args []string, stdout, stderr io.Writer) 
 	fs.SetOutput(stderr)
 	fs.Bool("yes", false, "Rückfrage überspringen")
 	fs.Bool("keep-config", false, "Caddyfile und Zugangsdaten behalten")
-	root := fs.String("root", envDefault("CADDYFORGE_ROOT", ""), "Installation in diesem Baum")
+	root := fs.String("root", envDefault("CADDYEVOLVED_ROOT", ""), "Installation in diesem Baum")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
 	return fmt.Errorf("uninstall für %s entfernt absichtlich noch nichts: Einheiten, Daten und Binary löscht erst M7 – "+
-		"bis dahin systemctl disable --now caddy caddyforge, dann /etc/caddyforge, /etc/caddy, /var/lib/caddyforge und /var/log/caddy von Hand entfernen",
+		"bis dahin systemctl disable --now caddy caddyevolved, dann /etc/caddyevolved, /etc/caddy, /var/lib/caddyevolved und /var/log/caddy von Hand entfernen",
 		displayRoot(config.NewPaths(*root).Root))
 }
 

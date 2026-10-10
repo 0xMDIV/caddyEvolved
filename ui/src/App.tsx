@@ -210,7 +210,7 @@ export default function App() {
     <div className="shell">
       <nav className="sidebar" aria-label="Hauptnavigation">
         <div className="brand">
-          <span className="brand-mark">C</span> caddyforge
+          <span className="brand-mark">cE</span> caddyEvolved
         </div>
         {NAV.map((n) => (
           <a
@@ -259,7 +259,7 @@ export default function App() {
               <option value="dark">Dunkel</option>
             </select>
           </label>
-          <span>{version ? `caddyforge ${version.version}` : ""}</span>
+          <span>{version ? `caddyEvolved ${version.version}` : ""}</span>
         </div>
       </nav>
       <main className="main">{page}</main>

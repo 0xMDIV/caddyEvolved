@@ -1,11 +1,11 @@
 # Stand: läuft auf dem LXC (Builder + WebUI + Sites)
 
 **2026-10-10, nach M1.** Ziel-LXC `192.168.10.27` (Ubuntu 26.04, 2 vCPU, 4 GB, systemd).
-Zugang per SSH-Key `~/.ssh/caddyforge_lxc` **in WSL** (nicht im Windows-Profil).
+Zugang per SSH-Key `~/.ssh/caddyevolved_lxc` **in WSL** (nicht im Windows-Profil).
 
 ## Was jetzt auf dem LXC verifiziert ist
 
-- `caddyforge install --unattended` auf echtem systemd: alle Schritte `ok`, caddy als User
+- `caddyevolved install --unattended` auf echtem systemd: alle Schritte `ok`, caddy als User
   `caddy` mit `CAP_NET_BIND_SERVICE` auf 80/443, `Type=notify` startet sauber.
 - WebUI auf `https://192.168.10.27:8484` (self-signed), Login aus dem LAN.
 - **Sites:** anlegen → validate → reload, HTTPS mit `tls internal` erreichbar; ungültige
@@ -22,7 +22,7 @@ Zugang per SSH-Key `~/.ssh/caddyforge_lxc` **in WSL** (nicht im Windows-Profil).
 | Fehler | Folge | Fix |
 |---|---|---|
 | `caddy validate` provisioniert die lokale CA und schreibt nach `$HOME/.local` | im gehärteten Daemon (`ProtectSystem`, read-only `/root`) scheitert jede Validierung mit `tls internal`; in caddys Datenverzeichnis hätte es root-eigene Dateien hinterlassen | `caddyctl.ScratchEnv`: validate läuft mit eigenem Wegwerf-`XDG_DATA_HOME` |
-| `caddyforge.service` hat `UMask=0077` | vom Daemon geschriebene Snippets/Caddyfile wären `0600`, caddy (User `caddy`) könnte sie nicht lesen | explizites `chmod 0644` / Verzeichnisse `0755` |
+| `caddyevolved.service` hat `UMask=0077` | vom Daemon geschriebene Snippets/Caddyfile wären `0600`, caddy (User `caddy`) könnte sie nicht lesen | explizites `chmod 0644` / Verzeichnisse `0755` |
 | `ProtectSystem=full` ohne `/usr/local/bin` in `ReadWritePaths` | Binary-Tausch nach Build unmöglich | `ReadWritePaths` erweitert |
 | `install --dry-run` legte den System-User `caddy` an | Trockenlauf verändert das System | Dry-Run-Guard in `stepSystemUser` |
 | `list-modules --nonstandard` (gibt es nicht) | Plugin-Erkennung immer leer | `--skip-standard`, Parser ignoriert die eingerückte Zusammenfassung |
@@ -59,14 +59,14 @@ für den Traefik-Import.
 
 - UI ist nur gebaut und über die API getestet, nicht im Browser durchgeklickt.
 - MCP antwortet nur JSON (kein SSE-Stream); reicht für alle Tools, die sofort antworten.
-- Bestehende Installationen bekommen die neue `caddyforge.service` (ReadWritePaths) nur durch
-  erneutes `caddyforge install --force` bzw. manuelles Anpassen der Unit.
+- Bestehende Installationen bekommen die neue `caddyevolved.service` (ReadWritePaths) nur durch
+  erneutes `caddyevolved install --force` bzw. manuelles Anpassen der Unit.
 - Rollback bei *ungesundem* Start ist implementiert, aber nur der Erfolgspfad ist auf dem LXC
   getestet.
-- Builds laufen als root im Daemon (Go-Toolchain unter `/var/lib/caddyforge`). Ein eigener
+- Builds laufen als root im Daemon (Go-Toolchain unter `/var/lib/caddyevolved`). Ein eigener
   Build-User wäre sauberer.
 - Caddyfile-Revisionsverlauf (M4), Zertifikatsübersicht (Admin-API-Endpunkt prüfen), Auth-Hardening (M7).
-- `internal/forge` (externer Build-Service) ist durch `internal/builder` ersetzt und kann weg.
+- `internal/forge` (externer Build-Service) wurde durch `internal/builder` ersetzt und entfernt.
 
 ---
 
@@ -79,7 +79,7 @@ M1 fehlt nur noch die Verifikation auf echtem systemd (Proxmox-LXC).
 ## 0. Kurzfassung
 
 **Gebaut und verifiziert (M1):**
-- Statische Go-Binary `caddyforge`, alle 14 CLI-Befehle implementiert; `proxy` (M5) und
+- Statische Go-Binary `caddyevolved`, alle 14 CLI-Befehle implementiert; `proxy` (M5) und
   `uninstall` (M7) sind bewusste Absagen statt halber Pfade.
 - Installation end-to-end in WSL als uid 1000 gegen einen `--prefix`-Baum: alle zwölf
   Schritte `ok`/`skipped`, caddy 2.11.7 geladen und Digest geprüft, Caddyfile validiert,
@@ -87,7 +87,7 @@ M1 fehlt nur noch die Verifikation auf echtem systemd (Proxmox-LXC).
 - `status`, `validate`, `version`, `logs`, `stop`, `serve`, `token`, `do` gegen genau
   diese Installation durchgetestet.
 - Build grün, `go vet` sauber, `gofmt -l .` leer, Tests in 7 Paketen (kein Netz, kein
-  root). Statisches Binary: `dist/caddyforge` (10 MB).
+  root). Statisches Binary: `dist/caddyevolved` (10 MB).
 - Sieben Fehler, die nur die echte Ausführung zeigen konnte, sind gefixt — siehe
   Tabelle 3.
 
@@ -100,7 +100,7 @@ Verifikation lief in WSL Ubuntu-24.04 als uid 1000 gegen einen Prefix-Baum
 (`--prefix`), also ohne root, ohne systemd-Berührung:
 
 ```
-caddyforge install --prefix ~/caddytest/stage \
+caddyevolved install --prefix ~/caddytest/stage \
   --unattended docs/examples/answers.official.json \
   --http-port 8080 --https-port 8443 --ui-port 8585 --ui-bind 127.0.0.1 --yes
 ```
@@ -167,7 +167,7 @@ gefördert, die der Build nicht sehen konnte:
 |---|---|---|
 | `caddy_<ver>_checksums.txt` enthält **SHA-512**, wir prüften hart gegen SHA-256 | jede Official-Installation bricht mit "checksum mismatch" | `fetch.ParseDigest` leitet den Algorithmus aus Präfix **oder Länge** ab; `Options.SHA256` → `Options.Digest`; `ToFile` hasht beides |
 | `caddy --version` liefert `v2.11.7 h1:...` (kein "Caddy version"-Präfix mehr) | Versionsvergleich mit `"h1:yj0Y..."`, Installation bricht | Feldsuche per Regex statt Präfix-Annahme (`caddyctl.Version`) |
-| `caddy validate` lief gegen die **noch nicht geschriebene** Caddyfile | Erstinstallation scheitert immer | Inhalt nach `.caddyforge-new` schreiben, prüfen, dann `rename` |
+| `caddy validate` lief gegen die **noch nicht geschriebene** Caddyfile | Erstinstallation scheitert immer | Inhalt nach `.caddyevolved-new` schreiben, prüfen, dann `rename` |
 | `--dry-run` schrieb `env` und Verzeichnisse, und gab ein Passwort aus, das nie entstand | Sicherheitsnetz lügt | Dry-Run-Guard in `directories`, `credentials`; Passwort-Generierung hinter den Dry-Run-Zweig |
 | Prefix-Installation rief `systemctl daemon-reload`/`enable` und `status` auf dem **Live-System** | Non-root bricht ab; im Ernstfall würdest du den echten caddy steuern | `systemd.Service.Write()` ohne Reload; Prefix-Zweige in `stepUnits`, `stepEnableStart`, `stepVerify`; `layout.hasSystemd()` knows prefix |
 | `p.resolved.started` blieb ohne systemd false | `verify` übersprungen, nie ein Health-Check | `enable-start` setzt `started` auch im Supervisor-Pfad |
@@ -177,7 +177,7 @@ Dazu die im alten Stand dokumentierten Signaturen (`supervisor.New` mit 5 Argume
 
 Zwei Entscheidungen, die ich getroffen habe – bitte gegenlesen:
 
-1. **`caddyforge.service` ist `Type=simple`, nicht `Type=notify`.** Das Binary spricht
+1. **`caddyevolved.service` ist `Type=simple`, nicht `Type=notify`.** Das Binary spricht
    `sd_notify` nicht, also hätte systemd den Start nach `TimeoutStartSec` abgebrochen.
    `caddy.service` bleibt `notify` (caddy kann das). sd_notify für uns wäre ein eigene
    Kleinigkeit, aber kein M1-Gewinn.
@@ -218,26 +218,26 @@ Bauen (statisch, damit die LXC keine Toolchain braucht):
 ```bash
 wsl -d Ubuntu-24.04 -- bash -c "export PATH=\$HOME/.local/go/bin:\$PATH; \
   cd /mnt/p/code/caddyEvolved && CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
-  go build -trimpath -ldflags '-s -w' -o dist/caddyforge ./cmd/caddyforge && sha256sum dist/caddyforge"
+  go build -trimpath -ldflags '-s -w' -o dist/caddyevolved ./cmd/caddyevolved && sha256sum dist/caddyevolved"
 ```
 
 Auf dem LXC (Debian 12 / Ubuntu 24.04, systemd als Init, root):
 
 ```bash
 # 1) Binary ablegen
-install -m 0755 caddyforge /usr/local/bin/caddyforge
+install -m 0755 caddyevolved /usr/local/bin/caddyevolved
 
 # 2) Trockenlauf: schreibt nichts, zeigt den Plan
-caddyforge install --unattended antworten.json --dry-run
+caddyevolved install --unattended antworten.json --dry-run
 
 # 3) Echte Installation (DNS-01-Variante: Token in antworten.json eintragen)
-caddyforge install --unattended antworten.json
+caddyevolved install --unattended antworten.json
 # 4) Das ausgegebenene UI-Passwort notieren, dann:
-caddyforge status
-systemctl status caddy caddyforge
-journalctl -u caddyforge -n 30
-caddyforge token            # API-Token für die Kommandozeile
-caddyforge do GET /api/status --token <TOKEN>
+caddyevolved status
+systemctl status caddy caddyevolved
+journalctl -u caddyevolved -n 30
+caddyevolved token            # API-Token für die Kommandozeile
+caddyevolved do GET /api/status --token <TOKEN>
 ```
 
 Worauf der LXC-Lauf besonders achtet (alles Punkte, die WSL nicht abdeckt):
@@ -245,8 +245,8 @@ Worauf der LXC-Lauf besonders achtet (alles Punkte, die WSL nicht abdeckt):
 - `useradd --system caddy` und `chown` auf `/var/lib/caddy`, `/etc/caddy`
 - `AmbientCapabilities=CAP_NET_BIND_SERVICE` mit `httpPort 80`/`httpsPort 443`
 - `Type=notify` für caddy: startet und bleibt der Dienst, wenn systemd auf READY=1 wartet?
-- `ProtectSystem=full` + `ReadWritePaths` in `caddyforge.service`: kann der Daemon
-  trotzdem `/etc/caddy/Caddyfile` und `/etc/caddyforge/env` schreiben?
+- `ProtectSystem=full` + `ReadWritePaths` in `caddyevolved.service`: kann der Daemon
+  trotzdem `/etc/caddy/Caddyfile` und `/etc/caddyevolved/env` schreiben?
 - HTTPS-Bindung der UI auf `0.0.0.0` mit self-signed Cert, Login vom LAN aus
 - DNS-01: Zertifikatsausstellung für eine echte Domain (Der-Fluss dauert 1–3 Minuten
   bei `binarySource: custom`, weil caddyserver.com den Build kompiliert)
@@ -284,7 +284,7 @@ Erledigt: Commit `aba04ba` ist gepusht (`origin/main`).
 - **`/tmp` in WSL ist flüchtig**, Staging-Bäume dort verschwinden zwischen Aufrufen
   (und hinterlassen caddy-Prozesse ohne PID-Datei, die Ports belegen).
 - **Mehrzeilige Commit-Bodies per `-m` schneidet cmd.exe ab** → immer `git commit -F datei`.
-- **`.gitignore`-Muster gewurzelt schreiben** (`/caddyforge`, nicht `caddyforge`).
+- **`.gitignore`-Muster gewurzelt schreiben** (`/caddyevolved`, nicht `caddyevolved`).
 - **CRLF ist ein Function-Bug**: systemd-Units und Shell-Scripts brauchen LF
   (`.gitattributes` erzwingt das, `core.autocrlf=input` repo-lokal).
 - **Kein Feature vor grüner Verifikation**: M2 beginnt erst nach Punkt 5.

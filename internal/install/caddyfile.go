@@ -5,8 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"caddyforge/internal/plugins"
-	"caddyforge/internal/sites"
+	"caddyevolved/internal/plugins"
+	"caddyevolved/internal/sites"
 )
 
 // renderCaddyfile builds the initial configuration from the answers.
@@ -17,7 +17,7 @@ func (p *Plan) renderCaddyfile() (string, error) {
 	a := p.opts.Answers
 	var b strings.Builder
 
-	b.WriteString("# Caddyfile – verwaltet von caddyforge\n")
+	b.WriteString("# Caddyfile – verwaltet von caddyEvolved\n")
 	b.WriteString("# Prüfen: caddy validate --config <Pfad> --adapter caddyfile\n")
 	b.WriteString("# Reload: systemctl reload caddy\n\n")
 
@@ -51,7 +51,7 @@ func (p *Plan) renderCaddyfile() (string, error) {
 
 	// Sites live in one snippet each, managed by the WebUI; the first one from
 	// the answers is written there too (see initialSite).
-	b.WriteString("# Sites aus der caddyforge-WebUI (eine Datei pro Site)\n")
+	b.WriteString("# Sites aus der caddyEvolved-WebUI (eine Datei pro Site)\n")
 	b.WriteString("import " + filepath.ToSlash(p.paths.SitesDir) + "/*.caddy\n")
 	if a.SiteDomain != "" {
 		if _, ok := p.initialSite(); !ok {
@@ -64,7 +64,7 @@ func (p *Plan) renderCaddyfile() (string, error) {
 	b.WriteString("\n# Noch keine Site angelegt – in der WebUI unter \"Sites\" hinzufügen.\n")
 	b.WriteString(`:2015 {
 	# Platzhalter-Dienst, damit caddy mit leerer Konfiguration startet
-	respond "caddyforge: noch keine Site konfiguriert"
+	respond "caddyEvolved: noch keine Site konfiguriert"
 }
 `)
 	return b.String(), nil

@@ -12,7 +12,7 @@ import (
 	"strconv"
 	"strings"
 
-	"caddyforge/internal/cmdx"
+	"caddyevolved/internal/cmdx"
 )
 
 // Client runs subcommands of one caddy binary.
@@ -40,7 +40,7 @@ func Find(path string) (string, error) {
 	if p, err := exec.LookPath("caddy"); err == nil {
 		candidates = append(candidates, p)
 	}
-	candidates = append(candidates, "/usr/local/bin/caddy", "/usr/bin/caddy", "/opt/caddyforge/bin/caddy")
+	candidates = append(candidates, "/usr/local/bin/caddy", "/usr/bin/caddy", "/opt/caddyevolved/bin/caddy")
 	for _, c := range candidates {
 		if st, err := os.Stat(c); err == nil && !st.IsDir() {
 			return c, nil
@@ -147,7 +147,7 @@ func (c *Client) Validate(ctx context.Context, configPath, adapter string) (stri
 	// would leave root-owned files the service user cannot read. A scratch
 	// directory keeps both away.
 	env := append([]string(nil), c.Env...)
-	if scratch, err := os.MkdirTemp("", "caddyforge-validate-"); err == nil {
+	if scratch, err := os.MkdirTemp("", "caddyevolved-validate-"); err == nil {
 		defer os.RemoveAll(scratch)
 		env = append(env, ScratchEnv(scratch)...)
 	}

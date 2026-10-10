@@ -6,9 +6,9 @@ import (
 	"strings"
 	"time"
 
-	"caddyforge/internal/config"
-	"caddyforge/internal/events"
-	"caddyforge/internal/install"
+	"caddyevolved/internal/config"
+	"caddyevolved/internal/events"
+	"caddyevolved/internal/install"
 )
 
 // stateView is the install state as the UI sees it. It never carries secret

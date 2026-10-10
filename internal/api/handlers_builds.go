@@ -11,12 +11,12 @@ import (
 	"sync"
 	"time"
 
-	"caddyforge/internal/builder"
-	"caddyforge/internal/caddyctl"
-	"caddyforge/internal/config"
-	"caddyforge/internal/events"
-	"caddyforge/internal/plugins"
-	"caddyforge/internal/releases"
+	"caddyevolved/internal/builder"
+	"caddyevolved/internal/caddyctl"
+	"caddyevolved/internal/config"
+	"caddyevolved/internal/events"
+	"caddyevolved/internal/plugins"
+	"caddyevolved/internal/releases"
 )
 
 var reCaddyTag = regexp.MustCompile(`^v2\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$`)
@@ -276,7 +276,7 @@ func (s *Server) handleBuildDelete(w http.ResponseWriter, r *http.Request) {
 }
 
 // buildHooks restart caddy through whatever manages it and wait for the
-// admin API, the same health signal `caddyforge status` uses.
+// admin API, the same health signal `caddyevolved status` uses.
 func (s *Server) buildHooks() builder.Hooks {
 	return builder.Hooks{
 		Restart: func(ctx context.Context) error {
@@ -326,7 +326,7 @@ func (s *Server) handleBuildRollback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	version, _ := s.Caddy.Version(ctx)
-	// No active build means the binary predates caddyforge builds: no plugins.
+	// No active build means the binary predates caddyevolved builds: no plugins.
 	plugins := []string{}
 	if id := s.Builder.ActiveID(); id != "" {
 		if b, _, err := s.Builder.Get(id); err == nil {

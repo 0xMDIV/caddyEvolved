@@ -26,14 +26,14 @@ export default function Login({ version, onLogin }: { version: VersionInfo | nul
     <div className="login-wrap">
       <form className="card login stack" onSubmit={submit}>
         <div className="brand" style={{ padding: 0 }}>
-          <span className="brand-mark">C</span> caddyforge
+          <span className="brand-mark">cE</span> caddyEvolved
         </div>
         <p className="muted" style={{ margin: 0 }}>
           Anmeldung an der Caddy-Verwaltung.
         </p>
         {version?.setup && (
           <div className="alert warn">
-            Noch kein UI-Passwort gesetzt. Auf dem Server <code>caddyforge passwd</code> ausführen.
+            Noch kein UI-Passwort gesetzt. Auf dem Server <code>caddyevolved passwd</code> ausführen.
           </div>
         )}
         <label className="field">

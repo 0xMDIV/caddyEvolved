@@ -206,7 +206,7 @@ func Resolve(ids []string) (Resolution, error) {
 		for _, c := range e.Conflicts {
 			if c == "caddyfile-managed" {
 				r.CaddyfileManaged = false
-				r.Notes = append(r.Notes, fmt.Sprintf("%s erzeugt die Konfiguration selbst – der Caddyfile-Editor von caddyforge wird dadurch wirkungslos", e.Name))
+				r.Notes = append(r.Notes, fmt.Sprintf("%s erzeugt die Konfiguration selbst – der Caddyfile-Editor von caddyevolved wird dadurch wirkungslos", e.Name))
 				continue
 			}
 			// Two modules registering the same caddy module id make the

@@ -75,7 +75,7 @@ func DNSTLSBlock(e Entry) string {
 	return b.String()
 }
 
-// providerTokenVar is the variable name caddyforge writes for an unknown
+// providerTokenVar is the variable name caddyevolved writes for an unknown
 // caddy-dns provider, derived from the repo slug.
 func providerTokenVar(slug string) string {
 	up := strings.ToUpper(strings.ReplaceAll(slug, "-", "_"))

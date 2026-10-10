@@ -8,12 +8,12 @@ import (
 	"sync"
 	"time"
 
-	"caddyforge/internal/builder"
-	"caddyforge/internal/certs"
-	"caddyforge/internal/config"
-	"caddyforge/internal/events"
-	"caddyforge/internal/plugins"
-	"caddyforge/internal/sites"
+	"caddyevolved/internal/builder"
+	"caddyevolved/internal/certs"
+	"caddyevolved/internal/config"
+	"caddyevolved/internal/events"
+	"caddyevolved/internal/plugins"
+	"caddyevolved/internal/sites"
 )
 
 // aclUserIn is what the UI sends: a password only when it changes.

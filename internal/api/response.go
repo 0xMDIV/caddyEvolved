@@ -45,7 +45,7 @@ func writeErr(w http.ResponseWriter, status int, code, msg string, details ...st
 func (s *Server) fail(w http.ResponseWriter, r *http.Request, err error, fallback int) {
 	switch {
 	case errors.Is(err, os.ErrPermission):
-		writeErr(w, http.StatusForbidden, "permission", "Keine Berechtigung – caddyforge braucht root für Diensteingriffe: "+errText(err))
+		writeErr(w, http.StatusForbidden, "permission", "Keine Berechtigung – caddyEvolved braucht root für Diensteingriffe: "+errText(err))
 	case errors.Is(err, os.ErrNotExist):
 		writeErr(w, http.StatusNotFound, "not_found", "Nicht gefunden: "+errText(err))
 	case errors.Is(err, context.DeadlineExceeded):

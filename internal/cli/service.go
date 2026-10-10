@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"io"
 
-	"caddyforge/internal/caddyctl"
+	"caddyevolved/internal/caddyctl"
 )
 
 // action is one of the service verbs sharing this implementation.
@@ -45,7 +45,7 @@ func cmdReload(ctx context.Context, args []string, stdout, stderr io.Writer) err
 func serviceAction(ctx context.Context, args []string, stdout, stderr io.Writer, a action) error {
 	fs := flag.NewFlagSet(a.name, flag.ContinueOnError)
 	fs.SetOutput(stderr)
-	root := fs.String("root", envDefault("CADDYFORGE_ROOT", ""), "Installation in diesem Baum verwalten")
+	root := fs.String("root", envDefault("CADDYEVOLVED_ROOT", ""), "Installation in diesem Baum verwalten")
 	force := fs.Bool("force", false, "systemd umgehen und den Supervisor benutzen")
 	if err := fs.Parse(args); err != nil {
 		return err
@@ -132,7 +132,7 @@ func supervisedAction(ctx context.Context, l *layout, stdout io.Writer, a action
 func cmdValidate(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 	fs := flag.NewFlagSet("validate", flag.ContinueOnError)
 	fs.SetOutput(stderr)
-	root := fs.String("root", envDefault("CADDYFORGE_ROOT", ""), "Installation in diesem Baum verwalten")
+	root := fs.String("root", envDefault("CADDYEVOLVED_ROOT", ""), "Installation in diesem Baum verwalten")
 	file := fs.String("file", "", "diese Datei prüfen (Standard: das installierte Caddyfile)")
 	adapter := fs.String("adapter", "caddyfile", "Syntax der Datei (caddyfile|json)")
 	jsonOut := fs.Bool("json", false, "Ergebnis als JSON ausgeben")

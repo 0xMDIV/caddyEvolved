@@ -13,7 +13,7 @@ func TestApplyAddsUpdatesAndRemoves(t *testing.T) {
 
 	changes, err := s.Apply(Apply{
 		Wanted: map[string]string{"CF_API_TOKEN": "secret-value", "PLAIN": "open"},
-		Header: "verwaltet von caddyforge",
+		Header: "verwaltet von caddyevolved",
 	})
 	if err != nil {
 		t.Fatalf("Apply: %v", err)

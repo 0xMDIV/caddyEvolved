@@ -9,11 +9,11 @@ import (
 	"os"
 	"strings"
 
-	"caddyforge/internal/config"
-	"caddyforge/internal/install"
+	"caddyevolved/internal/config"
+	"caddyevolved/internal/install"
 )
 
-// installFlags is the parsed command line of `caddyforge install`.
+// installFlags is the parsed command line of `caddyevolved install`.
 type installFlags struct {
 	set        *flag.FlagSet
 	unattended string
@@ -47,7 +47,7 @@ func parseInstallFlags(args []string, stderr io.Writer) (*installFlags, error) {
 	fs.SetOutput(stderr)
 	f.set = fs
 	fs.StringVar(&f.unattended, "unattended", "", "answers.json ohne Rückfragen verwenden")
-	fs.StringVar(&f.root, "root", envDefault("CADDYFORGE_ROOT", ""), "Konfiguration/Daten dieses Baums verwenden")
+	fs.StringVar(&f.root, "root", envDefault("CADDYEVOLVED_ROOT", ""), "Konfiguration/Daten dieses Baums verwenden")
 	fs.StringVar(&f.prefix, "prefix", "", "alles unter dieses Staging-Präfix schreiben (ohne root)")
 	fs.BoolVar(&f.dryRun, "dry-run", false, "nur planen und prüfen, nichts schreiben")
 	fs.BoolVar(&f.force, "force", false, "bestehende Units, Ports und Dateien übernehmen")
@@ -61,7 +61,7 @@ func parseInstallFlags(args []string, stderr io.Writer) (*installFlags, error) {
 	fs.IntVar(&f.adminPort, "admin-port", 0, "Admin-Port auf localhost (0 = Standard 2019)")
 	fs.IntVar(&f.uiPort, "ui-port", 0, "Port der WebUI (0 = Standard 8484)")
 	fs.StringVar(&f.uiBind, "ui-bind", "", "Bind-Adresse der WebUI (0 = Standard 0.0.0.0)")
-	fs.BoolVar(&f.managed, "managed", false, "Caddyfile vollständig durch caddyforge verwalten")
+	fs.BoolVar(&f.managed, "managed", false, "Caddyfile vollständig durch caddyEvolved verwalten")
 	fs.StringVar(&f.domain, "domain", "", "Domain der ersten Site")
 	fs.StringVar(&f.target, "target", "", "Ziel-URL der ersten Site")
 	fs.BoolVar(&f.behind, "ui-behind-proxy", false, "WebUI hinter caddy statt auf eigenem Port")
@@ -118,7 +118,7 @@ func cmdInstall(ctx context.Context, args []string, stdout, stderr io.Writer) er
 		printIntent(stdout, answers, l.paths)
 		if !f.yes && !newPrompt(stdout).confirm("Jetzt installieren?", true) {
 			data, _ := json.MarshalIndent(answers, "", "  ")
-			fmt.Fprintf(stdout, "Abgebrochen. Dieselben Antworten unbeaufsichtigt:\n  caddyforge install --unattended antworten.json\n%s\n", data)
+			fmt.Fprintf(stdout, "Abgebrochen. Dieselben Antworten unbeaufsichtigt:\n  caddyevolved install --unattended antworten.json\n%s\n", data)
 			return nil
 		}
 	}

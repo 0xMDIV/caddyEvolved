@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"strings"
 
-	"caddyforge/internal/cmdx"
+	"caddyevolved/internal/cmdx"
 )
 
 // Unit is a rendered service file.

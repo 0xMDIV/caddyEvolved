@@ -15,7 +15,7 @@ import (
 	"strings"
 	"time"
 
-	"caddyforge/internal/fetch"
+	"caddyevolved/internal/fetch"
 )
 
 // GoDownloads is the official release index; tests point it elsewhere.

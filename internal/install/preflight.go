@@ -9,11 +9,11 @@ import (
 	"sort"
 	"strings"
 
-	"caddyforge/internal/caddyctl"
-	"caddyforge/internal/fetch"
-	"caddyforge/internal/platform"
-	"caddyforge/internal/plugins"
-	"caddyforge/internal/releases"
+	"caddyevolved/internal/caddyctl"
+	"caddyevolved/internal/fetch"
+	"caddyevolved/internal/platform"
+	"caddyevolved/internal/plugins"
+	"caddyevolved/internal/releases"
 )
 
 // skip marks a step without failing the plan; the plan honours our status.
@@ -44,7 +44,7 @@ func (p *Plan) stepPreflight(ctx context.Context, s *Step) error {
 		switch {
 		case st.Free:
 		case st.Own && !p.opts.Force:
-			problems = append(problems, fmt.Sprintf("Port %d belegt von %s – mit --force übernimmt caddyforge den bestehenden Dienst", st.Port, st.UsedBy))
+			problems = append(problems, fmt.Sprintf("Port %d belegt von %s – mit --force übernimmt caddyEvolved den bestehenden Dienst", st.Port, st.UsedBy))
 		case st.UsedBy != "":
 			problems = append(problems, fmt.Sprintf("Port %d belegt von %s", st.Port, st.UsedBy))
 		default:
@@ -109,7 +109,7 @@ func (p *Plan) resolveBinary(ctx context.Context) error {
 		p.resolved.binaryURL = fmt.Sprintf("%s/caddyserver/caddy/releases/download/v%s/%s",
 			releases.ReleaseBase, p.resolved.caddyVersion, name)
 	case releases.SourceBundle:
-		return fmt.Errorf("vorgebaute Bundle-Varianten liefert der forge-Builder (M3/M8) – bis dahin \"official\" oder \"custom\"")
+		return fmt.Errorf("vorgebaute Bundle-Varianten gibt es noch nicht (M8) – bis dahin \"official\" oder \"custom\"")
 	case releases.SourceCustom:
 		if len(res.Modules) == 0 {
 			return fmt.Errorf("Quelle \"custom\" braucht mindestens ein Modul")

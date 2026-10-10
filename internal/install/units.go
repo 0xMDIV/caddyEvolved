@@ -7,20 +7,20 @@ import (
 	"strings"
 	"text/template"
 
-	"caddyforge/internal/platform"
-	"caddyforge/internal/systemd"
+	"caddyevolved/internal/platform"
+	"caddyevolved/internal/systemd"
 )
 
 //go:embed templates/caddy.service.tmpl
 var caddyUnitTmpl string
 
-//go:embed templates/caddyforge.service.tmpl
-var forgeUnitTmpl string
+//go:embed templates/caddyevolved.service.tmpl
+var daemonUnitTmpl string
 
 // unitData feeds the service templates.
 type unitData struct {
 	CaddyBin    string
-	ForgeBin    string
+	DaemonBin   string
 	Caddyfile   string
 	EnvFile     string
 	AdminPort   int
@@ -44,7 +44,7 @@ func (p *Plan) unitValues() unitData {
 	}
 	return unitData{
 		CaddyBin:    bin,
-		ForgeBin:    p.paths.Bin,
+		DaemonBin:   p.paths.Bin,
 		Caddyfile:   p.paths.Caddyfile,
 		EnvFile:     p.paths.EnvFile,
 		AdminPort:   a.AdminPort,
@@ -64,7 +64,7 @@ func (p *Plan) unitValues() unitData {
 // stepUnits installs both service files.
 func (p *Plan) stepUnits(ctx context.Context, s *Step) error {
 	if p.host.Init != platform.InitSystemd {
-		return skip(s, StatusSkipped, "kein systemd – Dienste mit `caddyforge start` und `caddyforge serve` laufen lassen")
+		return skip(s, StatusSkipped, "kein systemd – Dienste mit `caddyevolved start` und `caddyevolved serve` laufen lassen")
 	}
 	units, err := p.renderUnits()
 	if err != nil {
@@ -108,13 +108,13 @@ func (p *Plan) renderUnits() ([]systemd.Unit, error) {
 	if err != nil {
 		return nil, err
 	}
-	forgeBody, err := renderUnit("caddyforge.service.tmpl", forgeUnitTmpl, v)
+	daemonBody, err := renderUnit("caddyevolved.service.tmpl", daemonUnitTmpl, v)
 	if err != nil {
 		return nil, err
 	}
 	return []systemd.Unit{
 		{Name: "caddy.service", Body: caddyBody},
-		{Name: "caddyforge.service", Body: forgeBody},
+		{Name: "caddyevolved.service", Body: daemonBody},
 	}, nil
 }
 

@@ -14,5 +14,5 @@ var (
 
 // String is the human one-liner; Long includes the toolchain.
 func String() string {
-	return fmt.Sprintf("caddyforge %s (%s) %s/%s go%s", Version, Commit, runtime.GOOS, runtime.GOARCH, runtime.Version()[2:])
+	return fmt.Sprintf("caddyevolved %s (%s) %s/%s go%s", Version, Commit, runtime.GOOS, runtime.GOARCH, runtime.Version()[2:])
 }

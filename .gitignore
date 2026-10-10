@@ -1,6 +1,6 @@
-# Build-Artefakte (nur an der Wurzel, sonst verschluckt das cmd/caddyforge/)
-/caddyforge
-/caddyforge.exe
+# Build-Artefakte (nur an der Wurzel, sonst verschluckt das cmd/caddyevolved/)
+/caddyevolved
+/caddyevolved.exe
 /bin/
 /dist/
 /out/

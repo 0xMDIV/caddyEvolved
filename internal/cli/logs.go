@@ -10,20 +10,20 @@ import (
 	"strings"
 	"time"
 
-	"caddyforge/internal/supervisor"
+	"caddyevolved/internal/supervisor"
 )
 
 // unitNames maps the friendly --unit value onto a systemd unit.
 var unitNames = map[string]string{
-	"caddy":      "caddy.service",
-	"caddyforge": "caddyforge.service",
+	"caddy":        "caddy.service",
+	"caddyevolved": "caddyevolved.service",
 }
 
 func cmdLogs(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 	fs := flag.NewFlagSet("logs", flag.ContinueOnError)
 	fs.SetOutput(stderr)
-	root := fs.String("root", envDefault("CADDYFORGE_ROOT", ""), "Installation in diesem Baum")
-	unit := fs.String("unit", "caddy", "caddy oder caddyforge")
+	root := fs.String("root", envDefault("CADDYEVOLVED_ROOT", ""), "Installation in diesem Baum")
+	unit := fs.String("unit", "caddy", "caddy oder caddyevolved")
 	lines := fs.Int("lines", 50, "letzte N Zeilen")
 	follow := fs.Bool("follow", false, "fortlaufen, bis Strg-C")
 	if err := fs.Parse(args); err != nil {
@@ -32,7 +32,7 @@ func cmdLogs(ctx context.Context, args []string, stdout, stderr io.Writer) error
 
 	name, ok := unitNames[strings.TrimSpace(*unit)]
 	if !ok {
-		return fmt.Errorf("bekannte Einheiten sind caddy und caddyforge, bekommen %q", *unit)
+		return fmt.Errorf("bekannte Einheiten sind caddy und caddyevolved, bekommen %q", *unit)
 	}
 	l := newLayout(ctx, *root)
 
@@ -56,7 +56,7 @@ func cmdLogs(ctx context.Context, args []string, stdout, stderr io.Writer) error
 	// Without systemd only caddy has a file we wrote; the daemon logs to whatever
 	// launched it, so asking for its unit must say so instead of printing nothing.
 	if name != "caddy.service" {
-		return fmt.Errorf("ohne systemd gibt es kein Protokoll für %s – `caddyforge serve` schreibt auf stdout", name)
+		return fmt.Errorf("ohne systemd gibt es kein Protokoll für %s – `caddyevolved serve` schreibt auf stdout", name)
 	}
 	if *follow {
 		return followFile(ctx, l.paths.LogFile, *lines, stdout)
@@ -72,7 +72,7 @@ func cmdLogs(ctx context.Context, args []string, stdout, stderr io.Writer) error
 }
 
 // followJournal streams journalctl until the context ends. It writes straight to
-// the command's stdout, so `caddyforge logs -f | grep` behaves like journalctl.
+// the command's stdout, so `caddyevolved logs -f | grep` behaves like journalctl.
 func followJournal(ctx context.Context, l *layout, unit string, lines int, stdout, stderr io.Writer) error {
 	cmd := exec.CommandContext(ctx, "journalctl", "--no-pager", "--lines", fmt.Sprint(lines), "--follow", "-u", unit)
 	cmd.Stdout = stdout

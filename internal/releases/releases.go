@@ -2,7 +2,7 @@
 //
 // Three sources, in the order an installer should try them:
 //  1. official GitHub release (vanilla caddy, checksums published)
-//  2. a caddyforge bundle variant (prebuilt with curated modules)
+//  2. a caddyevolved bundle variant (prebuilt with curated modules)
 //  3. caddyserver.com/api/download, which compiles a custom build
 //     server-side and is slow (measured ~114 s) — last resort
 package releases
@@ -136,7 +136,7 @@ func ArchiveName(version, goos, goarch, variant string) (string, error) {
 	case "", SourceOfficial:
 		return "caddy_" + version + "_" + osName + "_" + arch + ext, nil
 	case SourceBundle:
-		return "forge_" + version + "_" + osName + "_" + arch + ext, nil
+		return "caddyevolved-caddy_" + version + "_" + osName + "_" + arch + ext, nil
 	default:
 		return "", fmt.Errorf("unknown binary source %q", variant)
 	}
@@ -237,7 +237,7 @@ func raw(ctx context.Context, u string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Set("User-Agent", "caddyforge")
+	req.Header.Set("User-Agent", "caddyevolved")
 	req.Header.Set("Accept", "application/vnd.github+json")
 	resp, err := httpc.Do(req)
 	if err != nil {

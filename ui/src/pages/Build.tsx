@@ -602,7 +602,7 @@ function Credentials({ plugins, onSaved }: { plugins: PluginState[]; onSaved: ()
   return (
     <div className="stack">
       <div className="alert info">
-        Zugangsdaten landen in <code>/etc/caddyforge/env</code> (Rechte 0600) und werden Caddy als Umgebungsvariablen übergeben. Gespeicherte
+        Zugangsdaten landen in <code>/etc/caddyevolved/env</code> (Rechte 0600) und werden Caddy als Umgebungsvariablen übergeben. Gespeicherte
         Werte werden nie wieder angezeigt.
       </div>
       {list.length === 0 && <div className="card empty">Keines der eingebauten Plugins braucht Zugangsdaten.</div>}

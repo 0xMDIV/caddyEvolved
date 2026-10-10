@@ -853,7 +853,7 @@
       "conflicts": [
         "caddyfile-managed"
       ],
-      "note": "Erzeugt die Konfiguration selbst – unvereinbar mit Caddyfile-basierter Verwaltung durch caddyforge. In der Wizard-Kette als Lese-modus-Warnung behandeln.",
+      "note": "Erzeugt die Konfiguration selbst – unvereinbar mit Caddyfile-basierter Verwaltung durch caddyevolved. In der Wizard-Kette als Lese-modus-Warnung behandeln.",
       "env": [
         {
           "name": "CADDY_INGRESS_NETWORKS",

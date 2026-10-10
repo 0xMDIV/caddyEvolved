@@ -1,5 +1,5 @@
-// Thin client for the caddyforge API (docs/API.md).
-// Every mutation carries X-Caddyforge: 1 — the server's CSRF gate.
+// Thin client for the caddyEvolved API (docs/API.md).
+// Every mutation carries X-CaddyEvolved: 1 — the server's CSRF gate.
 
 export class ApiError extends Error {
   status: number;
@@ -27,7 +27,7 @@ export function onUnauthenticated(fn: Listener): () => void {
 
 async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
   const headers: Record<string, string> = { Accept: "application/json" };
-  if (method !== "GET") headers["X-Caddyforge"] = "1";
+  if (method !== "GET") headers["X-CaddyEvolved"] = "1";
   if (body !== undefined) headers["Content-Type"] = "application/json";
   let resp: Response;
   try {

@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	"caddyforge/internal/sites"
+	"caddyevolved/internal/sites"
 )
 
 // Nginx Proxy Manager keeps its hosts in SQLite. Two exports are accepted,
@@ -101,7 +101,7 @@ func npmSite(res *Result, r npmRow, src string, aclByID map[string]string) Candi
 		s.Mode = sites.ModeRedirect
 		s.RedirectTo = scheme + "://" + strings.TrimSuffix(r.ForwardDomainName, "/")
 		if len(r.PreservePath) > 0 && !truthy(r.PreservePath) {
-			c.Warnings = append(c.Warnings, "NPM leitete ohne Pfad weiter; caddyforge hängt den Pfad an")
+			c.Warnings = append(c.Warnings, "NPM leitete ohne Pfad weiter; caddyEvolved hängt den Pfad an")
 		}
 	} else {
 		host := r.ForwardHost
@@ -174,7 +174,7 @@ func npmACL(res *Result, a *npmAccessList) string {
 		}
 	}
 	if len(a.Items) > 0 {
-		c.Warnings = append(c.Warnings, fmt.Sprintf("%d Benutzer: NPM gibt keine Passwörter heraus – in caddyforge neu setzen", len(a.Items)))
+		c.Warnings = append(c.Warnings, fmt.Sprintf("%d Benutzer: NPM gibt keine Passwörter heraus – in caddyEvolved neu setzen", len(a.Items)))
 	}
 	if len(acl.Allow)+len(acl.Deny) == 0 {
 		res.warn("Access List %s: nur Benutzer – nach dem Import Benutzer mit Passwort anlegen und der Site zuweisen", a.Name)

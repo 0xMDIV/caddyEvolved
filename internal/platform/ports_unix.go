@@ -18,7 +18,7 @@ type PortState struct {
 	Port     int
 	Free     bool
 	UsedBy   string // process name, empty when unknown
-	Own      bool   // caddyforge or caddy itself holds it
+	Own      bool   // caddyevolved or caddy itself holds it
 	Listener bool   // something is listening
 }
 
@@ -48,7 +48,7 @@ func CheckPorts(ctx context.Context, ports ...int) []PortState {
 			st.UsedBy = name
 			st.Free = false
 			st.Listener = true
-			st.Own = name == "caddy" || name == "caddyforge"
+			st.Own = name == "caddy" || name == "caddyevolved"
 		}
 		states = append(states, st)
 	}

@@ -1,4 +1,4 @@
-// Package install turns a set of answers into a running caddy + caddyforge.
+// Package install turns a set of answers into a running caddy + caddyevolved.
 //
 // Everything happens through named, idempotent steps so a rerun is safe, a
 // failure says exactly where it stopped, and --dry-run can walk the whole plan
@@ -14,11 +14,11 @@ import (
 	"strings"
 	"time"
 
-	"caddyforge/internal/cmdx"
-	"caddyforge/internal/config"
-	"caddyforge/internal/platform"
-	"caddyforge/internal/plugins"
-	"caddyforge/internal/supervisor"
+	"caddyevolved/internal/cmdx"
+	"caddyevolved/internal/config"
+	"caddyevolved/internal/platform"
+	"caddyevolved/internal/plugins"
+	"caddyevolved/internal/supervisor"
 )
 
 // Answers is the complete configuration of an install, from wizard or JSON.
@@ -34,7 +34,7 @@ type Answers struct {
 	UIPort       int               `json:"uiPort"`
 	UIBind       string            `json:"uiBind"`
 	// UIBehindProxy puts the UI behind a caddy site block instead of letting
-	// caddyforge listen on its own port.
+	// caddyevolved listen on its own port.
 	UIBehindProxy bool   `json:"uiBehindProxy,omitempty"`
 	Managed       bool   `json:"managed"`
 	SiteDomain    string `json:"siteDomain,omitempty"`
@@ -212,7 +212,7 @@ func NewPlan(ctx context.Context, opts Options) (*Plan, error) {
 		{Name: "binary", Title: "Caddy-Binary installieren"},
 		{Name: "caddyfile", Title: "Caddyfile schreiben"},
 		{Name: "ui-auth", Title: "UI-Zugang einrichten"},
-		{Name: "forge-config", Title: "caddyforge-Konfiguration schreiben"},
+		{Name: "daemon-config", Title: "caddyEvolved-Konfiguration schreiben"},
 		{Name: "systemd-units", Title: "Systemd-Units installieren"},
 		{Name: "enable-start", Title: "Dienste starten"},
 		{Name: "verify", Title: "Gesundheit prüfen"},
@@ -235,7 +235,7 @@ func (p *Plan) Run(ctx context.Context) error {
 		"binary":        p.stepBinary,
 		"caddyfile":     p.stepCaddyfile,
 		"ui-auth":       p.stepUIAuth,
-		"forge-config":  p.stepForgeConfig,
+		"daemon-config": p.stepDaemonConfig,
 		"systemd-units": p.stepUnits,
 		"enable-start":  p.stepEnableStart,
 		"verify":        p.stepVerify,

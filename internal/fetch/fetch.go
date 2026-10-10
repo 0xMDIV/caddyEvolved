@@ -77,7 +77,7 @@ func ParseDigest(digest string) (Algorithm, string, error) {
 }
 
 // DefaultUserAgent is set from buildinfo at init to keep this package leaf-free.
-var DefaultUserAgent = "caddyforge"
+var DefaultUserAgent = "caddyevolved"
 
 // ToFile downloads url into dest. A temporary file plus rename keeps a
 // half-written binary from ever being the one systemd starts.

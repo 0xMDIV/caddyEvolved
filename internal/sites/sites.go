@@ -383,7 +383,7 @@ func (m *Manager) ensureImport() error {
 	if content != "" && !strings.HasSuffix(content, "\n") {
 		content += "\n"
 	}
-	content += "\n# Sites aus der caddyforge-WebUI (eine Datei pro Site)\n" + m.ImportLine() + "\n"
+	content += "\n# Sites aus der caddyevolved-WebUI (eine Datei pro Site)\n" + m.ImportLine() + "\n"
 	return writeAtomic(m.caddyfile, []byte(content), 0o644)
 }
 
@@ -497,7 +497,7 @@ func restoreDir(dir string, files map[string][]byte) {
 // writeAtomic sets the mode explicitly: the daemon runs with UMask=0077, and
 // caddy, running as its own user, must still read the snippets.
 func writeAtomic(path string, data []byte, mode os.FileMode) error {
-	tmp := path + ".caddyforge-tmp"
+	tmp := path + ".caddyevolved-tmp"
 	if err := os.WriteFile(tmp, data, mode); err != nil {
 		return err
 	}

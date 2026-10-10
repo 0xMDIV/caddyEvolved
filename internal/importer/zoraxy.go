@@ -7,7 +7,7 @@ import (
 	"sort"
 	"strings"
 
-	"caddyforge/internal/sites"
+	"caddyevolved/internal/sites"
 )
 
 // Zoraxy stores one JSON file per rule; its structs carry no json tags, so
@@ -229,7 +229,7 @@ func zoraxyACL(a zoraxyAccess, res *Result, src string) (ACLCandidate, bool) {
 		acl.DenyCountries = upperKeys(a.BlackListContryCode)
 	}
 	if len(acl.AllowCountries)+len(acl.DenyCountries) > 0 {
-		acl.GeoDB = "/var/lib/caddyforge/GeoLite2-Country.mmdb"
+		acl.GeoDB = "/var/lib/caddyevolved/GeoLite2-Country.mmdb"
 		c.Warnings = append(c.Warnings, "Länderregeln brauchen das Plugin maxmind-geolocation und die GeoLite2-Datenbank unter "+acl.GeoDB)
 	}
 	if len(acl.Allow)+len(acl.Deny)+len(acl.AllowCountries)+len(acl.DenyCountries) == 0 {
@@ -259,7 +259,7 @@ func zoraxyRedirectSite(rd zoraxyRedirect, src string) (Candidate, bool) {
 		Domains: []string{from}, Mode: sites.ModeRedirect, RedirectTo: strings.TrimSuffix(to, "/"), TLS: sites.TLSAuto, Enabled: true,
 	}}
 	if !rd.ForwardChildpath {
-		c.Warnings = append(c.Warnings, "Zoraxy leitete ohne Pfad weiter; caddyforge hängt den Pfad an")
+		c.Warnings = append(c.Warnings, "Zoraxy leitete ohne Pfad weiter; caddyEvolved hängt den Pfad an")
 	}
 	return c, true
 }

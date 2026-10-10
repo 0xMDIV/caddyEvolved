@@ -4,10 +4,10 @@ import (
 	"net/http"
 	"time"
 
-	"caddyforge/internal/caddyctl"
-	"caddyforge/internal/config"
-	"caddyforge/internal/events"
-	"caddyforge/internal/platform"
+	"caddyevolved/internal/caddyctl"
+	"caddyevolved/internal/config"
+	"caddyevolved/internal/events"
+	"caddyevolved/internal/platform"
 )
 
 // StatusResponse is the single screen payload. It is deliberately chatty: one

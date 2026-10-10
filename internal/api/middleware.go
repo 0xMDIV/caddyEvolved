@@ -7,15 +7,15 @@ import (
 	"net/url"
 	"strings"
 
-	"caddyforge/internal/auth"
+	"caddyevolved/internal/auth"
 )
 
 // sessionCookie is the only credential the browser keeps.
-const sessionCookie = "cfx_session"
+const sessionCookie = "cev_session"
 
 // HeaderGate is the custom header a mutation must carry. A cross-site form
 // post cannot set custom headers, so this is the CSRF defence for a JSON API.
-const HeaderGate = "X-Caddyforge"
+const HeaderGate = "X-CaddyEvolved"
 
 type ctxKey int
 

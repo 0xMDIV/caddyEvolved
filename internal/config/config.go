@@ -1,7 +1,7 @@
 // Package config holds the install layout and the persisted state file.
 //
 // Two path modes exist on purpose: the FHS layout used on a real LXC, and a
-// --root prefix used for tests. Every filesystem access in caddyforge goes
+// --root prefix used for tests. Every filesystem access in caddyevolved goes
 // through Paths so the install engine stays runnable inside a temp dir.
 package config
 
@@ -18,20 +18,20 @@ type Paths struct {
 	Root       string // "" for the live system, otherwise an install prefix
 	Bin        string
 	CaddyBin   string
-	Etc        string // /etc/caddyforge
+	Etc        string // /etc/caddyevolved
 	CaddyEtc   string // /etc/caddy
 	CaddyData  string // /var/lib/caddy
-	StateDir   string // /var/lib/caddyforge
+	StateDir   string // /var/lib/caddyevolved
 	LogDir     string // /var/log/caddy
 	UnitsDir   string // /etc/systemd/system
 	Caddyfile  string
 	StateFile  string
-	AuthFile   string // /etc/caddyforge/auth.json
-	PIDFile    string // /var/lib/caddyforge/caddy.pid
+	AuthFile   string // /etc/caddyevolved/auth.json
+	PIDFile    string // /var/lib/caddyevolved/caddy.pid
 	LogFile    string
 	EventsFile string
 	EnvFile    string
-	SitesFile  string // /etc/caddyforge/sites.json
+	SitesFile  string // /etc/caddyevolved/sites.json
 	SitesDir   string // /etc/caddy/sites
 	// CaddyStorage is caddy's data dir as the service user sees it
 	// ($HOME/.local/share/caddy with HOME=/var/lib/caddy).
@@ -47,27 +47,27 @@ func NewPaths(root string) Paths {
 	if filepath.IsAbs(root) || root == "" {
 		p := Paths{
 			Root:       root,
-			Bin:        join(root, "/usr/local/bin/caddyforge"),
+			Bin:        join(root, "/usr/local/bin/caddyevolved"),
 			CaddyBin:   join(root, "/usr/local/bin/caddy"),
-			Etc:        join(root, "/etc/caddyforge"),
+			Etc:        join(root, "/etc/caddyevolved"),
 			CaddyEtc:   join(root, "/etc/caddy"),
 			CaddyData:  join(root, "/var/lib/caddy"),
-			StateDir:   join(root, "/var/lib/caddyforge"),
+			StateDir:   join(root, "/var/lib/caddyevolved"),
 			LogDir:     join(root, "/var/log/caddy"),
 			UnitsDir:   join(root, "/etc/systemd/system"),
 			Caddyfile:  join(root, "/etc/caddy/Caddyfile"),
-			StateFile:  join(root, "/etc/caddyforge/state.json"),
-			AuthFile:   join(root, "/etc/caddyforge/auth.json"),
+			StateFile:  join(root, "/etc/caddyevolved/state.json"),
+			AuthFile:   join(root, "/etc/caddyevolved/auth.json"),
 			LogFile:    join(root, "/var/log/caddy/caddy.log"),
-			EventsFile: join(root, "/var/lib/caddyforge/events.jsonl"),
-			PIDFile:    join(root, "/var/lib/caddyforge/caddy.pid"),
-			EnvFile:    join(root, "/etc/caddyforge/env"),
-			SitesFile:  join(root, "/etc/caddyforge/sites.json"),
+			EventsFile: join(root, "/var/lib/caddyevolved/events.jsonl"),
+			PIDFile:    join(root, "/var/lib/caddyevolved/caddy.pid"),
+			EnvFile:    join(root, "/etc/caddyevolved/env"),
+			SitesFile:  join(root, "/etc/caddyevolved/sites.json"),
 			SitesDir:   join(root, "/etc/caddy/sites"),
 
 			CaddyStorage:  join(root, "/var/lib/caddy/.local/share/caddy"),
 			AccessLog:     join(root, "/var/log/caddy/access.log"),
-			AnalyticsFile: join(root, "/var/lib/caddyforge/analytics.json"),
+			AnalyticsFile: join(root, "/var/lib/caddyevolved/analytics.json"),
 		}
 		return p
 	}

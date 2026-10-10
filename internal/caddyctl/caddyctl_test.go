@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"caddyforge/internal/cmdx"
+	"caddyevolved/internal/cmdx"
 )
 
 // TestVersion parses the shapes caddy actually prints. The output changed between

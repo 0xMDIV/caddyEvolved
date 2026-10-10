@@ -1,4 +1,4 @@
-module caddyforge
+module caddyevolved
 
 go 1.27
 

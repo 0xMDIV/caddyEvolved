@@ -8,9 +8,9 @@ import (
 	"net/http"
 	"strings"
 
-	"caddyforge/internal/events"
-	"caddyforge/internal/importer"
-	"caddyforge/internal/sites"
+	"caddyevolved/internal/events"
+	"caddyevolved/internal/importer"
+	"caddyevolved/internal/sites"
 )
 
 // importBody allows archives: a Zoraxy backup zip is a few megabytes, and

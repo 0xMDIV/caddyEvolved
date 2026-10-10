@@ -182,7 +182,7 @@ function GeoPage({ item }: { item?: NavItem }) {
             <span className="mono">GeoLite2-Country.mmdb</span> herunterladen.
           </li>
           <li>
-            Datei auf den Server legen, z. B. <code>/var/lib/caddyforge/GeoLite2-Country.mmdb</code>, lesbar für den Benutzer{" "}
+            Datei auf den Server legen, z. B. <code>/var/lib/caddyevolved/GeoLite2-Country.mmdb</code>, lesbar für den Benutzer{" "}
             <code>caddy</code> (<code>chmod 644</code>).
           </li>
           <li>

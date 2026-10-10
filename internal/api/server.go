@@ -15,18 +15,17 @@ import (
 	"os"
 	"time"
 
-	"caddyforge/internal/analytics"
-	"caddyforge/internal/auth"
-	"caddyforge/internal/builder"
-	"caddyforge/internal/caddyctl"
-	"caddyforge/internal/cmdx"
-	"caddyforge/internal/config"
-	"caddyforge/internal/events"
-	"caddyforge/internal/forge"
-	"caddyforge/internal/sites"
-	"caddyforge/internal/supervisor"
-	"caddyforge/internal/systemd"
-	"caddyforge/internal/webui"
+	"caddyevolved/internal/analytics"
+	"caddyevolved/internal/auth"
+	"caddyevolved/internal/builder"
+	"caddyevolved/internal/caddyctl"
+	"caddyevolved/internal/cmdx"
+	"caddyevolved/internal/config"
+	"caddyevolved/internal/events"
+	"caddyevolved/internal/sites"
+	"caddyevolved/internal/supervisor"
+	"caddyevolved/internal/systemd"
+	"caddyevolved/internal/webui"
 )
 
 // Server holds the daemon's dependencies.
@@ -38,7 +37,6 @@ type Server struct {
 	Systemd *systemd.Service
 	Sup     *supervisor.Manager
 	Caddy   *caddyctl.Client
-	Forge   *forge.Client
 	Builder *builder.Manager
 	Sites   *sites.Manager
 	// Analytics is nil when request statistics are off (tests).
@@ -75,9 +73,6 @@ func New(s *Server) *Server {
 	if s.Systemd == nil {
 		s.Systemd = systemd.New(s.Runner, s.Paths.UnitsDir)
 	}
-	if s.Forge == nil {
-		s.Forge = forge.New()
-	}
 	if s.Sites == nil {
 		s.Sites = sites.New(s.Paths.SitesFile, s.Paths.SitesDir, s.Paths.Caddyfile)
 	}
@@ -89,7 +84,7 @@ func New(s *Server) *Server {
 		if err != nil {
 			// Builds are unavailable, everything else still works; the
 			// handlers answer 503 instead of the daemon refusing to start.
-			fmt.Fprintf(os.Stderr, "caddyforge: Builder nicht verfügbar: %v\n", err)
+			fmt.Fprintf(os.Stderr, "caddyevolved: Builder nicht verfügbar: %v\n", err)
 		}
 		s.Builder = b
 	}
@@ -120,7 +115,7 @@ func (s *Server) ListenAndServe(ctx context.Context) error {
 			return fmt.Errorf("TLS-Schlüssel: %w", err)
 		}
 		s.srv.TLSConfig = &tls.Config{Certificates: []tls.Certificate{cert}, MinVersion: tls.VersionTLS12}
-		fmt.Fprintf(os.Stderr, "caddyforge: https://%s  (selbstsigniertes Zertifikat, Datei %s)\n", addr, s.certFile())
+		fmt.Fprintf(os.Stderr, "caddyevolved: https://%s  (selbstsigniertes Zertifikat, Datei %s)\n", addr, s.certFile())
 		if err := s.srv.ListenAndServeTLS("", ""); !errors.Is(err, http.ErrServerClosed) {
 			return err
 		}

@@ -8,10 +8,10 @@ import (
 	"strconv"
 	"strings"
 
-	"caddyforge/internal/install"
-	"caddyforge/internal/platform"
-	"caddyforge/internal/plugins"
-	"caddyforge/internal/releases"
+	"caddyevolved/internal/install"
+	"caddyevolved/internal/platform"
+	"caddyevolved/internal/plugins"
+	"caddyevolved/internal/releases"
 )
 
 // wizard collects an install.Answers interactively.
@@ -34,7 +34,7 @@ func (w *wizard) run() (install.Answers, error) {
 	fmt.Fprintf(w.p.out, "Host: %s %s · init %s · Virtualisierung %q · uid %d\n",
 		w.host.Distro, w.host.DistroVer, w.host.Init, orNone(w.host.Virt), w.host.UID)
 	if w.host.Init != platform.InitSystemd {
-		fmt.Fprintln(w.p.out, "Hinweis: ohne systemd starten die Dienste über `caddyforge start` statt über Units.")
+		fmt.Fprintln(w.p.out, "Hinweis: ohne systemd starten die Dienste über `caddyevolved start` statt über Units.")
 	}
 
 	a.BinarySource = w.askSource()
@@ -45,7 +45,7 @@ func (w *wizard) run() (install.Answers, error) {
 	a.Email = strings.TrimSpace(w.p.ask("E-Mail für Zertifikate (ACME-Konto)", "hostmaster@example.org"))
 	a.UIPort = w.p.integer("Port der WebUI", 8484)
 	a.UIBind = strings.TrimSpace(w.p.ask("Bind-Adresse der WebUI", "0.0.0.0"))
-	a.Managed = w.p.confirm("Caddyfile vollständig durch caddyforge verwalten?", true)
+	a.Managed = w.p.confirm("Caddyfile vollständig durch caddyEvolved verwalten?", true)
 	a.SiteDomain, a.SiteTarget = w.askSite()
 	a.Force = w.p.confirm("Bestehende Dateien/Dienste notfalls übernehmen?", false)
 	return a, a.Validate()

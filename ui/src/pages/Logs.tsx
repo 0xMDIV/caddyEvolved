@@ -12,7 +12,7 @@ interface LogsResp {
 }
 
 export default function Logs() {
-  const [unit, setUnit] = useState<"caddy" | "caddyforge">("caddy");
+  const [unit, setUnit] = useState<"caddy" | "caddyevolved">("caddy");
   const [lines, setLines] = useState(200);
   const [grep, setGrep] = useState("");
   const [auto, setAuto] = useState(true);
@@ -56,9 +56,9 @@ export default function Logs() {
   return (
     <>
       <PageHead title="Logs" sub={data ? `Quelle: ${data.source}${data.source === "datei" && data.path ? ` (${data.path})` : ""}` : undefined}>
-        <select value={unit} onChange={(e) => setUnit(e.target.value as "caddy" | "caddyforge")} style={{ width: "auto" }}>
+        <select value={unit} onChange={(e) => setUnit(e.target.value as "caddy" | "caddyevolved")} style={{ width: "auto" }}>
           <option value="caddy">caddy</option>
-          <option value="caddyforge">caddyforge</option>
+          <option value="caddyevolved">caddyevolved</option>
         </select>
         <select value={lines} onChange={(e) => setLines(Number(e.target.value))} style={{ width: "auto" }}>
           {[100, 200, 500, 1000, 2000].map((n) => (

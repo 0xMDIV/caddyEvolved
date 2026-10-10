@@ -123,7 +123,7 @@ export function TokenCard() {
     <div className="card stack" id="tokens">
       <h2 style={{ margin: 0 }}>API-Tokens</h2>
       <p className="small muted" style={{ margin: 0 }}>
-        Für Skripte und KI-Clients (MCP): <span className="mono">Authorization: Bearer cfx_…</span>. Jeder Aufruf erscheint im Audit Log unter dem
+        Für Skripte und KI-Clients (MCP): <span className="mono">Authorization: Bearer cev_…</span>. Jeder Aufruf erscheint im Audit Log unter dem
         Token-Namen.
       </p>
       {created && <NewTokenBox created={created} onDismiss={() => setCreated(null)} />}

@@ -1,0 +1,27 @@
+[Unit]
+Description=caddyEvolved – Caddy WebUI und Verwalter
+Documentation=file:///etc/caddyevolved/state.json
+After=network-online.target caddy.service
+Wants=caddy.service
+
+[Service]
+# Type=simple, nicht notify: caddyevolved spricht den sd_notify-Prozess noch nicht,
+# und eine Type=notify-Unit ohne READY=1 killt systemd bei TimeoutStartSec.
+Type=simple
+ExecStart={{ .DaemonBin }} serve
+Restart=on-failure
+RestartSec=5
+WorkingDirectory=/
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=full
+# caddyevolved schreibt Caddyfile, Sites, Env-Datei, baut caddy (Toolchain und
+# Cache unter /var/lib/caddyevolved) und tauscht danach /usr/local/bin/caddy aus:
+ReadWritePaths=/etc/caddyevolved /etc/caddy /var/lib/caddyevolved /usr/local/bin
+User=root
+Group=root
+
+[Install]
+WantedBy=multi-user.target

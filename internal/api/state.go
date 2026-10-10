@@ -4,9 +4,9 @@ import (
 	"sync"
 	"time"
 
-	"caddyforge/internal/events"
-	"caddyforge/internal/plugins"
-	"caddyforge/internal/secrets"
+	"caddyevolved/internal/events"
+	"caddyevolved/internal/plugins"
+	"caddyevolved/internal/secrets"
 )
 
 // credentialsAllowed refuses env keys the catalog does not know. The env file

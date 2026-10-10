@@ -6,10 +6,10 @@ import (
 	"strings"
 	"time"
 
-	"caddyforge/internal/caddyctl"
-	"caddyforge/internal/platform"
-	"caddyforge/internal/supervisor"
-	"caddyforge/internal/systemd"
+	"caddyevolved/internal/caddyctl"
+	"caddyevolved/internal/platform"
+	"caddyevolved/internal/supervisor"
+	"caddyevolved/internal/systemd"
 )
 
 // stepEnableStart brings both services up and proves caddy answers.
@@ -18,7 +18,7 @@ func (p *Plan) stepEnableStart(ctx context.Context, s *Step) error {
 		if p.paths.IsPrefixed() || p.host.Init != platform.InitSystemd {
 			return skip(s, StatusPlanned, "caddy würde direkt gestartet (ohne systemd)")
 		}
-		return skip(s, StatusPlanned, "systemctl enable --now caddy caddyforge")
+		return skip(s, StatusPlanned, "systemctl enable --now caddy caddyevolved")
 	}
 	if p.host.Init != platform.InitSystemd || p.paths.IsPrefixed() {
 		// No systemd, or a staging tree we must not hand to the host's init:
@@ -32,7 +32,7 @@ func (p *Plan) stepEnableStart(ctx context.Context, s *Step) error {
 	}
 
 	svc := systemd.New(p.runner, p.paths.UnitsDir)
-	for _, name := range []string{"caddy.service", "caddyforge.service"} {
+	for _, name := range []string{"caddy.service", "caddyevolved.service"} {
 		if err := svc.Enable(ctx, name); err != nil {
 			return fmt.Errorf("enable %s: %w", name, err)
 		}
@@ -42,9 +42,9 @@ func (p *Plan) stepEnableStart(ctx context.Context, s *Step) error {
 	}
 	p.resolved.started = true
 	// The UI service is ours; failing to start it must not undo a good caddy.
-	if err := svc.Start(ctx, "caddyforge.service"); err != nil {
-		s.Reason = "caddy läuft, caddyforge-UI nicht: " + err.Error()
-		p.opts.Logf("WARN  caddyforge.service: %v", err)
+	if err := svc.Start(ctx, "caddyevolved.service"); err != nil {
+		s.Reason = "caddy läuft, caddyEvolved-UI nicht: " + err.Error()
+		p.opts.Logf("WARN  caddyevolved.service: %v", err)
 	}
 	return nil
 }
@@ -111,9 +111,9 @@ func (p *Plan) stepReport(ctx context.Context, s *Step) error {
 	fmt.Fprintf(&b, "Caddyfile: %s\n", p.paths.Caddyfile)
 	fmt.Fprintf(&b, "Admin-API: %s\n", caddyctl.AdminURL(p.adminListen()))
 	if !a.UIBehindProxy {
-		fmt.Fprintf(&b, "WebUI: http://%s:%d  (Login: caddyforge token)\n", displayHost(a.UIBind), a.UIPort)
+		fmt.Fprintf(&b, "WebUI: http://%s:%d  (Login: caddyevolved token)\n", displayHost(a.UIBind), a.UIPort)
 	} else {
-		fmt.Fprintf(&b, "WebUI: hinter caddy auf https://%s/caddyforge\n", a.SiteDomain)
+		fmt.Fprintf(&b, "WebUI: hinter caddy auf https://%s/caddyevolved\n", a.SiteDomain)
 	}
 	if p.resolved.slowDownload {
 		b.WriteString("Hinweis: benannter Build wurde auf caddyserver.com kompiliert.\n")

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Baut die Release-Archive für Linux: ein statisches Binary pro Architektur,
-# verpackt als caddyforge_<version>_linux_<arch>.tar.gz, plus SHA256SUMS.
+# verpackt als caddyevolved_<version>_linux_<arch>.tar.gz, plus SHA256SUMS.
 #
 #   scripts/release.sh v0.2.0          # Ausgabe nach dist/release/
 #
@@ -17,15 +17,15 @@ OUT="dist/release"
 
 rm -rf "$OUT" && mkdir -p "$OUT"
 
-LDFLAGS="-s -w -X caddyforge/internal/buildinfo.Version=${VERSION#v} -X caddyforge/internal/buildinfo.Commit=$COMMIT -X caddyforge/internal/buildinfo.Date=$DATE"
+LDFLAGS="-s -w -X caddyevolved/internal/buildinfo.Version=${VERSION#v} -X caddyevolved/internal/buildinfo.Commit=$COMMIT -X caddyevolved/internal/buildinfo.Date=$DATE"
 
 for arch in $ARCHES; do
-  name="caddyforge_${VERSION#v}_linux_${arch}"
+  name="caddyevolved_${VERSION#v}_linux_${arch}"
   stage="$OUT/$name"
   mkdir -p "$stage"
   echo "==> $name"
-  CGO_ENABLED=0 GOOS=linux GOARCH="$arch" go build -trimpath -ldflags "$LDFLAGS" -o "$stage/caddyforge" ./cmd/caddyforge
-  cp LICENSE README.md "$stage/"
+  CGO_ENABLED=0 GOOS=linux GOARCH="$arch" go build -trimpath -ldflags "$LDFLAGS" -o "$stage/caddyevolved" ./cmd/caddyevolved
+  cp LICENSE README.md INSTALLATION.md "$stage/"
   tar -C "$OUT" -czf "$OUT/$name.tar.gz" "$name"
   rm -rf "$stage"
 done

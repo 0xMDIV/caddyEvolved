@@ -73,7 +73,7 @@ func (s *Server) generateCert() (certPEM, keyPEM []byte, err error) {
 	}
 	tmpl := x509.Certificate{
 		SerialNumber:          serial,
-		Subject:               pkix.Name{CommonName: "caddyforge", Organization: []string{"caddyforge"}},
+		Subject:               pkix.Name{CommonName: "caddyevolved", Organization: []string{"caddyevolved"}},
 		NotBefore:             time.Now().Add(-1 * time.Hour),
 		NotAfter:              time.Now().Add(365 * 24 * time.Hour),
 		KeyUsage:              x509.KeyUsageDigitalSignature | x509.KeyUsageCertSign,

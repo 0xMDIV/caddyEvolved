@@ -7,16 +7,16 @@ import (
 	"strings"
 	"time"
 
-	"caddyforge/internal/auth"
-	"caddyforge/internal/buildinfo"
-	"caddyforge/internal/events"
+	"caddyevolved/internal/auth"
+	"caddyevolved/internal/buildinfo"
+	"caddyevolved/internal/events"
 )
 
 // handleVersion is public so a deployment script can check reachability before
 // it knows a password exists.
 func (s *Server) handleVersion(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{
-		"name":       "caddyforge",
+		"name":       "caddyEvolved",
 		"version":    buildinfo.Version,
 		"commit":     buildinfo.Commit,
 		"date":       buildinfo.Date,

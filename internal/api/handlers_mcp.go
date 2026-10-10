@@ -10,7 +10,7 @@ import (
 	"net/url"
 	"strings"
 
-	"caddyforge/internal/buildinfo"
+	"caddyevolved/internal/buildinfo"
 )
 
 // MCP (Model Context Protocol) endpoint for AI clients.
@@ -46,7 +46,7 @@ type rpcResponse struct {
 	Error   *rpcError       `json:"error,omitempty"`
 }
 
-const mcpInstructions = `caddyforge manages a Caddy reverse proxy on a Linux host.
+const mcpInstructions = `caddyEvolved manages a Caddy reverse proxy on a Linux host.
 Sites are virtual hosts (domains -> upstreams) stored as one Caddyfile snippet each; every change is validated by caddy and rolled back if rejected.
 Typical flow: list_sites, then create_site/update_site with the full site object. Use get_site_preview to see the generated Caddyfile before writing.
 Plugins are compiled into the caddy binary: list_plugins shows what is built in; start_build + activate_build change the binary (caddy restarts briefly).
@@ -65,7 +65,7 @@ func (s *Server) handleMCP(w http.ResponseWriter, r *http.Request) {
 	}
 	sess, ok := s.resolveSession(r)
 	if !ok || !sess.Bearer {
-		w.Header().Set("WWW-Authenticate", `Bearer realm="caddyforge"`)
+		w.Header().Set("WWW-Authenticate", `Bearer realm="caddyEvolved"`)
 		writeErr(w, http.StatusUnauthorized, "unauthenticated", "MCP braucht Authorization: Bearer <API-Token> (Einstellungen → API-Tokens)")
 		return
 	}
@@ -107,7 +107,7 @@ func (s *Server) handleMCP(w http.ResponseWriter, r *http.Request) {
 		}
 		return m
 	}
-	info := map[string]any{"name": "caddyforge", "version": buildinfo.Version}
+	info := map[string]any{"name": "caddyEvolved", "version": buildinfo.Version}
 
 	switch req.Method {
 	case "initialize":
@@ -221,7 +221,7 @@ func (s *Server) internalCall(r *http.Request, method, path string, body any) (i
 	req.RemoteAddr = r.RemoteAddr
 	req.Header.Set("Authorization", r.Header.Get("Authorization"))
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("X-Caddyforge-Via", "mcp")
+	req.Header.Set("X-CaddyEvolved-Via", "mcp")
 	rec := httptest.NewRecorder()
 	s.mux.ServeHTTP(rec, req)
 	return rec.Code, rec.Body.Bytes()
@@ -359,7 +359,7 @@ func get(path string) func(map[string]any) (string, string, any, error) {
 }
 
 var mcpTools = []mcpTool{
-	{Name: "get_status", ReadOnly: true, Description: "Health of caddy and caddyforge: service state, caddy version, admin API, ports, warnings.",
+	{Name: "get_status", ReadOnly: true, Description: "Health of caddy and caddyEvolved: service state, caddy version, admin API, ports, warnings.",
 		Request: get("/api/status"),
 		Shape: func(v any) any {
 			m, _ := v.(map[string]any)
@@ -449,8 +449,8 @@ var mcpTools = []mcpTool{
 			}
 			return http.MethodGet, withQuery("/api/analytics/recent", a, "limit", "site"), nil, nil
 		}},
-	{Name: "get_logs", ReadOnly: true, Description: "Process log lines of caddy or caddyforge.",
-		Schema: obj(map[string]any{"unit": enum("", "caddy", "caddyforge"), "lines": integer("default 100"), "grep": str("case-insensitive filter")}),
+	{Name: "get_logs", ReadOnly: true, Description: "Process log lines of caddy or caddyevolved.",
+		Schema: obj(map[string]any{"unit": enum("", "caddy", "caddyevolved"), "lines": integer("default 100"), "grep": str("case-insensitive filter")}),
 		Request: func(a map[string]any) (string, string, any, error) {
 			return http.MethodGet, withQuery("/api/logs", a, "unit", "lines", "grep"), nil, nil
 		}},

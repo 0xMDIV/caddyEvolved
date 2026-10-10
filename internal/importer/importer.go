@@ -1,5 +1,5 @@
 // Package importer converts other reverse-proxy configurations into
-// caddyforge sites and access lists.
+// caddyevolved sites and access lists.
 //
 // Every importer is best effort and says so: what maps cleanly becomes a
 // structured site, what does not becomes a raw site or a warning. Nothing is
@@ -17,7 +17,7 @@ import (
 	"sort"
 	"strings"
 
-	"caddyforge/internal/sites"
+	"caddyevolved/internal/sites"
 )
 
 // Formats the importer understands.

@@ -13,7 +13,7 @@ import (
 
 // TokenPrefix marks API tokens so the middleware can tell them from session
 // ids and secret scanners can find leaked ones.
-const TokenPrefix = "cfx_"
+const TokenPrefix = "cev_"
 
 // Scopes an API token can carry.
 const (

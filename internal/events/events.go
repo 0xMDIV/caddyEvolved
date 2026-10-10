@@ -1,4 +1,4 @@
-// Package events records and streams what caddyforge did.
+// Package events records and streams what caddyevolved did.
 //
 // Every mutating action lands as one line in events.jsonl and is also pushed
 // to live SSE subscribers. The ring keeps the UI fast without re-reading the

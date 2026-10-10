@@ -5,10 +5,10 @@ import (
 	"net/http"
 	"strings"
 
-	"caddyforge/internal/builder"
-	"caddyforge/internal/config"
-	"caddyforge/internal/plugins"
-	"caddyforge/internal/secrets"
+	"caddyevolved/internal/builder"
+	"caddyevolved/internal/config"
+	"caddyevolved/internal/plugins"
+	"caddyevolved/internal/secrets"
 )
 
 // PluginState is one catalog entry plus what we know about this host.
@@ -176,7 +176,7 @@ func (s *Server) handlePluginCredentials(w http.ResponseWriter, r *http.Request)
 	}
 	changes, err := secrets.New(s.Paths.EnvFile).Apply(secrets.Apply{
 		Wanted: want,
-		Header: "Verwaltet von caddyforge – Zugangsdaten für Caddy-Module.",
+		Header: "Verwaltet von caddyEvolved – Zugangsdaten für Caddy-Module.",
 	})
 	if err != nil {
 		s.fail(w, r, err, 0)
