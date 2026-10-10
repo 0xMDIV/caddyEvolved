@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { api, AuditEntry, fmtTime } from "../api";
 import { Badge, ErrorBox, PageHead, Spinner, useLoad } from "../components/ui";
+import { IconRefresh } from "@tabler/icons-react";
 import { statusKind } from "./Analytics";
 
 export default function Audit() {
@@ -28,7 +29,7 @@ export default function Audit() {
           <option value="auth">Logins</option>
         </select>
         <button className="btn" onClick={log.reload} disabled={log.loading}>
-          {log.loading ? <Spinner /> : "↻"} Aktualisieren
+          {log.loading ? <Spinner /> : <IconRefresh size={16} />} Aktualisieren
         </button>
       </PageHead>
       <ErrorBox error={log.error} />

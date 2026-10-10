@@ -11,6 +11,7 @@ import {
 } from "../api";
 import { Chart, Series, TopList } from "../components/charts";
 import { ErrorBox, PageHead, Spinner, useLoad } from "../components/ui";
+import { IconRefresh } from "@tabler/icons-react";
 
 const RANGES: AnalyticsRange[] = ["15m", "1h", "6h", "24h", "7d", "30d"];
 
@@ -102,7 +103,7 @@ export default function Analytics() {
           ))}
         </div>
         <button className="btn" onClick={() => (data.reload(), recent.reload())} disabled={data.loading}>
-          {data.loading ? <Spinner /> : "↻"}
+          {data.loading ? <Spinner /> : <IconRefresh size={16} />}
         </button>
       </PageHead>
       <ErrorBox error={data.error} />

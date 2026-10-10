@@ -2,6 +2,7 @@ import { useRef, useState } from "react";
 import { api, errMsg, Site } from "../api";
 import { navigate } from "../router";
 import { Badge, CopyBlock, ErrorBox, PageHead, Spinner } from "../components/ui";
+import { IconCheck, IconX } from "@tabler/icons-react";
 
 // ---------- Types (docs/API.md "Import") ----------
 
@@ -273,7 +274,7 @@ export default function Import() {
       <div className="import-steps">
         {(["Quelle", "Vorschau", "Übernehmen"] as const).map((label, i) => (
           <div key={label} className={`import-step ${step === i + 1 ? "active" : ""} ${step > i + 1 ? "done" : ""}`}>
-            <span className="import-step-num">{step > i + 1 ? "✓" : i + 1}</span>
+            <span className="import-step-num">{step > i + 1 ? <IconCheck size={13} stroke={2.5} /> : i + 1}</span>
             {label}
           </div>
         ))}
@@ -404,7 +405,7 @@ function SourceStep(props: {
               <span key={f.name} className="badge info">
                 {f.name} <span className="muted">({Math.max(1, Math.round(f.size / 1024))} KB)</span>{" "}
                 <button className="import-chip-x" aria-label={`${f.name} entfernen`} onClick={() => setFiles(files.filter((x) => x.name !== f.name))}>
-                  ×
+                  <IconX size={14} />
                 </button>
               </span>
             ))}

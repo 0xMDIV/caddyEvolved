@@ -16,23 +16,51 @@ import Analytics from "./pages/Analytics";
 import Audit from "./pages/Audit";
 import Import from "./pages/Import";
 import Mcp from "./pages/Mcp";
+import {
+  Icon,
+  IconArrowsExchange,
+  IconCertificate,
+  IconChartLine,
+  IconFileImport,
+  IconFileText,
+  IconGauge,
+  IconGlobe,
+  IconHistory,
+  IconKey,
+  IconLayoutDashboard,
+  IconList,
+  IconPlug,
+  IconPuzzle,
+  IconRobot,
+  IconSettings,
+  IconShieldCheck,
+  IconShieldLock,
+  IconSparkles,
+} from "@tabler/icons-react";
 
-const NAV = [
-  { path: "/", label: "Dashboard", icon: "◧" },
-  { path: "/analytics", label: "Analytics", icon: "📈" },
-  { path: "/sites", label: "Sites", icon: "⇄" },
-  { path: "/import", label: "Import", icon: "⇪" },
-  { path: "/access-lists", label: "Access Lists", icon: "⛨" },
-  { path: "/certificates", label: "Zertifikate", icon: "🔒" },
-  { path: "/build", label: "Plugins & Build", icon: "⚙" },
-  { path: "/caddyfile", label: "Caddyfile", icon: "≣" },
-  { path: "/logs", label: "Logs", icon: "☰" },
-  { path: "/audit", label: "Audit Log", icon: "📜" },
-  { path: "/mcp", label: "KI / MCP", icon: "✦" },
-  { path: "/settings", label: "Einstellungen", icon: "⚿" },
+const NAV: { path: string; label: string; icon: Icon }[] = [
+  { path: "/", label: "Dashboard", icon: IconLayoutDashboard },
+  { path: "/analytics", label: "Analytics", icon: IconChartLine },
+  { path: "/sites", label: "Sites", icon: IconArrowsExchange },
+  { path: "/import", label: "Import", icon: IconFileImport },
+  { path: "/access-lists", label: "Access Lists", icon: IconShieldLock },
+  { path: "/certificates", label: "Zertifikate", icon: IconCertificate },
+  { path: "/build", label: "Plugins & Build", icon: IconPuzzle },
+  { path: "/caddyfile", label: "Caddyfile", icon: IconFileText },
+  { path: "/logs", label: "Logs", icon: IconList },
+  { path: "/audit", label: "Audit Log", icon: IconHistory },
+  { path: "/mcp", label: "KI / MCP", icon: IconSparkles },
+  { path: "/settings", label: "Einstellungen", icon: IconSettings },
 ];
 
-const PLUGIN_ICONS: Record<string, string> = { shield: "🛡", bot: "🤖", gauge: "⏱", key: "🔑", globe: "🌍" };
+/** Maps the catalog's "ui.icon" names to Tabler icons. */
+const PLUGIN_ICONS: Record<string, Icon> = {
+  shield: IconShieldCheck,
+  bot: IconRobot,
+  gauge: IconGauge,
+  key: IconKey,
+  globe: IconGlobe,
+};
 
 /** Sidebar pages of plugins compiled into the running binary. */
 function usePluginNav(enabled: boolean): NavItem[] {
@@ -194,9 +222,7 @@ export default function App() {
               navigate(n.path);
             }}
           >
-            <span aria-hidden="true" style={{ width: 16, textAlign: "center" }}>
-              {n.icon}
-            </span>
+            <n.icon size={18} stroke={1.75} aria-hidden="true" />
             {n.label}
           </a>
         ))}
@@ -205,6 +231,7 @@ export default function App() {
             <div className="nav-section">Plugins</div>
             {pluginNav.map((n) => {
               const href = "/plugin/" + encodeURIComponent(n.page);
+              const PluginIcon = PLUGIN_ICONS[n.icon ?? ""] ?? IconPlug;
               return (
                 <a
                   key={n.page}
@@ -216,9 +243,7 @@ export default function App() {
                     navigate(href);
                   }}
                 >
-                  <span aria-hidden="true" style={{ width: 16, textAlign: "center" }}>
-                    {PLUGIN_ICONS[n.icon ?? ""] ?? "◇"}
-                  </span>
+                  <PluginIcon size={18} stroke={1.75} aria-hidden="true" />
                   {n.label}
                 </a>
               );

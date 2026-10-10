@@ -121,6 +121,7 @@ code, pre, .mono { font-family: var(--mono); font-size: 12.5px; }
 }
 .nav-item:hover { background: var(--surface-2); color: var(--text); }
 .nav-item.active { background: var(--accent-soft); color: var(--accent-strong); font-weight: 600; }
+.nav-item svg { flex-shrink: 0; }
 .sidebar-foot { margin-top: auto; display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted); padding: 0 10px; }
 .main { padding: 28px 32px 48px; min-width: 0; }
 .page-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin-bottom: 20px; flex-wrap: wrap; }
@@ -325,7 +326,7 @@ table.compact th, table.compact td { padding: 6px 8px; }
   cursor: pointer; background: var(--surface-2);
 }
 .import-drop.drag, .import-drop:hover { border-color: var(--accent); }
-.import-chip-x { border: 0; background: none; color: inherit; cursor: pointer; padding: 0 2px; font-size: 14px; line-height: 1; }
+.import-chip-x { border: 0; background: none; color: inherit; cursor: pointer; padding: 0 2px; line-height: 1; display: inline-grid; place-items: center; }
 .import-copy { position: relative; }
 .import-copy pre { margin: 0; overflow-x: auto; padding-right: 88px; }
 .import-copy .btn { position: absolute; top: 6px; right: 6px; }

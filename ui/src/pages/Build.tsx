@@ -15,6 +15,7 @@ import {
   Versions,
 } from "../api";
 import { Badge, ConfirmButton, ErrorBox, PageHead, Spinner, useAction, useLoad, useToast } from "../components/ui";
+import { IconArrowBackUp, IconExternalLink, IconX } from "@tabler/icons-react";
 
 const CATEGORY_LABEL: Record<string, string> = {
   dns: "DNS-Anbieter (DNS-01-Zertifikate)",
@@ -269,7 +270,7 @@ function NewBuild({ plugins, busy, onStarted }: { plugins: PluginsResponse; busy
                 <span key={c} className="badge info">
                   <span className="mono">{c}</span>
                   <button className="btn ghost sm" style={{ padding: "0 2px" }} onClick={() => setCustom((x) => x.filter((y) => y !== c))} aria-label="entfernen">
-                    ×
+                    <IconX size={14} />
                   </button>
                 </span>
               ))}
@@ -499,7 +500,7 @@ function History({ data, onChange, onWatch }: { data: BuildsResponse | null; onC
               onChange();
             }}
           >
-            ↶ Rollback
+            <IconArrowBackUp size={16} /> Rollback
           </ConfirmButton>
         )}
       </div>
@@ -645,7 +646,7 @@ export function CredentialCard({ plugin, onSaved }: { plugin: PluginState; onSav
         <span className="spacer" />
         {plugin.docs && (
           <a href={plugin.docs} target="_blank" rel="noreferrer" className="small">
-            Doku ↗
+            Doku <IconExternalLink size={13} style={{ verticalAlign: "-2px" }} />
           </a>
         )}
       </div>

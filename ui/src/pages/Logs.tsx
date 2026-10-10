@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { api } from "../api";
 import { ErrorBox, PageHead, Spinner } from "../components/ui";
+import { IconRefresh } from "@tabler/icons-react";
 
 interface LogsResp {
   unit: string;
@@ -71,7 +72,7 @@ export default function Logs() {
           <input type="checkbox" checked={auto} onChange={(e) => setAuto(e.target.checked)} /> Auto (5 s)
         </label>
         <button className="btn" onClick={load} disabled={loading}>
-          {loading ? <Spinner /> : "↻"}
+          {loading ? <Spinner /> : <IconRefresh size={16} />}
         </button>
       </PageHead>
       <ErrorBox error={error} />

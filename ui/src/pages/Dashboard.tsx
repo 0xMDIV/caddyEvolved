@@ -3,6 +3,7 @@ import { AnalyticsResponse, api, CertificatesResponse, CfEvent, expiryKind, fmtE
 import { Sparkline } from "../components/charts";
 import { navigate } from "../router";
 import { Badge, ErrorBox, PageHead, Spinner, useAction, useLoad } from "../components/ui";
+import { IconPlayerPlayFilled, IconPlayerStopFilled, IconRefresh } from "@tabler/icons-react";
 
 export default function Dashboard() {
   const status = useLoad(() => api.get<StatusResponse>("/api/status"));
@@ -32,7 +33,7 @@ export default function Dashboard() {
     <>
       <PageHead title="Dashboard" sub={s?.host.hostname ? `Host ${s.host.hostname}` : undefined}>
         <button className="btn" onClick={() => (status.reload(), events.reload())} disabled={status.loading}>
-          {status.loading ? <Spinner /> : "↻"} Aktualisieren
+          {status.loading ? <Spinner /> : <IconRefresh size={16} />} Aktualisieren
         </button>
       </PageHead>
       <ErrorBox error={status.error} />
@@ -49,7 +50,7 @@ export default function Dashboard() {
             <div className="card stat">
               <div className="label">Caddy-Dienst</div>
               <div className="value">
-                {s.serviceActive ? <Badge kind="ok">● läuft</Badge> : <Badge kind="err">● gestoppt</Badge>}
+                {s.serviceActive ? <Badge kind="ok"><IconPlayerPlayFilled size={11} /> läuft</Badge> : <Badge kind="err"><IconPlayerStopFilled size={11} /> gestoppt</Badge>}
               </div>
               <div className="small muted" style={{ marginTop: 6 }}>
                 {s.serviceState || "–"}
