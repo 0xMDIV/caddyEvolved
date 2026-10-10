@@ -1,0 +1,14 @@
+{
+  "binarySource": "official",
+  "caddyVersion": "",
+  "email": "",
+  "httpPort": 80,
+  "httpsPort": 443,
+  "adminPort": 2019,
+  "uiPort": 8484,
+  "uiBind": "0.0.0.0",
+  "managed": false,
+  "siteDomain": "caddytest.local",
+  "siteTarget": "http://127.0.0.1:18080",
+  "force": false
+}

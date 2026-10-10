@@ -46,6 +46,35 @@ Alle zwölf Schritte `ok`/`skipped`, darunter:
 Tests: `go test ./...` deckt `auth`, `caddyctl`, `cli`, `fetch`, `install`, `plugins`,
 `secrets` ab (7 Pakete, reine Funktion + `httptest`, kein Netz, kein root).
 
+### 1a. self-signed-Pfad nachgetestet (`managed: false`)
+
+Der obige Lauf nutzte `managed: true` mit echtem ACME-Issuer. Die Variante ohne Modul und
+ohne ACME (`docs/examples/answers.selfsigned.json`) war ungeprüft und läuft jetzt ebenfalls
+in WSL gegen einen Prefix-Baum (`--http-port 8080 --https-port 8443 --ui-port 8585`):
+
+- Caddyfile rendert `tls internal` und **kein** `email` in den globalen Options.
+- `caddy` startet, `verify` wird `ok`, das Local-CA-Zertifikat wird ausgestellt:
+  `issuer=CN = Caddy Local Authority - ECC Intermediate`, Laufzeit 12 h.
+- Site antwortet: `HTTP 502` (der Beispiel-Backend `127.0.0.1:18080` läuft bewusst nicht)
+  und `HTTP 308` Redirect von http nach https — der Proxy-Pfad ist also durch.
+
+Drei Beobachtungen, die der Lauf gezeigt hat:
+
+1. **Ports 80/443 sind in WSL als uid 1000 nicht bindbar.** Mit `answers.selfsigned.json`
+   unverändert (80/443) wird `verify` `failed` mit `admin-API nicht erreichbar`, während die
+   eigentliche Ursache im caddy-Log steht: `listen tcp :443: bind: permission denied`.
+   Die Diagnose ist damit an der falschen Stelle – der Fehler ist ein Bind-Problem, gemeldet
+   wird ein Health-Check. Auf dem LXC (root + `CAP_NET_BIND_SERVICE`) tritt es nicht auf.
+   `preflight` warnt in diesem Fall nur in `s.Reason` (`Ports <1024: als uid …`), es ist kein
+   Abbruch. Für Prefix-Tests immer Hochports geben.
+2. **Nicht-Standard-Ports und Redirect-Ziel:** bei `https_port 8443` in den globalen Options
+   antwortet der Auto-HTTPS-Redirect mit `Location: https://caddytest.local/` (also :443).
+   Nicht verifiziert, ob das caddy-Verhalten oder unsere Konfiguration ist; für M1 egal
+   (Live-Installation nutzt 443), für M5 relevant.
+3. **`--prefix` gibt es nur bei `install`.** Alle anderen Befehle nehmen denselben Baum über
+   `--root DIR` (`newLayout(firstNonEmpty(prefix, root))`), `stop --prefix` ist ein
+   Flag-Fehler. Absichtliche Benennungsasymmetrie, aber gewöhnungsbedürftig.
+
 ## 2. Die Befehle, die die Arbeit getragen haben
 
 ```bash
@@ -102,7 +131,10 @@ Zwei Entscheidungen, die ich getroffen habe – bitte gegenlesen:
 | `uninstall` | bewusste Absage (M7) – destruktiv, deshalb kein halber Pfad |
 
 Beispieldateien: `docs/examples/answers.official.json`,
-`docs/examples/answers.dns-hetzner.json` (DNS-01 mit `custom`-Quelle).
+`docs/examples/answers.dns-hetzner.json` (DNS-01 mit `custom`-Quelle),
+`docs/examples/answers.selfsigned.json` (Basis-System ohne Module und ohne ACME – die
+Test-Datei für die LXC-Verifikation; `siteTarget` auf `127.0.0.1:18080`, damit der
+Proxy-Pfad ohne echten Backend durchgetestet werden kann).
 
 ## 5. Nächster Schritt: Verifikation auf dem LXC
 
