@@ -75,6 +75,15 @@ type Entry struct {
 	// CaddyMin is the highest caddy version this module's go.mod demands.
 	CaddyMin string `json:"caddyMin,omitempty"`
 	Note     string `json:"note,omitempty"`
+	// UI is the sidebar page the WebUI shows while the module is compiled in.
+	UI *UIPage `json:"ui,omitempty"`
+}
+
+// UIPage describes a plugin's own page in the WebUI.
+type UIPage struct {
+	Page  string `json:"page"`  // route key, e.g. "waf"
+	Label string `json:"label"` // sidebar text
+	Icon  string `json:"icon,omitempty"`
 }
 
 type catalogFile struct {
@@ -198,6 +207,16 @@ func Resolve(ids []string) (Resolution, error) {
 			if c == "caddyfile-managed" {
 				r.CaddyfileManaged = false
 				r.Notes = append(r.Notes, fmt.Sprintf("%s erzeugt die Konfiguration selbst – der Caddyfile-Editor von caddyforge wird dadurch wirkungslos", e.Name))
+				continue
+			}
+			// Two modules registering the same caddy module id make the
+			// binary panic at start, so the pair is refused before a build.
+			if contains(ids, c) {
+				other := c
+				if o, ok := ByID(c); ok {
+					other = o.Name
+				}
+				return r, fmt.Errorf("%s und %s können nicht zusammen gebaut werden (gleiche Caddy-Modul-ID)", e.Name, other)
 			}
 		}
 		if !standard[e.ID] {

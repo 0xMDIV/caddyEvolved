@@ -96,6 +96,7 @@ type Store struct {
 	Password HashedPassword        `json:"password"`
 	Sessions map[string]Session    `json:"sessions"`
 	Failed   map[string]failRecord `json:"failed"`
+	Tokens   map[string]APIToken   `json:"tokens,omitempty"`
 	key      []byte                // hmac secret for session ids
 }
 

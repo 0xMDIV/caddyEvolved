@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+
+	"caddyforge/internal/auth"
 )
 
 // sessionCookie is the only credential the browser keeps.
@@ -23,6 +25,12 @@ const sessionCtxKey ctxKey = 1
 type Session struct {
 	ID     string
 	Remote string
+	// Bearer is true when the credential came in an Authorization header:
+	// browsers never send that on their own, so the CSRF gate does not apply.
+	Bearer bool
+	// Token is set for API tokens (name), Scope then limits what it may do.
+	Token string
+	Scope string
 }
 
 // sessionFromContext returns the login for handlers that need the actor.
@@ -63,11 +71,20 @@ func (s *Server) auth(next http.HandlerFunc) http.HandlerFunc {
 			writeErr(w, http.StatusUnauthorized, "unauthenticated", "Login erforderlich")
 			return
 		}
-		if !safeMethod(r.Method) && r.Header.Get(HeaderGate) != "1" {
+		if !safeMethod(r.Method) && !sess.Bearer && r.Header.Get(HeaderGate) != "1" {
 			writeErr(w, http.StatusForbidden, "csrf", "Header "+HeaderGate+": 1 fehlt (Formulare können ihn nicht setzen)")
 			return
 		}
-		next(w, r.WithContext(context.WithValue(r.Context(), sessionCtxKey, sess)))
+		if !safeMethod(r.Method) && sess.Token != "" && sess.Scope != auth.ScopeWrite {
+			writeErr(w, http.StatusForbidden, "token_readonly", "Dieses API-Token darf nur lesen")
+			return
+		}
+		r = r.WithContext(context.WithValue(r.Context(), sessionCtxKey, sess))
+		if !safeMethod(r.Method) {
+			s.audit(w, r, sess, next)
+			return
+		}
+		next(w, r)
 	}
 }
 
@@ -86,13 +103,20 @@ func (s *Server) resolveSession(r *http.Request) (Session, bool) {
 	if !s.Auth.HasPassword() {
 		return Session{}, false
 	}
-	id := ""
-	if c, err := r.Cookie(sessionCookie); err == nil {
-		id = c.Value
+	id, bearer := "", false
+	if hdr := r.Header.Get("Authorization"); strings.HasPrefix(hdr, "Bearer ") {
+		id, bearer = strings.TrimSpace(strings.TrimPrefix(hdr, "Bearer ")), true
+	}
+	if strings.HasPrefix(id, auth.TokenPrefix) {
+		t, ok := s.Auth.ValidateToken(id)
+		if !ok {
+			return Session{}, false
+		}
+		return Session{ID: t.ID, Remote: clientIP(r), Bearer: true, Token: t.Name, Scope: t.Scope}, true
 	}
 	if id == "" {
-		if hdr := r.Header.Get("Authorization"); strings.HasPrefix(hdr, "Bearer ") {
-			id = strings.TrimPrefix(hdr, "Bearer ")
+		if c, err := r.Cookie(sessionCookie); err == nil {
+			id = c.Value
 		}
 	}
 	if id == "" {
@@ -102,7 +126,7 @@ func (s *Server) resolveSession(r *http.Request) (Session, bool) {
 	if !ok {
 		return Session{}, false
 	}
-	return Session{ID: sess.ID, Remote: sess.Remote}, true
+	return Session{ID: sess.ID, Remote: sess.Remote, Bearer: bearer}, true
 }
 
 // routable reports whether a bind address is reachable from other machines.

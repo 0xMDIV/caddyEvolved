@@ -9,6 +9,7 @@ import (
 	"net"
 	"time"
 
+	"caddyforge/internal/analytics"
 	"caddyforge/internal/api"
 	"caddyforge/internal/auth"
 	"caddyforge/internal/caddyctl"
@@ -48,19 +49,21 @@ func cmdServe(ctx context.Context, args []string, stdout, stderr io.Writer) erro
 	}
 
 	srv := api.New(&api.Server{
-		Paths:    l.paths,
-		Runner:   l.runner,
-		Auth:     store,
-		Events:   ev,
-		Caddy:    caddyctl.New(l.paths.CaddyBin, l.runner),
-		Forge:    forge.New(),
-		Bind:     bindAddr,
-		Port:     listenPort,
-		Insecure: *insecure,
+		Paths:     l.paths,
+		Runner:    l.runner,
+		Auth:      store,
+		Events:    ev,
+		Caddy:     caddyctl.New(l.paths.CaddyBin, l.runner),
+		Forge:     forge.New(),
+		Analytics: analytics.New(l.paths.AnalyticsFile),
+		Bind:      bindAddr,
+		Port:      listenPort,
+		Insecure:  *insecure,
 	})
 
 	errCh := make(chan error, 1)
 	go func() { errCh <- srv.ListenAndServe(ctx) }()
+	go srv.StartBackground(ctx)
 	fmt.Fprintf(stderr, "caddyforge serve auf %s (root %s)\n", net.JoinHostPort(bindAddr, fmt.Sprint(listenPort)), displayRoot(l.paths.Root))
 
 	select {

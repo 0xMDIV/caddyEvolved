@@ -27,8 +27,38 @@ Zugang per SSH-Key `~/.ssh/caddyforge_lxc` **in WSL** (nicht im Windows-Profil).
 | `install --dry-run` legte den System-User `caddy` an | Trockenlauf verändert das System | Dry-Run-Guard in `stepSystemUser` |
 | `list-modules --nonstandard` (gibt es nicht) | Plugin-Erkennung immer leer | `--skip-standard`, Parser ignoriert die eingerückte Zusammenfassung |
 
+## Runde 2 (2026-10-10 abends): Sicherheit, Analytics, Import, KI – auf dem LXC verifiziert
+
+Laufende Binary auf dem LXC: caddy 2.11.7 + cloudflare, coraza, caddy-defender,
+caddy-ratelimit, maxmind-geolocation (Build 38 s dank Modul-Cache).
+
+| Feature | Live-Test |
+|---|---|
+| Access List | ohne Login 401, mit Login 200, fremde IP trotz Login 403 (`route` hält die Reihenfolge) |
+| `caddy hash-password` per stdin | funktioniert, Klartext nie in argv |
+| WAF (Coraza/CRS) | normal 200, SQLi/XSS 403; Modus `detect` lässt durch |
+| Rate Limit | 5/10 s → ab der 6. Anfrage 429 |
+| Plugin-Sidebar | `/api/nav` meldet WAF, Bot-Abwehr, Geo, Rate Limit nach dem Binary-Tausch |
+| Coraza + caddy-waf | vor dem Build abgelehnt (gleiche Modul-ID) |
+| Analytics | 24 Anfragen, 3 geblockt, Top-Pfade, p95, Live-Liste; überlebt Neustart und Log-Rotation (Test) |
+| Import | Traefik-YAML → Site live; kaputte Raw-Site einzeln abgelehnt, Rest übernommen |
+| Tokens | read: GET 200, DELETE 403; Token kann keine Tokens erzeugen |
+| MCP | legacy `initialize` + modern `server/discover`; read 14 Tools, write 25; `create_site` über MCP live, Audit: `token ki-schreiben (mcp)` |
+
+Gefunden und behoben:
+- `caddy validate` (als root) legte `/var/log/caddy/access.log` als root 0600 an → caddy
+  konnte nicht loggen. Fix: Daemon legt die Datei vorher als `caddy` an (`ensureAccessLog`),
+  Verzeichnis gehört `caddy`.
+- caddy versuchte bei jedem Start per sudo seine lokale CA zu installieren →
+  `skip_install_trust` im globalen Block (Installer + live gesetzt).
+
+Neue Abhängigkeiten (erste außerhalb der stdlib): `gopkg.in/yaml.v3`, `github.com/BurntSushi/toml`
+für den Traefik-Import.
+
 ## Offen
 
+- UI ist nur gebaut und über die API getestet, nicht im Browser durchgeklickt.
+- MCP antwortet nur JSON (kein SSE-Stream); reicht für alle Tools, die sofort antworten.
 - Bestehende Installationen bekommen die neue `caddyforge.service` (ReadWritePaths) nur durch
   erneutes `caddyforge install --force` bzw. manuelles Anpassen der Unit.
 - Rollback bei *ungesundem* Start ist implementiert, aber nur der Erfolgspfad ist auf dem LXC

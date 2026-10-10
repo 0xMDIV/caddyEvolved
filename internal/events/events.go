@@ -29,6 +29,8 @@ const (
 	KindAuth       Kind = "auth"
 	KindBackground Kind = "background"
 	KindError      Kind = "error"
+	// KindAudit is one mutating API call: who, what, result.
+	KindAudit Kind = "audit"
 )
 
 // Event is one record. Value never contains a secret; Vars lists names only.

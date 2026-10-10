@@ -23,6 +23,9 @@ func (p *Plan) renderCaddyfile() (string, error) {
 
 	b.WriteString("{\n")
 	fmt.Fprintf(&b, "\tadmin localhost:%d\n", a.AdminPort)
+	// caddy runs unprivileged; trying to add its local CA to the system trust
+	// store only logs a failed sudo on every start.
+	b.WriteString("\tskip_install_trust\n")
 	// Non-default listen ports have to reach caddy itself; the systemd unit does
 	// not bind anything, so without these global options the answer would be lost.
 	if a.HTTPSPort != 0 && a.HTTPSPort != 443 {

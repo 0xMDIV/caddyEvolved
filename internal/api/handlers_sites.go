@@ -42,6 +42,7 @@ func (s *Server) commitConfig(ctx context.Context) (out string, reloaded bool, e
 	if !s.Caddy.Exists() {
 		return "", false, errors.New("keine caddy-Binary installiert")
 	}
+	s.ensureAccessLog()
 	out, err = s.caddyWithEnv().Validate(ctx, s.Paths.Caddyfile, "caddyfile")
 	if err != nil {
 		return out, false, err
@@ -166,7 +167,7 @@ func (s *Server) handleSitePreview(w http.ResponseWriter, r *http.Request) {
 		site.ID = sites.Slug(strings.Join(site.Domains, " "))
 	}
 	site.Normalize()
-	out := map[string]any{"caddyfile": sites.Render(site)}
+	out := map[string]any{"caddyfile": s.Sites.PreviewFor(site)}
 	if err := site.Validate(); err != nil {
 		var verr *sites.ValidationError
 		if errors.As(err, &verr) {

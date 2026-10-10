@@ -617,7 +617,7 @@ function Credentials({ plugins, onSaved }: { plugins: PluginState[]; onSaved: ()
   );
 }
 
-function CredentialCard({ plugin, onSaved }: { plugin: PluginState; onSaved: () => void }) {
+export function CredentialCard({ plugin, onSaved }: { plugin: PluginState; onSaved: () => void }) {
   const [values, setValues] = useState<Record<string, string>>({});
   const { busy, run } = useAction();
 

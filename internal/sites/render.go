@@ -25,6 +25,8 @@ func (s *Site) Normalize() {
 	s.RedirectTo = strings.TrimSpace(s.RedirectTo)
 	s.Root = strings.TrimSpace(s.Root)
 	s.DNSProvider = strings.TrimSpace(s.DNSProvider)
+	s.AccessList = strings.TrimSpace(s.AccessList)
+	s.normalizeSecurity()
 	s.Extra = normText(s.Extra)
 	s.Raw = normText(s.Raw)
 }
@@ -99,6 +101,10 @@ func (s Site) Validate() error {
 	default:
 		problems = append(problems, "Modus: proxy, redirect, static oder raw")
 	}
+	problems = append(problems, s.validateSecurity()...)
+	if s.AccessList != "" && !reID.MatchString(s.AccessList) {
+		problems = append(problems, "Access-List-ID ungültig")
+	}
 	if !balanced(s.Extra) || !balanced(s.Raw) {
 		problems = append(problems, "geschweifte Klammern in Zusatz/Raw sind nicht ausgeglichen")
 	}
@@ -113,8 +119,21 @@ type ValidationError struct{ Problems []string }
 
 func (e *ValidationError) Error() string { return strings.Join(e.Problems, "; ") }
 
-// Render produces the snippet for one site.
-func Render(s Site) string {
+// Options carries host-wide rendering settings.
+type Options struct {
+	// AccessLog is the shared JSON access log every site writes to; empty
+	// disables request logging (tests, installer).
+	AccessLog string
+}
+
+// Render produces the snippet for a site without an access list.
+func Render(s Site) string { return RenderWith(s, nil, Options{}) }
+
+// RenderWith produces the snippet for one site. With an access list or a
+// protection module, the checks and the site's handlers go into one `route`
+// block so they run in the written order: deny first, then login, then the
+// handler.
+func RenderWith(s Site, acl *AccessList, opt Options) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "# %s – verwaltet von caddyforge. Änderungen über die WebUI, sonst überschrieben.\n", s.ID)
 	addrs := make([]string, 0, len(s.Domains))
@@ -137,7 +156,35 @@ func Render(s Site) string {
 	if s.Compress && s.Mode != ModeRedirect {
 		b.WriteString("\tencode zstd gzip\n")
 	}
+	if opt.AccessLog != "" && !s.NoLog {
+		// One file for all sites: caddy pools writers by filename, and the
+		// analytics follower then reads a single log.
+		fmt.Fprintf(&b, "\tlog {\n\t\toutput file %s {\n\t\t\troll_size 50MiB\n\t\t\troll_keep 5\n\t\t}\n\t\tformat json\n\t}\n", opt.AccessLog)
+	}
 
+	body := renderBody(s)
+	if s.needsRoute(acl) {
+		b.WriteString("\troute {\n")
+		if acl != nil {
+			b.WriteString(renderACL(*acl))
+		}
+		b.WriteString(renderSecurity(s))
+		b.WriteString(indent(strings.TrimRight(body, "\n")))
+		b.WriteString("\t}\n")
+	} else {
+		b.WriteString(body)
+	}
+	if s.Extra != "" {
+		b.WriteString("\n\t# Zusatz\n")
+		b.WriteString(indent(s.Extra))
+	}
+	b.WriteString("}\n")
+	return b.String()
+}
+
+// renderBody is the site's handler part, indented one level.
+func renderBody(s Site) string {
+	var b strings.Builder
 	switch s.Mode {
 	case ModeProxy:
 		fmt.Fprintf(&b, "\treverse_proxy %s", strings.Join(s.Upstreams, " "))
@@ -172,11 +219,6 @@ func Render(s Site) string {
 	case ModeRaw:
 		b.WriteString(indent(s.Raw))
 	}
-	if s.Extra != "" {
-		b.WriteString("\n\t# Zusatz\n")
-		b.WriteString(indent(s.Extra))
-	}
-	b.WriteString("}\n")
 	return b.String()
 }
 

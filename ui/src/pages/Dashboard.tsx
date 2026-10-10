@@ -1,5 +1,6 @@
 import { useEffect } from "react";
-import { api, CfEvent, fmtTime, StatusResponse } from "../api";
+import { AnalyticsResponse, api, CertificatesResponse, CfEvent, expiryKind, fmtExpiry, fmtNum, fmtTime, StatusResponse } from "../api";
+import { Sparkline } from "../components/charts";
 import { navigate } from "../router";
 import { Badge, ErrorBox, PageHead, Spinner, useAction, useLoad } from "../components/ui";
 
@@ -125,21 +126,10 @@ export default function Dashboard() {
                 ))}
                 {modules.length === 0 && <span className="muted small">Keine Zusatz-Plugins im Binary (Standard-Caddy).</span>}
               </div>
-              {s.certificates && s.certificates.length > 0 && (
-                <>
-                  <h3>Zertifikate</h3>
-                  <ul className="list-plain">
-                    {s.certificates.map((c, i) => (
-                      <li key={i} className="row">
-                        <span className="mono small">{c.sans.join(", ")}</span>
-                        <span className="spacer" />
-                        <Badge kind={c.expiresInDays < 7 ? "err" : c.expiresInDays < 21 ? "warn" : "ok"}>noch {c.expiresInDays} Tage</Badge>
-                      </li>
-                    ))}
-                  </ul>
-                </>
-              )}
             </div>
+
+            <CertCard />
+            <TrafficCard />
           </div>
 
           <div className="card">
@@ -182,5 +172,89 @@ export default function Dashboard() {
         </div>
       )}
     </>
+  );
+}
+
+function TrafficCard() {
+  const data = useLoad(() => api.get<AnalyticsResponse>("/api/analytics?range=24h"));
+  const rep = data.data?.report;
+  const series = rep?.series ?? [];
+  const tot = rep?.totals;
+  return (
+    <div className="card">
+      <div className="row">
+        <h2 style={{ margin: 0 }}>Traffic (24 h)</h2>
+        <span className="spacer" />
+        <button className="btn sm" onClick={() => navigate("/analytics")}>
+          Analytics
+        </button>
+      </div>
+      <ErrorBox error={data.error} />
+      {rep && (
+        <>
+          <div className="row" style={{ marginTop: 10, gap: 18 }}>
+            <div>
+              <div className="small muted">Anfragen</div>
+              <b>{fmtNum(tot?.requests)}</b>
+            </div>
+            <div>
+              <div className="small muted">Geblockt</div>
+              <b style={{ color: (tot?.blocked ?? 0) > 0 ? "var(--warn)" : undefined }}>{fmtNum(tot?.blocked)}</b>
+            </div>
+            <div>
+              <div className="small muted">Fehler</div>
+              <b>{fmtNum((tot?.s4xx ?? 0) + (tot?.s5xx ?? 0))}</b>
+            </div>
+          </div>
+          <div style={{ marginTop: 8 }}>
+            <Sparkline values={series.map((p) => p.requests)} color="var(--c-2xx)" />
+            <Sparkline values={series.map((p) => p.blocked)} color="var(--c-blocked)" height={22} />
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+function CertCard() {
+  const certs = useLoad(() => api.get<CertificatesResponse>("/api/certificates"));
+  const list = certs.data?.certificates ?? [];
+  // Internal certs renew every few hours; the interesting expiry is the
+  // next public one, falling back to whatever expires first.
+  const sorted = [...list].sort((a, b) => new Date(a.notAfter).getTime() - new Date(b.notAfter).getTime());
+  const next = sorted.find((c) => c.source !== "internal") ?? sorted[0];
+  const publicCount = list.filter((c) => c.source !== "internal").length;
+  return (
+    <div className="card">
+      <div className="row">
+        <h2 style={{ margin: 0 }}>Zertifikate</h2>
+        <span className="spacer" />
+        <button className="btn sm" onClick={() => navigate("/certificates")}>
+          Alle anzeigen
+        </button>
+      </div>
+      <ErrorBox error={certs.error} />
+      {certs.loading && !certs.data ? (
+        <div className="empty">
+          <Spinner />
+        </div>
+      ) : list.length === 0 ? (
+        <p className="small muted">Noch keine Zertifikate ausgestellt.</p>
+      ) : (
+        <div className="stack" style={{ marginTop: 12, gap: 8 }}>
+          <div className="small">
+            {list.length} Zertifikat{list.length === 1 ? "" : "e"} · {publicCount} öffentlich · {list.length - publicCount} intern
+          </div>
+          {next && (
+            <div className="row">
+              <span className="small muted">Nächster Ablauf:</span>
+              <span className="mono small">{(next.domains ?? [next.name]).join(", ")}</span>
+              <span className="spacer" />
+              <Badge kind={expiryKind(next)}>{fmtExpiry(next)}</Badge>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
   );
 }

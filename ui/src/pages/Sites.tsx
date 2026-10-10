@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { api, emptySite, Site, SiteMode, SitesResponse, SiteTLS } from "../api";
+import { AccessListsResponse, api, emptySite, Site, SiteMode, SitesResponse, SiteTLS } from "../api";
+import { DefenderFields, FEATURE_PLUGINS, RateLimitFields, useCompiledPlugins, WafFields } from "../components/features";
 import { Badge, ConfirmButton, ErrorBox, PageHead, Spinner, Switch, useAction, useLoad, useToast } from "../components/ui";
 
 export default function Sites() {
@@ -72,7 +73,7 @@ export default function Sites() {
                   <th>Aktiv</th>
                   <th>Domains</th>
                   <th>Ziel</th>
-                  <th>TLS</th>
+                  <th>TLS & Schutz</th>
                   <th></th>
                 </tr>
               </thead>
@@ -90,7 +91,13 @@ export default function Sites() {
                       <TargetText site={s} />
                     </td>
                     <td>
-                      <TlsBadge site={s} />
+                      <div className="chips">
+                        <TlsBadge site={s} />
+                        {s.accessList && <Badge kind="info">ACL · {s.accessList}</Badge>}
+                        {s.waf?.enabled && <Badge kind={s.waf.mode === "detect" ? "warn" : "ok"}>WAF{s.waf.mode === "detect" ? " · erkennen" : ""}</Badge>}
+                        {s.defender?.enabled && <Badge kind="ok">Bot-Abwehr</Badge>}
+                        {s.rateLimit?.enabled && <Badge kind="ok">{`${s.rateLimit.events}/${s.rateLimit.window}`}</Badge>}
+                      </div>
                     </td>
                     <td style={{ textAlign: "right", whiteSpace: "nowrap" }}>
                       <span className="row" style={{ justifyContent: "flex-end" }}>
@@ -166,8 +173,19 @@ function SiteEditor({
   const [saveErr, setSaveErr] = useState<unknown>(null);
   const [saving, setSaving] = useState(false);
   const toast = useToast();
+  const compiled = useCompiledPlugins();
+  const acls = useLoad(() => api.get<AccessListsResponse>("/api/access-lists"));
 
-  const full: Site = { ...site, domains: lines(domainsText), upstreams: lines(upstreamsText) };
+  // Disabled feature blocks are not sent: the server treats a missing block
+  // as "off", and a binary without the plugin then has nothing to reject.
+  const full: Site = {
+    ...site,
+    domains: lines(domainsText),
+    upstreams: lines(upstreamsText),
+    waf: site.waf?.enabled ? site.waf : undefined,
+    defender: site.defender?.enabled ? site.defender : undefined,
+    rateLimit: site.rateLimit?.enabled ? site.rateLimit : undefined,
+  };
   const set = <K extends keyof Site>(k: K, v: Site[K]) => setSite((s) => ({ ...s, [k]: v }));
 
   // Live preview, debounced.
@@ -333,6 +351,23 @@ function SiteEditor({
               <input type="checkbox" checked={site.enabled} onChange={(e) => set("enabled", e.target.checked)} /> Aktiv
             </label>
           </div>
+
+          <label className="field">
+            Access List
+            <select value={site.accessList ?? ""} onChange={(e) => set("accessList", e.target.value)}>
+              <option value="">keine – öffentlich erreichbar</option>
+              {(acls.data?.accessLists ?? []).map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.name}
+                </option>
+              ))}
+            </select>
+            <span className="hint">IP-, Länder- und Login-Regeln. Anlegen unter „Access Lists“.</span>
+          </label>
+
+          {compiled[FEATURE_PLUGINS.waf] && <WafFields value={site.waf} onChange={(v) => set("waf", v)} />}
+          {compiled[FEATURE_PLUGINS.defender] && <DefenderFields value={site.defender} onChange={(v) => set("defender", v)} />}
+          {compiled[FEATURE_PLUGINS.rateLimit] && <RateLimitFields value={site.rateLimit} onChange={(v) => set("rateLimit", v)} />}
 
           {site.mode !== "raw" && (
             <label className="field">

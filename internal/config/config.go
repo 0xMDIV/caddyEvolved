@@ -33,6 +33,13 @@ type Paths struct {
 	EnvFile    string
 	SitesFile  string // /etc/caddyforge/sites.json
 	SitesDir   string // /etc/caddy/sites
+	// CaddyStorage is caddy's data dir as the service user sees it
+	// ($HOME/.local/share/caddy with HOME=/var/lib/caddy).
+	CaddyStorage string
+	// AccessLog is the shared JSON request log of all managed sites.
+	AccessLog string
+	// AnalyticsFile is the aggregated traffic snapshot.
+	AnalyticsFile string
 }
 
 // NewPaths builds the layout. An empty root means absolute FHS paths.
@@ -57,6 +64,10 @@ func NewPaths(root string) Paths {
 			EnvFile:    join(root, "/etc/caddyforge/env"),
 			SitesFile:  join(root, "/etc/caddyforge/sites.json"),
 			SitesDir:   join(root, "/etc/caddy/sites"),
+
+			CaddyStorage:  join(root, "/var/lib/caddy/.local/share/caddy"),
+			AccessLog:     join(root, "/var/log/caddy/access.log"),
+			AnalyticsFile: join(root, "/var/lib/caddyforge/analytics.json"),
 		}
 		return p
 	}

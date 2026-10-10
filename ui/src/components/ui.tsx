@@ -175,3 +175,28 @@ export function useAction() {
   );
   return { busy, run };
 }
+
+/** Preformatted text with a copy button. */
+export function CopyBlock({ text, wrap }: { text: string; wrap?: boolean }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <div className="import-copy">
+      <pre className={`code${wrap ? " wrap" : ""}`}>{text}</pre>
+      <button
+        className="btn sm"
+        type="button"
+        onClick={async () => {
+          try {
+            await navigator.clipboard.writeText(text);
+            setCopied(true);
+            setTimeout(() => setCopied(false), 1500);
+          } catch {
+            /* clipboard blocked – the text is selectable anyway */
+          }
+        }}
+      >
+        {copied ? "Kopiert" : "Kopieren"}
+      </button>
+    </div>
+  );
+}

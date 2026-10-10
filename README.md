@@ -51,6 +51,28 @@ Dateien, Raw. TLS: automatisch (ACME), intern (lokale CA), DNS-01 über ein
 eingebautes DNS-Plugin, oder nur HTTP. Das Caddyfile selbst bleibt im
 Expertenmodus der UI editierbar.
 
+## Sicherheit, Analytics, Import, KI
+
+- **Access Lists:** IP-Freigabe/-Sperre, Länder (Plugin `maxmind-geolocation`) und
+  Basic-Auth-Benutzer (bcrypt über `caddy hash-password`, Klartext nie auf Platte). Pro
+  Site zuweisbar; die Prüfungen laufen in einem `route`-Block vor dem Login.
+- **Schutz pro Site** (nur sichtbar, wenn das Plugin eingebaut ist): WAF (Coraza + OWASP
+  CRS, Modus blockieren/nur protokollieren), Bot-Abwehr (`caddy-defender`, z. B. KI-Crawler),
+  Rate Limit (`caddy-ratelimit`). Plugins mit eigener Seite erscheinen automatisch in der
+  Sidebar, sobald sie in der laufenden Binary stecken.
+- **Zertifikate:** Übersicht aus caddys Speicher (die Admin-API listet keine ACME-Zertifikate),
+  Download der internen Root-CA.
+- **Analytics:** alle Sites schreiben ein JSON-Access-Log; caddyforge aggregiert Minuten
+  (48 h) und Stunden (35 Tage): Anfragen nach Statusklasse, Geblockt, Latenz (Ø/p95),
+  Top-Pfade/-IPs/-Agents/-Referer, Live-Liste.
+- **Audit Log:** jeder ändernde API-Aufruf mit Session bzw. Token-Name.
+- **Import:** Caddyfile, Zoraxy (Backup-ZIP), Traefik (YAML/TOML, docker-compose-Labels),
+  Nginx Proxy Manager (API-JSON oder `sqlite3 -json`) – mit Vorschau, Warnungen und
+  Einzelübernahme.
+- **API-Tokens + MCP:** gehashte Tokens mit Scope `read`/`write`; `POST /mcp` ist ein
+  MCP-Server (Spezifikation 2026-07-28, abwärtskompatibel), über den eine KI Sites,
+  Access Lists, Builds, Logs und Analytics bedienen kann.
+
 ## Architektur
 
 - **Ein statisches Go-Binary** (`caddyforge`): Installer, Daemon, REST-API, SSE-Streams und
@@ -113,7 +135,10 @@ internal/releases/     GitHub-Releases, Asset-Namen, Custom-Build-URL
 internal/plugins/      kuratierter Modul-Katalog + Go-Proxy-Validierung freier Pfade
 internal/secrets/      EnvironmentFile-Verwaltung (Namen-only Reports)
 internal/builder/      lokaler xcaddy-Build: Go-Toolchain, Jobs, Live-Log, Aktivierung + Rollback
-internal/sites/        Reverse-Proxy-Sites als Caddyfile-Snippets, transaktional
+internal/sites/        Reverse-Proxy-Sites, Access Lists, WAF/Bot/Rate-Limit-Rendering, transaktional
+internal/certs/        Zertifikate aus caddys Storage lesen
+internal/analytics/    Access-Log-Follower und Aggregation (Minute/Stunde, Top-Listen)
+internal/importer/     Import aus Caddyfile, Zoraxy, Traefik, Nginx Proxy Manager
 internal/forge/        (alt) Client für einen externen Build-Service, ungenutzt
 ui/                    React + Vite + TypeScript, Build landet in internal/webui/dist
 internal/api/          HTTP-Routen, Auth-Middleware, SSE, self-signed TLS
@@ -129,8 +154,10 @@ internal/webui/        embed.FS für das gebaute Frontend
 - [x] **M3** Plugin-Katalog + Credentials + **lokaler Custom-Build mit Rollback**
 - [~] **M4** Caddyfile-Editor + Validate/Reload — *Revisionsverlauf offen*
 - [x] **M5** Reverse-Proxy-Sites
-- [ ] **M6** Zertifikate (ACME, DNS-Provider, Renew)
-- [ ] **M7** Auth/Hardening
+- [~] **M6** Zertifikate — *Übersicht + DNS-01 fertig; manuelles Erneuern/Hochladen offen*
+- [x] Access Lists, WAF/Bot-Abwehr/Rate Limit, Plugin-Seiten in der Sidebar
+- [x] Analytics, Audit Log, Import (Caddyfile/Zoraxy/Traefik/NPM), API-Tokens, MCP
+- [ ] **M7** Auth/Hardening (Mehrbenutzer, 2FA)
 - [ ] **M8** CI für Bundle-Varianten + Releases, LXC-Testharness
 
 ## Verifizierte Faktengrundlage

@@ -159,6 +159,24 @@ func (c *Client) Validate(ctx context.Context, configPath, adapter string) (stri
 	return out, nil
 }
 
+// HashPassword returns a bcrypt hash for basic_auth. The plaintext goes in on
+// stdin, never in argv, where any local user could read it from /proc.
+func (c *Client) HashPassword(ctx context.Context, plaintext string) (string, error) {
+	out, err := c.runner.Output(ctx, cmdx.Cmd{
+		Name:  c.bin,
+		Args:  []string{"hash-password", "--algorithm", "bcrypt"},
+		Stdin: []byte(plaintext + "\n"),
+	})
+	if err != nil {
+		return "", fmt.Errorf("hash-password: %w", err)
+	}
+	fields := strings.Fields(string(out))
+	if len(fields) == 0 {
+		return "", fmt.Errorf("hash-password: keine Ausgabe")
+	}
+	return fields[len(fields)-1], nil
+}
+
 // ScratchEnv points caddy's data and config storage into dir.
 func ScratchEnv(dir string) []string {
 	return []string{

@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strings"
 
+	"caddyforge/internal/builder"
 	"caddyforge/internal/config"
 	"caddyforge/internal/plugins"
 	"caddyforge/internal/secrets"
@@ -43,6 +44,7 @@ func (s *Server) pluginStates(ctx context.Context, st config.State) []PluginStat
 		env = map[string]string{}
 	}
 	detected := s.detectedModules(ctx)
+	mods := s.installedModules(ctx)
 	selected := map[string]bool{}
 	for _, id := range st.Enabled {
 		selected[id] = true
@@ -50,7 +52,9 @@ func (s *Server) pluginStates(ctx context.Context, st config.State) []PluginStat
 
 	out := make([]PluginState, 0, len(plugins.All()))
 	for _, e := range plugins.All() {
-		ps := PluginState{Entry: e, Detected: detected[e.Module] || detected[e.ID], Active: selected[e.ID]}
+		// The go module path is the reliable signal; the name map only
+		// helps for free-form caddy-dns providers.
+		ps := PluginState{Entry: e, Detected: builder.HasPackage(mods, e.Module) || detected[e.Module], Active: selected[e.ID]}
 		if len(e.Env) == 0 {
 			ps.Complete = true
 			out = append(out, ps)

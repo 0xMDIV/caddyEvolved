@@ -38,23 +38,28 @@ const (
 
 // Site is one virtual host.
 type Site struct {
-	ID               string    `json:"id"`
-	Domains          []string  `json:"domains"`
-	Mode             string    `json:"mode"`
-	Upstreams        []string  `json:"upstreams,omitempty"`
-	UpstreamTLS      bool      `json:"upstreamTls,omitempty"`
-	UpstreamInsecure bool      `json:"upstreamInsecure,omitempty"`
-	LBPolicy         string    `json:"lbPolicy,omitempty"`
-	HealthURI        string    `json:"healthUri,omitempty"`
-	TLS              string    `json:"tls"`
-	DNSProvider      string    `json:"dnsProvider,omitempty"`
-	Compress         bool      `json:"compress"`
-	RedirectTo       string    `json:"redirectTo,omitempty"`
-	Root             string    `json:"root,omitempty"`
-	Extra            string    `json:"extra,omitempty"`
-	Raw              string    `json:"raw,omitempty"`
-	Enabled          bool      `json:"enabled"`
-	UpdatedAt        time.Time `json:"updatedAt,omitzero"`
+	ID               string     `json:"id"`
+	Domains          []string   `json:"domains"`
+	Mode             string     `json:"mode"`
+	Upstreams        []string   `json:"upstreams,omitempty"`
+	UpstreamTLS      bool       `json:"upstreamTls,omitempty"`
+	UpstreamInsecure bool       `json:"upstreamInsecure,omitempty"`
+	LBPolicy         string     `json:"lbPolicy,omitempty"`
+	HealthURI        string     `json:"healthUri,omitempty"`
+	TLS              string     `json:"tls"`
+	DNSProvider      string     `json:"dnsProvider,omitempty"`
+	Compress         bool       `json:"compress"`
+	RedirectTo       string     `json:"redirectTo,omitempty"`
+	Root             string     `json:"root,omitempty"`
+	Extra            string     `json:"extra,omitempty"`
+	Raw              string     `json:"raw,omitempty"`
+	AccessList       string     `json:"accessList,omitempty"`
+	NoLog            bool       `json:"noLog,omitempty"`
+	WAF              *WAF       `json:"waf,omitempty"`
+	Defender         *Defender  `json:"defender,omitempty"`
+	RateLimit        *RateLimit `json:"rateLimit,omitempty"`
+	Enabled          bool       `json:"enabled"`
+	UpdatedAt        time.Time  `json:"updatedAt,omitzero"`
 }
 
 // Commit validates and activates the files on disk. It returns caddy's output
@@ -75,12 +80,58 @@ type Manager struct {
 	file      string
 	dir       string
 	caddyfile string
+	opt       Options
 	mu        sync.Mutex
 }
 
 // New points at the definitions file, the snippet dir and the main Caddyfile.
 func New(file, dir, caddyfile string) *Manager {
 	return &Manager{file: file, dir: dir, caddyfile: caddyfile}
+}
+
+// SetOptions changes host-wide rendering; the next change re-renders all
+// sites with it (call Sync to apply immediately).
+func (m *Manager) SetOptions(o Options) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.opt = o
+}
+
+// Options returns the current rendering options.
+func (m *Manager) Options() Options {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.opt
+}
+
+// NeedsSync reports whether any snippet on disk differs from what the
+// current definitions and options render, e.g. after an upgrade that added
+// request logging.
+func (m *Manager) NeedsSync() bool {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	doc, err := m.loadDoc()
+	if err != nil {
+		return false
+	}
+	for _, s := range doc.Sites {
+		if !s.Enabled {
+			continue
+		}
+		data, err := os.ReadFile(filepath.Join(m.dir, s.ID+".caddy"))
+		if err != nil || string(data) != RenderWith(s, doc.acl(s.AccessList), m.opt) {
+			return true
+		}
+	}
+	return false
+}
+
+// PreviewFor renders a site with the stored access list and options.
+func (m *Manager) PreviewFor(s Site) string {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	doc, _ := m.loadDoc()
+	return RenderWith(s, doc.acl(s.AccessList), m.opt)
 }
 
 // Dir is the snippet directory.
@@ -233,9 +284,23 @@ func (m *Manager) Sync(ctx context.Context, commit Commit) error {
 	return m.apply(ctx, list, list, commit)
 }
 
-// apply writes next, ensures the import line, commits, and restores prev on
-// any failure. The caller holds m.mu.
+// apply replaces the site list and keeps the access lists as they are.
 func (m *Manager) apply(ctx context.Context, prev, next []Site, commit Commit) error {
+	doc, err := m.loadDoc()
+	if err != nil {
+		return err
+	}
+	before, after := doc, doc
+	before.Sites, after.Sites = prev, next
+	return m.applyDoc(ctx, before, after, commit)
+}
+
+// applyDoc writes next, ensures the import line, commits, and restores prev
+// on any failure. The caller holds m.mu.
+func (m *Manager) applyDoc(ctx context.Context, prev, next document, commit Commit) error {
+	if err := next.checkRefs(); err != nil {
+		return err
+	}
 	if err := ensureDir(m.dir); err != nil {
 		return err
 	}
@@ -250,7 +315,7 @@ func (m *Manager) apply(ctx context.Context, prev, next []Site, commit Commit) e
 		if mainErr == nil {
 			writeAtomic(m.caddyfile, mainBefore, 0o644)
 		}
-		m.save(prev)
+		m.saveDoc(prev)
 	}
 
 	if err := m.writeSnippets(next); err != nil {
@@ -261,7 +326,7 @@ func (m *Manager) apply(ctx context.Context, prev, next []Site, commit Commit) e
 		restore()
 		return err
 	}
-	if err := m.save(next); err != nil {
+	if err := m.saveDoc(next); err != nil {
 		restore()
 		return err
 	}
@@ -274,13 +339,13 @@ func (m *Manager) apply(ctx context.Context, prev, next []Site, commit Commit) e
 	return nil
 }
 
-func (m *Manager) writeSnippets(list []Site) error {
+func (m *Manager) writeSnippets(doc document) error {
 	want := map[string][]byte{}
-	for _, s := range list {
+	for _, s := range doc.Sites {
 		if !s.Enabled {
 			continue
 		}
-		want[s.ID+".caddy"] = []byte(Render(s))
+		want[s.ID+".caddy"] = []byte(RenderWith(s, doc.acl(s.AccessList), m.opt))
 	}
 	entries, err := os.ReadDir(m.dir)
 	if err != nil {
@@ -322,32 +387,73 @@ func (m *Manager) ensureImport() error {
 	return writeAtomic(m.caddyfile, []byte(content), 0o644)
 }
 
+// document is the content of sites.json.
+type document struct {
+	Schema      int          `json:"schema"`
+	Sites       []Site       `json:"sites"`
+	AccessLists []AccessList `json:"accessLists"`
+}
+
+func (d document) acl(id string) *AccessList {
+	if id == "" {
+		return nil
+	}
+	for i := range d.AccessLists {
+		if d.AccessLists[i].ID == id {
+			return &d.AccessLists[i]
+		}
+	}
+	return nil
+}
+
+// checkRefs refuses a site that points at a missing access list; rendering it
+// without the list would silently open the site.
+func (d document) checkRefs() error {
+	for _, s := range d.Sites {
+		if s.AccessList != "" && d.acl(s.AccessList) == nil {
+			return &ValidationError{Problems: []string{fmt.Sprintf("Site %s: Access List %q existiert nicht", s.ID, s.AccessList)}}
+		}
+	}
+	return nil
+}
+
 func (m *Manager) load() ([]Site, error) {
+	doc, err := m.loadDoc()
+	return doc.Sites, err
+}
+
+func (m *Manager) loadDoc() (document, error) {
+	doc := document{Sites: []Site{}, AccessLists: []AccessList{}}
 	data, err := os.ReadFile(m.file)
 	if errors.Is(err, os.ErrNotExist) {
-		return []Site{}, nil
+		return doc, nil
 	}
 	if err != nil {
-		return nil, err
-	}
-	var doc struct {
-		Sites []Site `json:"sites"`
+		return doc, err
 	}
 	if err := json.Unmarshal(data, &doc); err != nil {
-		return nil, fmt.Errorf("%s: %w", m.file, err)
+		return doc, fmt.Errorf("%s: %w", m.file, err)
 	}
 	if doc.Sites == nil {
 		doc.Sites = []Site{}
 	}
+	if doc.AccessLists == nil {
+		doc.AccessLists = []AccessList{}
+	}
 	sort.Slice(doc.Sites, func(i, j int) bool { return doc.Sites[i].ID < doc.Sites[j].ID })
-	return doc.Sites, nil
+	sort.Slice(doc.AccessLists, func(i, j int) bool { return doc.AccessLists[i].ID < doc.AccessLists[j].ID })
+	return doc, nil
 }
 
-func (m *Manager) save(list []Site) error {
-	if list == nil {
-		list = []Site{}
+func (m *Manager) saveDoc(doc document) error {
+	doc.Schema = 2
+	if doc.Sites == nil {
+		doc.Sites = []Site{}
 	}
-	data, err := json.MarshalIndent(map[string]any{"schema": 1, "sites": list}, "", "  ")
+	if doc.AccessLists == nil {
+		doc.AccessLists = []AccessList{}
+	}
+	data, err := json.MarshalIndent(doc, "", "  ")
 	if err != nil {
 		return err
 	}
@@ -416,7 +522,7 @@ func WriteInitial(file, dir string, s Site) error {
 	m := New(file, dir, "")
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	list, err := m.load()
+	doc, err := m.loadDoc()
 	if err != nil {
 		return err
 	}
@@ -425,22 +531,22 @@ func WriteInitial(file, dir string, s Site) error {
 		return err
 	}
 	replaced := false
-	for i := range list {
-		if list[i].ID == s.ID {
-			list[i], replaced = s, true
+	for i := range doc.Sites {
+		if doc.Sites[i].ID == s.ID {
+			doc.Sites[i], replaced = s, true
 		}
 	}
 	if !replaced {
-		list = append(list, s)
+		doc.Sites = append(doc.Sites, s)
 	}
-	if err := checkDuplicates(list); err != nil {
+	if err := checkDuplicates(doc.Sites); err != nil {
 		return err
 	}
 	if err := ensureDir(dir); err != nil {
 		return err
 	}
-	if err := m.writeSnippets(list); err != nil {
+	if err := m.writeSnippets(doc); err != nil {
 		return err
 	}
-	return m.save(list)
+	return m.saveDoc(doc)
 }

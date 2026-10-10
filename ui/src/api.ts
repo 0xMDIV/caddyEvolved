@@ -13,6 +13,9 @@ export class ApiError extends Error {
   }
 }
 
+/** Window event fired after a build activation or rollback. */
+export const BINARY_CHANGED = "cf:binary-changed";
+
 type Listener = () => void;
 const unauthListeners = new Set<Listener>();
 
@@ -51,6 +54,10 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
   }
   if (!resp.ok) {
     throw new ApiError(resp.status, data?.error || resp.statusText, data?.code || "", data?.details || []);
+  }
+  // A swapped caddy binary changes which plugin pages exist.
+  if (method === "POST" && /^\/api\/builds\/(rollback|[^/]+\/activate)$/.test(path)) {
+    window.dispatchEvent(new Event(BINARY_CHANGED));
   }
   // Some handlers report a failure with 200 and an error body (plugins/check).
   if (data && typeof data === "object" && "error" in data && "code" in data && Object.keys(data).length <= 3) {
@@ -109,6 +116,7 @@ export interface PluginState {
   conflicts?: string[];
   requires?: string[];
   note?: string;
+  ui?: { page: string; label: string; icon?: string };
   detected: boolean;
   active: boolean;
   credentialState?: Record<string, "set" | "missing" | "optional">;
@@ -252,8 +260,97 @@ export interface Site {
   root: string;
   extra: string;
   raw: string;
+  accessList?: string;
+  waf?: SiteWaf;
+  defender?: SiteDefender;
+  rateLimit?: SiteRateLimit;
   enabled: boolean;
   updatedAt?: string;
+}
+
+export interface SiteWaf {
+  enabled: boolean;
+  mode: "block" | "detect";
+}
+export interface SiteDefender {
+  enabled: boolean;
+  responder: "block" | "tarpit" | "garbage" | "drop";
+  ranges: string[];
+}
+export interface SiteRateLimit {
+  enabled: boolean;
+  events: number;
+  window: string;
+}
+
+export const DEFENDER_RANGES = ["openai", "aws", "gcloud", "azurepubliccloud", "deepseek", "githubcopilot", "cloudflare", "vpn", "private", "all"];
+
+export const defaultWaf = (): SiteWaf => ({ enabled: true, mode: "block" });
+export const defaultDefender = (): SiteDefender => ({ enabled: true, responder: "block", ranges: ["openai", "deepseek", "githubcopilot"] });
+export const defaultRateLimit = (): SiteRateLimit => ({ enabled: true, events: 100, window: "1m" });
+
+export interface AccessList {
+  id: string;
+  name: string;
+  allow: string[] | null;
+  deny: string[] | null;
+  allowCountries: string[] | null;
+  denyCountries: string[] | null;
+  geoDb: string;
+  users: { username: string; hasPassword: boolean }[] | null;
+  usedBy: string[] | null;
+  needsGeo: boolean;
+  updatedAt?: string;
+}
+
+export interface AccessListsResponse {
+  accessLists: AccessList[] | null;
+  geoAvailable: boolean;
+}
+
+export interface CertInfo {
+  name: string;
+  domains: string[] | null;
+  issuer: string;
+  issuerKey: string;
+  source: "letsencrypt" | "zerossl" | "internal" | "other";
+  staging: boolean;
+  notBefore: string;
+  notAfter: string;
+  daysLeft: number;
+  hoursLeft: number;
+  serial: string;
+  keyType: string;
+  sites: string[] | null;
+}
+
+export interface CertificatesResponse {
+  certificates: CertInfo[] | null;
+  storage: string;
+  internalCA: boolean;
+}
+
+export interface NavItem {
+  page: string;
+  label: string;
+  icon?: string;
+  pluginId: string;
+  plugin: string;
+}
+
+export function fmtExpiry(c: { daysLeft: number; hoursLeft: number }): string {
+  if (c.hoursLeft < 0) return "abgelaufen";
+  if (c.daysLeft < 2) return `noch ${c.hoursLeft} h`;
+  return `noch ${c.daysLeft} Tage`;
+}
+
+/** Badge colour for a certificate's remaining lifetime. Internal certs live 12 h by design. */
+export function expiryKind(c: CertInfo): "ok" | "warn" | "err" {
+  if (c.hoursLeft < 0) return "err";
+  if (c.source === "internal") return "ok";
+  if (c.daysLeft < 7) return "err";
+  if (c.daysLeft < 21) return "warn";
+  return "ok";
 }
 
 export interface SitesResponse {
@@ -288,8 +385,32 @@ export function emptySite(): Site {
     root: "",
     extra: "",
     raw: "",
+    accessList: "",
     enabled: true,
   };
+}
+
+/** Download a binary response (with the session cookie) as a file. */
+export async function downloadFile(path: string, filename: string): Promise<void> {
+  const resp = await fetch(path, { credentials: "same-origin" });
+  if (!resp.ok) {
+    let msg = resp.statusText;
+    try {
+      msg = (await resp.json()).error || msg;
+    } catch {
+      /* not JSON */
+    }
+    throw new ApiError(resp.status, msg);
+  }
+  const blob = await resp.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
 // ---------- Formatting helpers ----------
@@ -318,4 +439,107 @@ export function fmtDuration(sec?: number): string {
   const m = Math.floor(sec / 60);
   const s = Math.round(sec % 60);
   return m > 0 ? `${m} min ${s} s` : `${s} s`;
+}
+
+// ---------- Analytics / Audit ----------
+
+export type AnalyticsRange = "15m" | "1h" | "6h" | "24h" | "7d" | "30d";
+
+export interface AnalyticsPoint {
+  t: string;
+  requests: number;
+  s2xx: number;
+  s3xx: number;
+  s4xx: number;
+  s5xx: number;
+  blocked: number;
+  bytes: number;
+  durSum: number;
+  durMax: number;
+  lat?: number[] | null;
+  avgMs: number;
+  p95Ms: number;
+}
+
+export interface TopEntry {
+  key: string;
+  count: number;
+}
+
+export interface AnalyticsReport {
+  from: string;
+  to: string;
+  step: "1m" | "1h";
+  series: AnalyticsPoint[] | null;
+  totals: AnalyticsPoint;
+  hosts: TopEntry[] | null;
+  top: Record<string, TopEntry[] | null> | null;
+}
+
+export interface AnalyticsResponse {
+  range: AnalyticsRange;
+  accessLog: string;
+  report: AnalyticsReport;
+}
+
+export interface RecentRequest {
+  ts: string;
+  host: string;
+  method: string;
+  uri: string;
+  status: number;
+  size: number;
+  durationMs: number;
+  ip: string;
+  agent?: string;
+}
+
+export interface AuditEntry extends CfEvent {
+  meta?: { method?: string; path?: string; status?: number; remote?: string; actor?: string; ms?: number } & Record<string, unknown>;
+}
+
+export function fmtNum(n?: number): string {
+  if (n === undefined || n === null) return "–";
+  return n.toLocaleString("de-DE");
+}
+
+export function fmtMs(ms?: number): string {
+  if (!ms) return "–";
+  return ms >= 1000 ? `${(ms / 1000).toFixed(2)} s` : `${Math.round(ms)} ms`;
+}
+
+// ---------- API tokens & MCP ----------
+
+export type TokenScope = "read" | "write";
+
+export interface ApiTokenInfo {
+  id: string;
+  name: string;
+  scope: TokenScope;
+  prefix: string;
+  created: string;
+  lastUsed?: string;
+  expires?: string;
+}
+
+export interface TokenCreated {
+  token: string;
+  info: ApiTokenInfo;
+}
+
+export interface McpToolInfo {
+  name: string;
+  description: string;
+  readOnly: boolean;
+}
+
+export interface McpInfo {
+  endpoint: string;
+  tools: McpToolInfo[] | null;
+  uiCertAvailable: boolean;
+}
+
+/** Endpoint guess when /api/mcp/info is unavailable. */
+export function defaultMcpEndpoint(): string {
+  return `${window.location.origin}/mcp`;
 }

@@ -15,6 +15,7 @@ import (
 	"os"
 	"time"
 
+	"caddyforge/internal/analytics"
 	"caddyforge/internal/auth"
 	"caddyforge/internal/builder"
 	"caddyforge/internal/caddyctl"
@@ -30,22 +31,25 @@ import (
 
 // Server holds the daemon's dependencies.
 type Server struct {
-	Paths    config.Paths
-	Runner   cmdx.Runner
-	Auth     *auth.Store
-	Events   *events.Log
-	Systemd  *systemd.Service
-	Sup      *supervisor.Manager
-	Caddy    *caddyctl.Client
-	Forge    *forge.Client
-	Builder  *builder.Manager
-	Sites    *sites.Manager
-	Bind     string
-	Port     int
-	Insecure bool
+	Paths   config.Paths
+	Runner  cmdx.Runner
+	Auth    *auth.Store
+	Events  *events.Log
+	Systemd *systemd.Service
+	Sup     *supervisor.Manager
+	Caddy   *caddyctl.Client
+	Forge   *forge.Client
+	Builder *builder.Manager
+	Sites   *sites.Manager
+	// Analytics is nil when request statistics are off (tests).
+	Analytics *analytics.Store
+	Bind      string
+	Port      int
+	Insecure  bool
 
 	runs     *runs
 	versions versionCache
+	modules  moduleCache
 
 	mux *http.ServeMux
 	srv *http.Server
@@ -191,6 +195,32 @@ func (s *Server) routes() *http.ServeMux {
 	m.HandleFunc("PUT /api/caddyfile", s.auth(s.handleCaddyfileSave))
 	m.HandleFunc("POST /api/caddyfile/validate", s.auth(s.handleCaddyfileValidate))
 	m.HandleFunc("POST /api/caddyfile/fmt", s.auth(s.handleCaddyfileFmt))
+
+	m.HandleFunc("GET /api/access-lists", s.auth(s.handleACLList))
+	m.HandleFunc("POST /api/access-lists", s.auth(s.handleACLCreate))
+	m.HandleFunc("PUT /api/access-lists/{id}", s.auth(s.handleACLUpdate))
+	m.HandleFunc("DELETE /api/access-lists/{id}", s.auth(s.handleACLDelete))
+
+	m.HandleFunc("GET /api/certificates", s.auth(s.handleCertificates))
+	m.HandleFunc("GET /api/certificates/root.crt", s.auth(s.handleRootCA))
+
+	m.HandleFunc("GET /api/nav", s.auth(s.handleNav))
+
+	m.HandleFunc("GET /api/analytics", s.auth(s.handleAnalytics))
+	m.HandleFunc("GET /api/analytics/recent", s.auth(s.handleAnalyticsRecent))
+	m.HandleFunc("GET /api/audit", s.auth(s.handleAudit))
+
+	m.HandleFunc("POST /api/import/preview", s.auth(s.handleImportPreview))
+	m.HandleFunc("POST /api/import/apply", s.auth(s.handleImportApply))
+
+	m.HandleFunc("GET /api/tokens", s.auth(s.handleTokenList))
+	m.HandleFunc("POST /api/tokens", s.auth(s.handleTokenCreate))
+	m.HandleFunc("DELETE /api/tokens/{id}", s.auth(s.handleTokenRevoke))
+	m.HandleFunc("GET /api/mcp/info", s.auth(s.handleMCPInfo))
+	m.HandleFunc("GET /api/ui.crt", s.auth(s.handleUICert))
+
+	// MCP authenticates itself (bearer only) and answers JSON-RPC.
+	m.HandleFunc("/mcp", s.handleMCP)
 
 	// Everything else is the SPA.
 	m.Handle("/", webui.Handler())
