@@ -2,6 +2,8 @@ package caddyctl
 
 import (
 	"context"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -66,5 +68,33 @@ func TestStartArgs(t *testing.T) {
 	line := strings.Join(got, " ")
 	if line != want {
 		t.Errorf("StartArgs = %q, wollen %q", line, want)
+	}
+}
+
+// TestHasPackage matches catalog module paths against list-modules --packages,
+// including a package line that names a sub-package of the module path.
+func TestHasPackage(t *testing.T) {
+	bin := filepath.Join(t.TempDir(), "caddy")
+	if err := os.WriteFile(bin, nil, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	out := "http.handlers.waf github.com/corazawaf/coraza-caddy/v2\n" +
+		"http.handlers.rate_limit github.com/mholt/caddy-ratelimit\n" +
+		"http.handlers.defender pkg.jsn.cam/caddy-defender/plugin\n\n" +
+		"  Non-standard modules: 3\n"
+	c := New(bin, cmdx.NewFake().Outputs(bin+" list-modules --packages --skip-standard", out))
+	for path, want := range map[string]bool{
+		"github.com/corazawaf/coraza-caddy/v2": true,
+		"github.com/mholt/caddy-ratelimit":     true,
+		"pkg.jsn.cam/caddy-defender":           true,
+		"github.com/mholt/caddy-l4":            false,
+	} {
+		got, err := c.HasPackage(context.Background(), path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got != want {
+			t.Errorf("HasPackage(%q) = %v, want %v", path, got, want)
+		}
 	}
 }

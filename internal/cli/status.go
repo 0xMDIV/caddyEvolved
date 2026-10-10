@@ -277,14 +277,15 @@ func checkModules(ctx context.Context, c *caddyctl.Client, ids []string) []modul
 			out = append(out, moduleState{ID: id, Name: id, Detail: "nicht im Katalog"})
 			continue
 		}
-		name := providerName(e.Registr)
-		if name == "" {
-			// Not a DNS provider: the catalogue name is not a module suffix we
-			// can match, so list it without claiming a verdict.
-			out = append(out, moduleState{ID: e.ID, Name: e.Name, Detail: "nicht automatisch prüfbar"})
-			continue
+		var has bool
+		var err error
+		if name := providerName(e.Registr); name != "" {
+			has, err = c.HasModule(ctx, name)
+		} else {
+			// Other plugins register module names the catalog does not know;
+			// their go module path is what list-modules --packages reports.
+			has, err = c.HasPackage(ctx, e.Module)
 		}
-		has, err := c.HasModule(ctx, name)
 		m := moduleState{ID: e.ID, Name: e.Name, Present: has}
 		if err != nil {
 			m.Detail = err.Error()

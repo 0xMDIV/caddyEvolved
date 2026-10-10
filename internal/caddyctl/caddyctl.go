@@ -135,6 +135,28 @@ func (c *Client) HasModule(ctx context.Context, name string) (bool, error) {
 	return false, nil
 }
 
+// HasPackage reports whether any compiled-in module comes from the go module
+// path. It covers plugins whose module names are not predictable from the
+// catalog (WAF, rate limit, ...); a package line may name a sub-package.
+func (c *Client) HasPackage(ctx context.Context, path string) (bool, error) {
+	if _, err := os.Stat(c.bin); err != nil {
+		return false, fmt.Errorf("caddy binary at %s: %w", c.bin, err)
+	}
+	out, err := c.run(ctx, "list-modules", "--packages", "--skip-standard")
+	if err != nil {
+		return false, err
+	}
+	path = strings.TrimSuffix(path, "/")
+	for _, line := range strings.Split(out, "\n") {
+		for _, f := range strings.Fields(line) {
+			if f == path || strings.HasPrefix(f, path+"/") || strings.Contains(f, "/") && strings.HasPrefix(path, f+"/") {
+				return true, nil
+			}
+		}
+	}
+	return false, nil
+}
+
 // Validate runs "caddy validate" over configPath and returns the process
 // output. The adapter names the config syntax, not the file extension.
 func (c *Client) Validate(ctx context.Context, configPath, adapter string) (string, error) {
