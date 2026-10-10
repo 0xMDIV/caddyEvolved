@@ -5,8 +5,10 @@ Proxmox-LXC Caddy installiert, die bekannten Caddy-Module mit einrichtet und all
 eine WebGUI verwaltbar macht.
 
 **Status: Arbeitsprototyp, Meilenstein M1.** Der Code kompiliert noch nicht
-(`internal/cli` ist unvollständig). Siehe [Struktur](#struktur) und
-[Roadmap](#roadmap).
+(`internal/cli` ist unvollständig). Der konkrete Wiedereinstieg — Fehlerliste,
+Reihenfolge, verifizierte Fakten, offene Entscheidungen — steht in
+[`docs/FORTSETZUNG-M1.md`](docs/FORTSETZUNG-M1.md). Siehe auch
+[Struktur](#struktur) und [Roadmap](#roadmap).
 
 ## Warum
 
