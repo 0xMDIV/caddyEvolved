@@ -90,12 +90,27 @@ Expertenmodus der UI editierbar.
   in einen Staging-Baum umgebogen wird. Damit ist die Install-Engine unprivileged in einem
   Temp-Verzeichnis testbar, ohne ein echtes System anzufassen.
 
-## Installation (Zielzustand)
+## Installation
+
+Auf jedem Linux mit systemd (amd64/arm64):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/0xMDIV/caddyEvolved/main/install.sh | sudo sh
+```
+
+Lädt das neueste [Release](https://github.com/0xMDIV/caddyEvolved/releases), prüft die
+SHA-256-Summe und startet den Assistenten; erneut ausgeführt ist es ein Update.
+Schritt für Schritt inklusive Übernahme bestehender Seiten:
+[`docs/ANLEITUNG.md`](docs/ANLEITUNG.md).
 
 ```bash
 sudo ./caddyforge install                      # interaktiver Wizard
 sudo ./caddyforge install --unattended a.json  # headless, für Cloud-Init
 ```
+
+Release bauen: `git tag v0.x.y && git push origin v0.x.y` – der Workflow
+`.github/workflows/release.yml` baut über `scripts/release.sh` die Archive und
+veröffentlicht sie. Lokal: `scripts/release.sh v0.x.y` → `dist/release/`.
 
 Ablauf: Preflight (root/systemd/LXC-Detect, Ports 80/443/2019/8484, bestehendes Caddy) →
 Variante + Modul-Häkchen → Credentials pro Provider → User/Group `caddy` + Verzeichnisse →
