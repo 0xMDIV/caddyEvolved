@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 2,
   "entries": [
     {
       "id": "cloudflare",
@@ -9,35 +9,60 @@
       "subcat": "dns01",
       "registers": "dns.provider cloudflare",
       "standard": true,
-      "docs": "https://caddyserver.com/docs/automatic-https#dns-challenge",
+      "license": "Apache-2.0",
+      "docs": "https://github.com/caddy-dns/cloudflare",
+      "note": "lego-basiert: liest CF_API_TOKEN auch ohne Interpolation in der Caddyfile.",
       "env": [
-        { "name": "CLOUDFLARE_API_TOKEN", "label": "API Token", "help": "Zonales DNS:Read + Zone.Zone:Edit", "required": true, "secret": true }
+        { "name": "CF_API_TOKEN", "label": "API-Token", "help": "Zone.DNS:Read reicht für DNS-01", "required": true, "secret": true, "opt": "api_token" },
+        { "name": "CF_ZONE_TOKEN", "label": "Zone-Token (optional)", "required": false, "secret": true, "opt": "zone_token" }
       ]
     },
     {
       "id": "hetzner",
-      "module": "github.com/caddy-dns/hetzner",
+      "module": "github.com/caddy-dns/hetzner/v2",
       "name": "Hetzner DNS Console",
       "category": "dns",
       "subcat": "dns01",
       "registers": "dns.provider hetzner",
       "standard": true,
+      "versionSuffix": true,
+      "license": "MIT",
+      "docs": "https://github.com/caddy-dns/hetzner",
+      "note": "Pfad MUSS /v2 tragen: ohne Suffix löst xcaddy gegen das veraltete v1.0.0 (Stand 2025-05).",
       "env": [
-        { "name": "HETZNER_API_TOKEN", "label": "API Token", "required": true, "secret": true }
+        { "name": "HETZNER_API_TOKEN", "label": "API-Token", "required": true, "secret": true, "positional": true }
       ]
     },
     {
       "id": "netcup",
       "module": "github.com/caddy-dns/netcup",
-      "name": "Netcup",
+      "name": "netcup",
       "category": "dns",
       "subcat": "dns01",
       "registers": "dns.provider netcup",
       "standard": true,
+      "license": "MIT",
+      "note": "Langsame Propagierung – in der UI propagation_timeout 900s vorschlagen.",
       "env": [
-        { "name": "NETCUP_CUSTOMER_NUMBER", "label": "Kundennummer", "required": false, "secret": false },
-        { "name": "NETCUP_API_KEY", "label": "API Key", "required": true, "secret": true },
-        { "name": "NETCUP_API_PASSWORD", "label": "API Passwort", "required": true, "secret": true }
+        { "name": "NETCUP_CUSTOMER_NUMBER", "label": "Kundennummer", "required": true, "secret": false, "opt": "customer_number" },
+        { "name": "NETCUP_API_KEY", "label": "API-Key", "required": true, "secret": true, "opt": "api_key" },
+        { "name": "NETCUP_API_PASSWORD", "label": "API-Passwort", "required": true, "secret": true, "opt": "api_password" }
+      ]
+    },
+    {
+      "id": "all-inkl",
+      "module": "github.com/caddy-dns/all-inkl",
+      "name": "all-inkl",
+      "category": "dns",
+      "subcat": "dns01",
+      "registers": "dns.provider allinkl",
+      "standard": true,
+      "license": "MIT",
+      "caddyMin": "2.10.2",
+      "note": "Caddyfile-Name ist allinkl (ohne Bindestrich!) und braucht freigeschalteten KAS-Zugang.",
+      "env": [
+        { "name": "KAS_USERNAME", "label": "KAS-Benutzer", "required": true, "secret": false, "opt": "kas_username" },
+        { "name": "KAS_PASSWORD", "label": "KAS-Passwort", "required": true, "secret": true, "opt": "kas_password" }
       ]
     },
     {
@@ -48,9 +73,12 @@
       "subcat": "dns01",
       "registers": "dns.provider inwx",
       "standard": true,
+      "license": "MIT",
+      "note": "INWX erzwingt 2FA – shared_secret ist praktisch Pflicht.",
       "env": [
-        { "name": "INWX_USERNAME", "label": "Benutzername", "required": true, "secret": false },
-        { "name": "INWX_PASSWORD", "label": "Passwort", "required": true, "secret": true }
+        { "name": "INWX_USERNAME", "label": "Benutzername", "required": true, "secret": false, "opt": "username" },
+        { "name": "INWX_PASSWORD", "label": "Passwort", "required": true, "secret": true, "opt": "password" },
+        { "name": "INWX_SHARED_SECRET", "label": "TOTP-Secret", "required": false, "secret": true, "opt": "shared_secret" }
       ]
     },
     {
@@ -61,8 +89,25 @@
       "subcat": "dns01",
       "registers": "dns.provider desec",
       "standard": true,
+      "license": "MIT",
       "env": [
-        { "name": "DESEC_STACK_TOKEN", "label": "API Token", "required": true, "secret": true }
+        { "name": "DESEC_TOKEN", "label": "API-Token", "required": true, "secret": true, "opt": "token" }
+      ]
+    },
+    {
+      "id": "servercow",
+      "module": "github.com/caddy-dns/servercow",
+      "name": "Servercow",
+      "category": "dns",
+      "subcat": "dns01",
+      "registers": "dns.provider servercow",
+      "standard": false,
+      "license": "MIT",
+      "caddyMin": "2.11.2",
+      "note": "Jung (2026-04), keine getaggten Releases – Pinning per Pseudo-Version nötig.",
+      "env": [
+        { "name": "SERVERCOW_USERNAME", "label": "Benutzername", "required": true, "secret": false, "opt": "username" },
+        { "name": "SERVERCOW_PASSWORD", "label": "Passwort", "required": true, "secret": true, "opt": "password" }
       ]
     },
     {
@@ -73,82 +118,43 @@
       "subcat": "dns01",
       "registers": "dns.provider route53",
       "standard": true,
+      "license": "MIT",
+      "note": "Zieht die AWS-SDK-Abhängigkeit: deutlich größere Binary und längere Buildzeit.",
       "env": [
-        { "name": "AWS_ACCESS_KEY_ID", "label": "Access Key ID", "required": true, "secret": true },
-        { "name": "AWS_SECRET_ACCESS_KEY", "label": "Secret Key", "required": true, "secret": true },
-        { "name": "AWS_REGION", "label": "Region", "help": "z. B. eu-central-1", "required": true, "secret": false }
+        { "name": "AWS_ACCESS_KEY_ID", "label": "Access Key ID", "required": true, "secret": true, "opt": "access_key_id" },
+        { "name": "AWS_SECRET_ACCESS_KEY", "label": "Secret Key", "required": true, "secret": true, "opt": "secret_access_key" },
+        { "name": "AWS_REGION", "label": "Region", "help": "z. B. eu-central-1", "required": true, "secret": false, "opt": "region" }
       ]
     },
     {
-      "id": "digitalocean",
-      "module": "github.com/caddy-dns/digitalocean",
-      "name": "DigitalOcean",
+      "id": "powerdns",
+      "module": "github.com/caddy-dns/powerdns",
+      "name": "PowerDNS",
       "category": "dns",
       "subcat": "dns01",
-      "registers": "dns.provider digitalocean",
+      "registers": "dns.provider powerdns",
       "standard": true,
+      "license": "Apache-2.0",
       "env": [
-        { "name": "DO_AUTH_TOKEN", "label": "API Token", "required": true, "secret": true }
+        { "name": "POWERDNS_SERVER_URL", "label": "API-URL", "help": "http://host:8081", "required": true, "secret": false, "positional": true },
+        { "name": "POWERDNS_API_TOKEN", "label": "API-Key", "required": true, "secret": true, "positional": true }
       ]
     },
     {
-      "id": "docker-proxy",
-      "module": "github.com/lucaslorentz/caddy-docker-proxy/v2",
-      "name": "Docker Proxy (Labels)",
-      "category": "infra",
-      "subcat": "proxy",
-      "registers": "docker proxy config source",
+      "id": "rfc2136",
+      "module": "github.com/caddy-dns/rfc2136",
+      "name": "RFC2136 (eigener DNS)",
+      "category": "dns",
+      "subcat": "dns01",
+      "registers": "dns.provider rfc2136",
       "standard": true,
-      "note": "Benötigt Leserechte auf /var/run/docker.sock; ersetzt die Caddyfile-Quelle durch Label-Scans.",
-      "env": []
-    },
-    {
-      "id": "caddy-security",
-      "module": "github.com/greenpau/caddy-security",
-      "name": "Caddy Security (SSO/OIDC/JWT)",
-      "category": "auth",
-      "subcat": "authz",
-      "registers": "http.authenticationproviders / authorization",
-      "standard": true,
-      "note": "Großes Modulpaket; Config-Blöcke sind nicht trivial, Vorlagen in der UI nötig.",
-      "env": []
-    },
-    {
-      "id": "caddy-l4",
-      "module": "github.com/mholt/caddy-l4",
-      "name": "Layer 4 Proxy",
-      "category": "infra",
-      "subcat": "proxy",
-      "registers": "apps.l4_proxy / layer4",
-      "standard": true,
-      "env": []
-    },
-    {
-      "id": "storage-redis",
-      "module": "github.com/protozoa-plugins/storage-redis",
-      "name": "ACME Storage: Redis",
-      "category": "storage",
-      "subcat": "acme",
-      "registers": "caddy.storage redis",
-      "standard": true,
+      "license": "MIT",
+      "note": "Generic TSIG-DDNS – die Option für \"Zone selbst verwalten\", keine Provider-Abhängigkeit.",
       "env": [
-        { "name": "REDIS_ADDRESS", "label": "Redis Adresse", "help": "host:port", "required": true, "secret": false },
-        { "name": "REDIS_PASSWORD", "label": "Redis Passwort", "required": false, "secret": true }
-      ]
-    },
-    {
-      "id": "storage-s3",
-      "module": "github.com/protozoa-plugins/storage-s3",
-      "name": "ACME Storage: S3",
-      "category": "storage",
-      "subcat": "acme",
-      "registers": "caddy.storage s3",
-      "standard": true,
-      "env": [
-        { "name": "AWS_ACCESS_KEY_ID", "label": "Access Key ID", "required": true, "secret": true },
-        { "name": "AWS_SECRET_ACCESS_KEY", "label": "Secret Key", "required": true, "secret": true },
-        { "name": "AWS_REGION", "label": "Region", "required": true, "secret": false },
-        { "name": "AWS_BUCKET", "label": "Bucket", "required": true, "secret": false }
+        { "name": "RFC2136_SERVER", "label": "DNS-Server (ip:port)", "required": true, "secret": false, "opt": "server" },
+        { "name": "RFC2136_KEY_NAME", "label": "TSIG-Key-Name", "required": true, "secret": false, "opt": "key_name" },
+        { "name": "RFC2136_KEY", "label": "TSIG-Key (base64)", "required": true, "secret": true, "opt": "key" },
+        { "name": "RFC2136_KEY_ALG", "label": "Algorithmus", "help": "z. B. hmac-sha256", "required": false, "secret": false, "opt": "key_alg" }
       ]
     },
     {
@@ -159,36 +165,44 @@
       "subcat": "dns01",
       "registers": "dns.provider ovh",
       "standard": false,
+      "license": "MIT",
+      "note": "Vier Zugangsdaten aus dem OVH-Key-Flow, nicht eins.",
       "env": [
-        { "name": "OVH_ENDPOINT", "label": "Endpoint", "help": "ovh-eu oder ovh-us", "required": true, "secret": false },
-        { "name": "OVH_APPLICATION_KEY", "label": "Application Key", "required": true, "secret": true },
-        { "name": "OVH_APPLICATION_SECRET", "label": "Application Secret", "required": true, "secret": true },
-        { "name": "OVH_CONSUMER_KEY", "label": "Consumer Key", "required": true, "secret": true }
+        { "name": "OVH_ENDPOINT", "label": "Endpoint", "help": "ovh-eu oder ovh-ca", "required": true, "secret": false, "opt": "endpoint" },
+        { "name": "OVH_APPLICATION_KEY", "label": "Application Key", "required": true, "secret": true, "opt": "application_key" },
+        { "name": "OVH_APPLICATION_SECRET", "label": "Application Secret", "required": true, "secret": true, "opt": "application_secret" },
+        { "name": "OVH_CONSUMER_KEY", "label": "Consumer Key", "required": true, "secret": true, "opt": "consumer_key" }
       ]
     },
     {
-      "id": "powerdns",
-      "module": "github.com/caddy-dns/powerdns",
-      "name": "PowerDNS",
+      "id": "azure",
+      "module": "github.com/caddy-dns/azure",
+      "name": "Microsoft Azure DNS",
       "category": "dns",
       "subcat": "dns01",
-      "registers": "dns.provider powerdns",
+      "registers": "dns.provider azure",
       "standard": false,
+      "license": "MIT",
+      "note": "Fünf Werte (Subscription, Resource Group, Tenant, Client, Secret); v0.x.",
       "env": [
-        { "name": "PDNS_API_URL", "label": "API URL", "required": true, "secret": false },
-        { "name": "PDNS_API_KEY", "label": "API Key", "required": true, "secret": true }
+        { "name": "AZURE_SUBSCRIPTION_ID", "label": "Subscription ID", "required": true, "secret": false },
+        { "name": "AZURE_RESOURCE_GROUP_NAME", "label": "Resource Group", "required": true, "secret": false },
+        { "name": "AZURE_TENANT_ID", "label": "Tenant ID", "required": true, "secret": false },
+        { "name": "AZURE_CLIENT_ID", "label": "Client ID", "required": true, "secret": false },
+        { "name": "AZURE_CLIENT_SECRET", "label": "Client Secret", "required": true, "secret": true }
       ]
     },
     {
-      "id": "bunny",
-      "module": "github.com/caddy-dns/bunny",
-      "name": "Bunny.net",
+      "id": "godaddy",
+      "module": "github.com/caddy-dns/godaddy",
+      "name": "GoDaddy",
       "category": "dns",
       "subcat": "dns01",
-      "registers": "dns.provider bunny",
+      "registers": "dns.provider godaddy",
       "standard": false,
+      "license": "MIT",
       "env": [
-        { "name": "BUNNY_API_KEY", "label": "API Key", "required": true, "secret": true }
+        { "name": "GODADDY_API_TOKEN", "label": "API-Token", "required": true, "secret": true, "opt": "api_token" }
       ]
     },
     {
@@ -199,9 +213,188 @@
       "subcat": "dns01",
       "registers": "dns.provider porkbun",
       "standard": false,
+      "license": "MIT",
       "env": [
-        { "name": "PORKBUN_API_KEY", "label": "API Key", "required": true, "secret": true },
-        { "name": "PORKBUN_SECRET_API_KEY", "label": "Secret API Key", "required": true, "secret": true }
+        { "name": "PORKBUN_API_KEY", "label": "API-Key", "required": true, "secret": true, "opt": "api_key" },
+        { "name": "PORKBUN_API_SECRET_KEY", "label": "Secret Key", "required": true, "secret": true, "opt": "api_secret_key" }
+      ]
+    },
+    {
+      "id": "namecheap",
+      "module": "github.com/caddy-dns/namecheap",
+      "name": "Namecheap",
+      "category": "dns",
+      "subcat": "dns01",
+      "registers": "dns.provider namecheap",
+      "standard": false,
+      "license": "",
+      "licenseRisk": "Kein Lizenzfile im Repo – für ein weitergegebenes Bundle rechtlich klären.",
+      "note": "Braucht IP-Whitelisting in der Namecheap-Konsole.",
+      "env": [
+        { "name": "NAMECHEAP_API_USER", "label": "API-Benutzer", "required": true, "secret": false, "opt": "api_user" },
+        { "name": "NAMECHEAP_API_KEY", "label": "API-Key", "required": true, "secret": true, "opt": "api_key" },
+        { "name": "NAMECHEAP_CLIENT_IP", "label": "Freigegebene IP", "required": false, "secret": false, "opt": "client_ip" }
+      ]
+    },
+    {
+      "id": "duckdns",
+      "module": "github.com/caddy-dns/duckdns",
+      "name": "DuckDNS",
+      "category": "dns",
+      "subcat": "dns01",
+      "registers": "dns.provider duckdns",
+      "standard": false,
+      "license": "",
+      "licenseRisk": "Kein Lizenzfile im Repo – für ein weitergegebenes Bundle rechtlich klären.",
+      "note": "Nur TXT-Einträge, rate-limitiert; Wildcards auf Subdomains gehen nicht.",
+      "env": [
+        { "name": "DUCKDNS_API_TOKEN", "label": "API-Token", "required": true, "secret": true, "opt": "api_token" }
+      ]
+    },
+    {
+      "id": "digitalocean",
+      "module": "github.com/caddy-dns/digitalocean",
+      "name": "DigitalOcean",
+      "category": "dns",
+      "subcat": "dns01",
+      "registers": "dns.provider digitalocean",
+      "standard": false,
+      "license": "",
+      "licenseRisk": "Kein Lizenzfile und keine getaggten Releases; go.mod verlangt Caddy ≥2.10.0.",
+      "env": [
+        { "name": "DO_AUTH_TOKEN", "label": "API-Token", "required": true, "secret": true, "positional": true }
+      ]
+    },
+    {
+      "id": "bunny",
+      "module": "github.com/caddy-dns/bunny",
+      "name": "Bunny DNS",
+      "category": "dns",
+      "subcat": "dns01",
+      "registers": "dns.provider bunny",
+      "standard": false,
+      "license": "MIT",
+      "env": [
+        { "name": "BUNNY_API_KEY", "label": "API-Key", "required": true, "secret": true, "positional": true }
+      ]
+    },
+    {
+      "id": "gandi",
+      "module": "github.com/caddy-dns/gandi",
+      "name": "Gandi",
+      "category": "dns",
+      "subcat": "dns01",
+      "registers": "dns.provider gandi",
+      "standard": false,
+      "license": "MIT",
+      "note": "Nur v5-API – alte v4-Keys funktionieren nicht.",
+      "env": [
+        { "name": "GANDI_API_TOKEN", "label": "Bearer-Token", "required": true, "secret": true, "positional": true }
+      ]
+    },
+    {
+      "id": "ionos",
+      "module": "github.com/caddy-dns/ionos",
+      "name": "IONOS DNS",
+      "category": "dns",
+      "subcat": "dns01",
+      "registers": "dns.provider ionos",
+      "standard": false,
+      "license": "MIT",
+      "env": [
+        { "name": "IONOS_API_TOKEN", "label": "API-Token", "required": true, "secret": true, "positional": true }
+      ]
+    },
+    {
+      "id": "alidns",
+      "module": "github.com/caddy-dns/alidns",
+      "name": "Aliyun DNS",
+      "category": "dns",
+      "subcat": "dns01",
+      "registers": "dns.provider alidns",
+      "standard": false,
+      "license": "MIT",
+      "env": [
+        { "name": "ALIYUN_ACCESS_KEY_ID", "label": "Access Key ID", "required": true, "secret": true, "opt": "access_key_id" },
+        { "name": "ALIYUN_ACCESS_KEY_SECRET", "label": "Access Key Secret", "required": true, "secret": true, "opt": "access_key_secret" }
+      ]
+    },
+    {
+      "id": "tencentcloud",
+      "module": "github.com/caddy-dns/tencentcloud",
+      "name": "Tencent Cloud DNSPod",
+      "category": "dns",
+      "subcat": "dns01",
+      "registers": "dns.provider tencentcloud",
+      "standard": false,
+      "license": "MIT",
+      "note": "Ersetzt das veraltete caddy-dns/dnspod (letzter Release 2022-02).",
+      "env": [
+        { "name": "TENCENTCLOUD_SECRET_ID", "label": "Secret ID", "required": true, "secret": true, "opt": "secret_id" },
+        { "name": "TENCENTCLOUD_SECRET_KEY", "label": "Secret Key", "required": true, "secret": true, "opt": "secret_key" }
+      ]
+    },
+    {
+      "id": "acmedns",
+      "module": "github.com/caddy-dns/acmedns",
+      "name": "ACME-DNS",
+      "category": "dns",
+      "subcat": "dns01",
+      "registers": "dns.provider acmedns",
+      "standard": false,
+      "license": "MIT",
+      "note": "Setzt ein ACME-DNS-Konto (z. B. auth.acme-dns.io) voraus – kein Provider-Login.",
+      "env": [
+        { "name": "ACMEDNS_SUBACCOUNT", "label": "Username", "required": true, "secret": false, "opt": "username" },
+        { "name": "ACMEDNS_PASSWORD", "label": "Password", "required": true, "secret": true, "opt": "password" },
+        { "name": "ACMEDNS_DOMAIN", "label": "Delegierte Domain", "required": true, "secret": false, "opt": "subdomain" },
+        { "name": "ACMEDNS_ENDPOINT", "label": "Server-URL", "required": false, "secret": false, "opt": "server_url" }
+      ]
+    },
+    {
+      "id": "scaleway",
+      "module": "github.com/caddy-dns/scaleway",
+      "name": "Scaleway",
+      "category": "dns",
+      "subcat": "dns01",
+      "registers": "dns.provider scaleway",
+      "standard": false,
+      "license": "MIT",
+      "note": "Wenig Verbreitung (5 ★), aber aktiv.",
+      "env": [
+        { "name": "SCW_SECRET_KEY", "label": "Secret Key", "required": true, "secret": true, "opt": "secret_key" },
+        { "name": "SCW_ORGANIZATION_ID", "label": "Organization ID", "required": true, "secret": false, "opt": "organization_id" }
+      ]
+    },
+    {
+      "id": "dnsimple",
+      "module": "github.com/caddy-dns/dnsimple",
+      "name": "DNSimple",
+      "category": "dns",
+      "subcat": "dns01",
+      "registers": "dns.provider dnsimple",
+      "standard": false,
+      "license": "Apache-2.0",
+      "caddyMin": "2.11.1",
+      "note": "Keine getaggten Releases – nur Pseudo-Versionen pinbar.",
+      "env": [
+        { "name": "DNSIMPLE_ACCOUNT_ID", "label": "Account ID", "required": true, "secret": false, "opt": "account_id" },
+        { "name": "DNSIMPLE_API_ACCESS_TOKEN", "label": "API-Token", "required": true, "secret": true, "opt": "api_access_token" }
+      ]
+    },
+    {
+      "id": "dnspod",
+      "module": "github.com/caddy-dns/dnspod",
+      "name": "DNSPod (alt)",
+      "category": "dns",
+      "subcat": "dns01",
+      "registers": "dns.provider dnspod",
+      "standard": false,
+      "deprecated": true,
+      "license": "MIT",
+      "note": "Letzter Release v0.0.4 im Februar 2022 – bitte tencentcloud verwenden.",
+      "env": [
+        { "name": "DNSPOD_TOKEN", "label": "Token", "required": true, "secret": true, "positional": true }
       ]
     },
     {
@@ -213,17 +406,161 @@
       "registers": "dns.provider googledomains",
       "standard": false,
       "deprecated": true,
-      "note": "Repo ist archiviert und v0.0.2 ist nicht semver-kompatibel; für DNS-01 bei Google stattdessen googleclouddns verwenden.",
+      "note": "Repo archiviert, v0.0.2 ist pre-semver und gegen Caddy 2.11 nicht baubar. Für Google-Zonen: rfc2136 oder Google-Cloud-DNS-Modul existiert nicht.",
       "env": []
     },
     {
-      "id": "geoblock",
-      "module": "github.com/caddy-patch/geoblock",
-      "name": "Geo Block",
+      "id": "caddy-security",
+      "module": "github.com/greenpau/caddy-security",
+      "name": "Caddy Security (OIDC/SAML/LDAP/JWT/MFA)",
+      "category": "auth",
+      "subcat": "authz",
+      "registers": "global option security",
+      "standard": true,
+      "license": "Apache-2.0",
+      "note": "Große Fläche: in der UI als ein Block editieren, nicht als Einzelfelder. De-facto-Standard für SSO hinter Caddy.",
+      "env": []
+    },
+    {
+      "id": "caddy-waf",
+      "module": "github.com/fabriziosalmi/caddy-waf",
+      "name": "Caddy WAF",
+      "category": "auth",
+      "subcat": "security",
+      "registers": "http.handlers.waf",
+      "standard": false,
+      "license": "AGPL-3.0",
+      "licenseRisk": "AGPL – nicht in ein weitergegebenes Standard-Bundle, nur opt-in mit Hinweis.",
+      "env": []
+    },
+    {
+      "id": "caddy-defender",
+      "module": "github.com/JasonLovesDoggo/caddy-defender",
+      "name": "Caddy Defender (Bot-Filter)",
+      "category": "auth",
+      "subcat": "security",
+      "registers": "http.handlers.defender",
+      "standard": false,
+      "license": "MIT",
+      "note": "Modulpfad enthält Großbuchstaben; der Go-Proxy verlangt die gefaltete Form (!jason!loves!doggo), xcaddy die echte.",
+      "env": []
+    },
+    {
+      "id": "storage-redis",
+      "module": "github.com/pberkel/caddy-storage-redis",
+      "name": "ACME-Storage: Redis",
+      "category": "storage",
+      "subcat": "acme",
+      "registers": "caddy.storage redis",
+      "standard": true,
+      "license": "MIT",
+      "note": "Aktivster Maintainer unter den Storage-Backends (v1.9.0, 2026-10-08); bietet auch cluster- und failover-Varianten.",
+      "env": [
+        { "name": "REDIS_ADDRESS", "label": "host:port", "required": true, "secret": false, "opt": "address" },
+        { "name": "REDIS_PASSWORD", "label": "Passwort", "required": false, "secret": true, "opt": "password" }
+      ]
+    },
+    {
+      "id": "storage-postgresql",
+      "module": "github.com/dmarcwise/caddy-storage-postgresql",
+      "name": "ACME-Storage: PostgreSQL",
+      "category": "storage",
+      "subcat": "acme",
+      "registers": "caddy.storage postgresql",
+      "standard": false,
+      "license": "MIT",
+      "note": "Konfigurationsschlüssel noch nicht verifiziert; geringe Verbreitung.",
+      "env": []
+    },
+    {
+      "id": "docker-proxy",
+      "module": "github.com/lucaslorentz/caddy-docker-proxy/v2",
+      "name": "Caddy Docker Proxy (Labels)",
+      "category": "infra",
+      "subcat": "proxy",
+      "registers": "config source: docker labels",
+      "standard": false,
+      "versionSuffix": true,
+      "license": "MIT",
+      "conflicts": ["caddyfile-managed"],
+      "note": "Erzeugt die Konfiguration selbst – unvereinbar mit Caddyfile-basierter Verwaltung durch caddyforge. In der Wizard-Kette als Lese-modus-Warnung behandeln.",
+      "env": [
+        { "name": "CADDY_INGRESS_NETWORKS", "label": "Ingress-Netzwerke", "required": false, "secret": false }
+      ]
+    },
+    {
+      "id": "caddy-l4",
+      "module": "github.com/mholt/caddy-l4",
+      "name": "Layer 4 (TCP/UDP) Proxy",
+      "category": "infra",
+      "subcat": "proxy",
+      "registers": "apps.layer4",
+      "standard": true,
+      "license": "Apache-2.0",
+      "note": "Block liegt im globalen Optionsblock, nicht im Site – Editor muss das anbieten können.",
+      "env": []
+    },
+    {
+      "id": "souin-cache",
+      "module": "github.com/darkweak/souin/plugins/caddy",
+      "name": "Suin HTTP Cache",
+      "category": "infra",
+      "subcat": "cache",
+      "registers": "http.handlers.cache",
+      "standard": false,
+      "license": "MIT",
+      "requires": ["otter-cache"],
+      "note": "Braucht für den Default-Storer ein zweites Modul – als Paar bauen, sonst Fehler zur Laufzeit.",
+      "env": []
+    },
+    {
+      "id": "otter-cache",
+      "module": "github.com/darkweak/storages/otter/caddy",
+      "name": "Suin Otter-Storer",
+      "category": "infra",
+      "subcat": "cache",
+      "registers": "http.cache.storer otter",
+      "standard": false,
+      "license": "MIT",
+      "note": "N zusammen mit souin-cache sinnvoll; in der UI nicht allein wählbar.",
+      "env": []
+    },
+    {
+      "id": "caddy-ratelimit",
+      "module": "github.com/mholt/caddy-ratelimit",
+      "name": "Rate Limit (Sliding Window)",
+      "category": "infra",
+      "subcat": "ratelimit",
+      "registers": "http.rate_limit",
+      "standard": false,
+      "license": "Apache-2.0",
+      "note": "Caddy 2.11 hat bereits rate_limit in Core – dieses Modul nur, wenn die erweiterte Window-Semantik gebraucht wird.",
+      "env": []
+    },
+    {
+      "id": "geoip2",
+      "module": "github.com/zhangjiayin/caddy-geoip2",
+      "name": "GeoIP2",
       "category": "auth",
       "subcat": "geo",
-      "registers": "geoblock directive",
+      "registers": "http.geoip2",
       "standard": false,
+      "license": "MIT",
+      "note": "MaxMind-DB nötig – ohne Key keine Geo-Regeln; Lizenzkosten der DB beachten.",
+      "env": [
+        { "name": "GEOIP2_DB_PATH", "label": "Pfad zur mmdb", "required": true, "secret": false }
+      ]
+    },
+    {
+      "id": "tls-rate-limit",
+      "module": "github.com/pberkel/caddy-tls-issuer-rate-limit",
+      "name": "TLS-Issuer Rate Limit",
+      "category": "cert",
+      "subcat": "acme",
+      "registers": "tls.issuer rate_limit",
+      "standard": false,
+      "license": "MIT",
+      "note": "Schützt vor Let's-Encrypt-Rate-Limits bei Wildcard-Serien – nischig, aber die eigentliche Antwort auf Issuance-Errors.",
       "env": []
     }
   ]

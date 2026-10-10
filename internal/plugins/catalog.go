@@ -20,11 +20,12 @@ var catalogJSON []byte
 type Category string
 
 const (
-	CatDNS        Category = "dns"
-	CatAuth       Category = "auth"
-	CatStorage    Category = "storage"
-	CatInfra      Category = "infra"
-	CatObserv     Category = "observability"
+	CatDNS          Category = "dns"
+	CatAuth         Category = "auth"
+	CatStorage      Category = "storage"
+	CatInfra        Category = "infra"
+	CatCert         Category = "cert"
+	CatObserv       Category = "observability"
 	CatUnclassified Category = "unclassified"
 )
 
@@ -35,23 +36,45 @@ type EnvVar struct {
 	Help     string `json:"help,omitempty"`
 	Required bool   `json:"required"`
 	Secret   bool   `json:"secret"`
+	// Positional means the module expects the value as an argument in the
+	// Caddyfile (`dns netcup {env.X}`) instead of reading the variable itself.
+	// Only lego-backed providers like cloudflare truly fall back to env.
+	Positional bool `json:"positional,omitempty"`
+	// OptName is the config key inside an options block, for providers that
+	// take a block rather than a positional argument.
+	OptName string `json:"opt,omitempty"`
 }
 
 // Entry is a single Caddy module.
 type Entry struct {
-	ID      string   `json:"id"`
-	Module  string   `json:"module"` // go import path, exact
-	Name    string   `json:"name"`
+	ID       string   `json:"id"`
+	Module   string   `json:"module"` // go import path, exact and verbatim
+	Name     string   `json:"name"`
 	Category Category `json:"category"`
-	Subcat  string   `json:"subcat,omitempty"`
-	Registr string   `json:"registers,omitempty"`
-	Env     []EnvVar `json:"env,omitempty"`
-	Docs    string   `json:"docs,omitempty"`
+	Subcat   string   `json:"subcat,omitempty"`
+	Registr  string   `json:"registers,omitempty"`
+	Env      []EnvVar `json:"env,omitempty"`
+	Docs     string   `json:"docs,omitempty"`
 	// InStandard marks a module that is inside the shipped standard bundle.
 	InStandard bool `json:"standard"`
 	// Deprecated modules are listed but never auto-selected and warn in the UI.
-	Deprecated bool   `json:"deprecated,omitempty"`
-	Note       string `json:"note,omitempty"`
+	Deprecated bool `json:"deprecated,omitempty"`
+	// VersionSuffix is a build trap we must not silently drop: the unsuffixed
+	// path of hetzner or caddy-docker-proxy resolves to an old major version.
+	VersionSuffix bool `json:"versionSuffix,omitempty"`
+	// License is the SPDX id GitHub reports; empty means "none detected",
+	// which is a redistribution problem for a bundled binary, not a detail.
+	License string `json:"license,omitempty"`
+	// LicenseRisk carries what to tell the operator about the licence.
+	LicenseRisk string `json:"licenseRisk,omitempty"`
+	// Conflicts names module ids that cannot be ticked together, e.g. a
+	// config-generating module versus our Caddyfile-as-source-of-truth model.
+	Conflicts  []string `json:"conflicts,omitempty"`
+	// Requires pairs a module that must be built alongside this one.
+	Requires []string `json:"requires,omitempty"`
+	// CaddyMin is the highest caddy version this module's go.mod demands.
+	CaddyMin string `json:"caddyMin,omitempty"`
+	Note     string `json:"note,omitempty"`
 }
 
 type catalogFile struct {
@@ -115,6 +138,12 @@ type Resolution struct {
 	Modules   []string
 	Missing   []string // requested but not in the chosen variant
 	Untracked []string // free-form go paths the catalog does not know
+	// CaddyfileManaged is false when a selected module generates its own
+	// configuration (caddy-docker-proxy), which our Caddyfile editing model
+	// must not fight over.
+	CaddyfileManaged bool
+	// Notes carries warnings the UI shows next to the selection.
+	Notes []string
 }
 
 // Resolve maps selected ids onto a binary variant.
@@ -124,12 +153,20 @@ type Resolution struct {
 // custom selections are always routed to the build queue.
 func Resolve(ids []string) (Resolution, error) {
 	var r Resolution
+	r.CaddyfileManaged = true
 	standard := map[string]bool{}
 	for _, e := range entries {
 		if e.InStandard {
 			standard[e.ID] = true
 		}
 	}
+
+	add := func(module string) {
+		if !contains(r.Modules, module) {
+			r.Modules = append(r.Modules, module)
+		}
+	}
+
 	for _, id := range ids {
 		id = strings.TrimSpace(id)
 		if id == "" {
@@ -141,13 +178,28 @@ func Resolve(ids []string) (Resolution, error) {
 				return r, fmt.Errorf("unknown plugin %q: not in the catalog and not a go module path", id)
 			}
 			r.Untracked = append(r.Untracked, id)
-			r.Modules = append(r.Modules, id)
+			add(id)
 			continue
 		}
 		if e.Deprecated {
 			return r, fmt.Errorf("plugin %q is deprecated: %s", id, e.Note)
 		}
-		r.Modules = append(r.Modules, e.Module)
+		add(e.Module)
+
+		for _, dep := range e.Requires {
+			d, ok := ByID(dep)
+			if !ok {
+				return r, fmt.Errorf("plugin %q requires %q, which the catalog does not know", e.ID, dep)
+			}
+			add(d.Module)
+			r.Notes = append(r.Notes, fmt.Sprintf("%s automatisch mitgebaut, weil %s es benötigt", d.Name, e.Name))
+		}
+		for _, c := range e.Conflicts {
+			if c == "caddyfile-managed" {
+				r.CaddyfileManaged = false
+				r.Notes = append(r.Notes, fmt.Sprintf("%s erzeugt die Konfiguration selbst – der Caddyfile-Editor von caddyforge wird dadurch wirkungslos", e.Name))
+			}
+		}
 		if !standard[e.ID] {
 			r.Missing = append(r.Missing, e.ID)
 		}
@@ -162,6 +214,15 @@ func Resolve(ids []string) (Resolution, error) {
 	}
 	r.Variant = "standard"
 	return r, nil
+}
+
+func contains(v []string, s string) bool {
+	for _, x := range v {
+		if x == s {
+			return true
+		}
+	}
+	return false
 }
 
 func looksLikeModulePath(s string) bool {
