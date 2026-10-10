@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"os/user"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -64,6 +65,9 @@ func (p *Plan) noteUser(name, what string) { p.opts.Logf("user %-8s %s", name, w
 
 // stepDirectories creates and permission-sets every tree we write into.
 func (p *Plan) stepDirectories(ctx context.Context, s *Step) error {
+	if p.opts.DryRun {
+		return skip(s, StatusPlanned, "Verzeichnisse würden angelegt: "+p.paths.Etc)
+	}
 	owners := map[string]int{}
 	if !p.paths.IsPrefixed() {
 		if u, err := user.Lookup("caddy"); err == nil {
@@ -122,6 +126,14 @@ func (p *Plan) stepCredentials(ctx context.Context, s *Step) error {
 			}
 		}
 	}
+	if p.opts.DryRun {
+		keys := make([]string, 0, len(want))
+		for k := range want {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+		return skip(s, StatusPlanned, fmt.Sprintf("%s würde schreiben: %s", p.paths.EnvFile, strings.Join(keys, ",")))
+	}
 	if len(want) == 0 {
 		// Still write an empty file: the unit references it, and an absent
 		// EnvironmentFile is a failed service start, not a warning.
@@ -173,7 +185,7 @@ func (p *Plan) stepBinary(ctx context.Context, s *Step) error {
 
 	var last int64
 	_, err := fetch.ToFile(ctx, p.resolved.binaryURL, archive, fetch.Options{
-		SHA256: p.resolved.binarySHA,
+		Digest: p.resolved.binarySHA,
 		Progress: func(n int64) {
 			if n/mb >= last/mb {
 				return
@@ -206,7 +218,7 @@ func (p *Plan) stepBinary(ctx context.Context, s *Step) error {
 		if !ok {
 			continue
 		}
-		name := providerName(e.Registers)
+		name := providerName(e.Registr)
 		if name == "" {
 			continue
 		}
@@ -236,24 +248,30 @@ func (p *Plan) stepCaddyfile(ctx context.Context, s *Step) error {
 	}
 
 	existing, err := os.ReadFile(p.paths.Caddyfile)
-	switch {
-	case err == nil && string(existing) == content:
+	if err == nil && string(existing) == content {
 		return skip(s, StatusSkipped, "Caddyfile unverändert")
-	case err == nil && !p.opts.Force:
+	}
+
+	// Validate what we are about to install, not what is on disk: on a first
+	// install the target does not exist yet, and on a rerun the old file may be
+	// perfectly valid while the new one is broken.
+	tmp := p.paths.Caddyfile + ".caddyforge-new"
+	if err := os.WriteFile(tmp, []byte(content), 0o640); err != nil {
+		return err
+	}
+	defer os.Remove(tmp)
+	if _, err := caddyctl.New(p.paths.CaddyBin, p.runner).Validate(ctx, tmp, "caddyfile"); err != nil {
+		return err
+	}
+
+	if err == nil && !p.opts.Force {
 		backup := p.paths.Caddyfile + ".caddyforge-backup-" + time.Now().Format("20060102-150405")
 		if err := os.WriteFile(backup, existing, 0o640); err != nil {
 			return err
 		}
 		s.Reason = "vorhandenes Caddyfile gesichert: " + filepath.Base(backup)
 	}
-
-	if _, err := caddyctl.New(p.paths.CaddyBin, p.runner).Validate(ctx, p.paths.Caddyfile, "caddyfile"); err != nil {
-		return err
-	}
-	if err := os.WriteFile(p.paths.Caddyfile, []byte(content), 0o640); err != nil {
-		return err
-	}
-	return nil
+	return os.Rename(tmp, p.paths.Caddyfile)
 }
 
 // stepForgeConfig persists the state file the daemon and UI read.

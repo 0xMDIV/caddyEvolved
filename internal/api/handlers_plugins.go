@@ -28,10 +28,10 @@ func (s *Server) handlePlugins(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	st, _ := config.LoadState(s.Paths.StateFile)
 	writeJSON(w, http.StatusOK, map[string]any{
-		"variant":  st.Variant,
+		"variant":      st.Variant,
 		"binarySource": st.BinarySource,
-		"plugins":  s.pluginStates(ctx, st),
-		"categories": []string{"dns", "auth", "storage", "infra", "observability", "unclassified"},
+		"plugins":      s.pluginStates(ctx, st),
+		"categories":   []string{"dns", "auth", "storage", "infra", "observability", "unclassified"},
 		"caddyVersion": st.CaddyVersion,
 	})
 }
@@ -140,8 +140,8 @@ func (s *Server) handlePluginCheck(w http.ResponseWriter, r *http.Request) {
 // file: there must be no API surface that can drop a line like PATH=…/malicious.
 func (s *Server) handlePluginCredentials(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		Set    map[string]string `json:"set,omitempty"`
-		Unset  []string          `json:"unset,omitempty"`
+		Set   map[string]string `json:"set,omitempty"`
+		Unset []string          `json:"unset,omitempty"`
 	}
 	if err := decode(r, &req); err != nil {
 		writeErr(w, http.StatusBadRequest, "bad_request", errText(err))

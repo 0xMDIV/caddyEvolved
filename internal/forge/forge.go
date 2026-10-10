@@ -24,22 +24,22 @@ import (
 
 // Defaults can be overridden per call or by environment for staging.
 var (
-	Base      = "https://api.caddyforge.dev/v1"
-	Release   = "https://github.com/caddyforge/caddyforge/releases/download"
-	TokenEnv  = "CADDYFORGE_TOKEN"
-	Endpoint  = "endpoint" // env override for the base URL
+	Base     = "https://api.caddyforge.dev/v1"
+	Release  = "https://github.com/caddyforge/caddyforge/releases/download"
+	TokenEnv = "CADDYFORGE_TOKEN"
+	Endpoint = "endpoint" // env override for the base URL
 )
 
 // Status of a build job.
 type Status string
 
 const (
-	StatusQueued         Status = "queued"
-	StatusBuilding       Status = "building"
-	StatusReady          Status = "ready"
-	StatusDownloadReady  Status = "downloadReady"
-	StatusFailed         Status = "failed"
-	StatusCancelled      Status = "cancelled"
+	StatusQueued        Status = "queued"
+	StatusBuilding      Status = "building"
+	StatusReady         Status = "ready"
+	StatusDownloadReady Status = "downloadReady"
+	StatusFailed        Status = "failed"
+	StatusCancelled     Status = "cancelled"
 )
 
 // Terminated reports whether polling can stop.
@@ -59,41 +59,41 @@ type BuildSpec struct {
 
 // Job is one build as the service reports it.
 type Job struct {
-	ID            string   `json:"id"`
-	Status        Status   `json:"status"`
-	Percent       int      `json:"percent"`
-	Stage         string   `json:"stage,omitempty"`
-	QueuePos      int      `json:"queuePos,omitempty"`
-	ETASeconds    int      `json:"etaSeconds,omitempty"`
-	LogTail       []string `json:"logTail,omitempty"`
-	Version       string   `json:"version,omitempty"`
-	AssetName     string   `json:"assetName,omitempty"`
-	Digest        string   `json:"digest,omitempty"`
-	Signed        bool     `json:"signed,omitempty"`
-	DownloadURL   string   `json:"downloadUrl,omitempty"`
-	Error         string   `json:"error,omitempty"`
-	CreatedAt     string   `json:"createdAt,omitempty"`
-	CompletedAt   string   `json:"completedAt,omitempty"`
+	ID          string   `json:"id"`
+	Status      Status   `json:"status"`
+	Percent     int      `json:"percent"`
+	Stage       string   `json:"stage,omitempty"`
+	QueuePos    int      `json:"queuePos,omitempty"`
+	ETASeconds  int      `json:"etaSeconds,omitempty"`
+	LogTail     []string `json:"logTail,omitempty"`
+	Version     string   `json:"version,omitempty"`
+	AssetName   string   `json:"assetName,omitempty"`
+	Digest      string   `json:"digest,omitempty"`
+	Signed      bool     `json:"signed,omitempty"`
+	DownloadURL string   `json:"downloadUrl,omitempty"`
+	Error       string   `json:"error,omitempty"`
+	CreatedAt   string   `json:"createdAt,omitempty"`
+	CompletedAt string   `json:"completedAt,omitempty"`
 }
 
 // Variant is a prebuilt release line (slim/standard/full).
 type Variant struct {
-	Name        string   `json:"name"`
-	Version     string   `json:"version"`
-	Modules     []string `json:"modules"`
-	AssetName   string   `json:"assetName"`
-	Digest        string `json:"digest"`
-	DownloadURL   string `json:"downloadUrl"`
-	Signed        bool   `json:"signed"`
-	CaddyVersion  string `json:"caddyVersion"`
+	Name         string   `json:"name"`
+	Version      string   `json:"version"`
+	Modules      []string `json:"modules"`
+	AssetName    string   `json:"assetName"`
+	Digest       string   `json:"digest"`
+	DownloadURL  string   `json:"downloadUrl"`
+	Signed       bool     `json:"signed"`
+	CaddyVersion string   `json:"caddyVersion"`
 }
 
 // Client talks to the service. Token is optional for public endpoints.
 type Client struct {
-	Base   string
-	Token  string
-	Proxy  string
-	HTTP   *http.Client
+	Base  string
+	Token string
+	Proxy string
+	HTTP  *http.Client
 }
 
 // New builds a client from environment overrides.

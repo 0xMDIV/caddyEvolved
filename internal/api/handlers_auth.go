@@ -16,12 +16,12 @@ import (
 // it knows a password exists.
 func (s *Server) handleVersion(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{
-		"name":      "caddyforge",
-		"version":   buildinfo.Version,
-		"commit":    buildinfo.Commit,
-		"date":      buildinfo.Date,
-		"api":       1,
-		"setup":     !s.Auth.HasPassword(),
+		"name":       "caddyforge",
+		"version":    buildinfo.Version,
+		"commit":     buildinfo.Commit,
+		"date":       buildinfo.Date,
+		"api":        1,
+		"setup":      !s.Auth.HasPassword(),
 		"serverTime": time.Now().UTC(),
 	})
 }

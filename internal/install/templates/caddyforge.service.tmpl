@@ -5,7 +5,9 @@ After=network-online.target caddy.service
 Wants=caddy.service
 
 [Service]
-Type=notify
+# Type=simple, nicht notify: caddyforge spricht den sd_notify-Prozess noch nicht,
+# und eine Type=notify-Unit ohne READY=1 killt systemd bei TimeoutStartSec.
+Type=simple
 ExecStart={{ .ForgeBin }} serve
 Restart=on-failure
 RestartSec=5

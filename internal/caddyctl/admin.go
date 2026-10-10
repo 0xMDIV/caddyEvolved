@@ -44,10 +44,10 @@ func (a *Admin) Certificates(ctx context.Context) ([]Certificate, error) {
 		return nil, err
 	}
 	var docs []struct {
-		SANs        []string `json:"sans"`
-		IssuerKey   string   `json:"issuer_key"`
-		NotBefore   time.Time `json:"not_before"`
-		NotAfter    time.Time `json:"not_after"`
+		SANs      []string  `json:"sans"`
+		IssuerKey string    `json:"issuer_key"`
+		NotBefore time.Time `json:"not_before"`
+		NotAfter  time.Time `json:"not_after"`
 	}
 	if err := json.Unmarshal(raw, &docs); err != nil {
 		return nil, fmt.Errorf("certificates: %w", err)
@@ -55,10 +55,10 @@ func (a *Admin) Certificates(ctx context.Context) ([]Certificate, error) {
 	out := make([]Certificate, 0, len(docs))
 	for _, d := range docs {
 		out = append(out, Certificate{
-			SANs:        d.SANs,
-			Issuer:      d.IssuerKey,
-			NotBefore:   d.NotBefore,
-			NotAfter:    d.NotAfter,
+			SANs:          d.SANs,
+			Issuer:        d.IssuerKey,
+			NotBefore:     d.NotBefore,
+			NotAfter:      d.NotAfter,
 			ExpiresInDays: int(time.Until(d.NotAfter).Hours() / 24),
 		})
 	}
@@ -88,8 +88,11 @@ func (a *Admin) LoadConfig(ctx context.Context, config json.RawMessage) error {
 }
 
 // Sync reports whether caddy is answering on the admin endpoint.
+//
+// The root path has no handler and answers 404, which is a working server rather
+// than a failure — so the probe reads the live config document instead.
 func (a *Admin) Sync(ctx context.Context) error {
-	_, err := a.get(ctx, "/")
+	_, err := a.get(ctx, "/config/")
 	return err
 }
 

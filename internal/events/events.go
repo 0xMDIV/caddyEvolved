@@ -33,15 +33,15 @@ const (
 
 // Event is one record. Value never contains a secret; Vars lists names only.
 type Event struct {
-	ID    string         `json:"id"`
-	TS    time.Time      `json:"ts"`
-	Kind  Kind           `json:"kind"`
-	Step  string         `json:"step"`
-	OK    bool           `json:"ok"`
-	Error string         `json:"error,omitempty"`
-	Summary string       `json:"summary,omitempty"`
-	Vars  []string       `json:"vars,omitempty"`
-	Meta  map[string]any `json:"meta,omitempty"`
+	ID      string         `json:"id"`
+	TS      time.Time      `json:"ts"`
+	Kind    Kind           `json:"kind"`
+	Step    string         `json:"step"`
+	OK      bool           `json:"ok"`
+	Error   string         `json:"error,omitempty"`
+	Summary string         `json:"summary,omitempty"`
+	Vars    []string       `json:"vars,omitempty"`
+	Meta    map[string]any `json:"meta,omitempty"`
 }
 
 // Log is the persistent ring plus live fan-out.

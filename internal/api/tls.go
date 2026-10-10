@@ -72,12 +72,12 @@ func (s *Server) generateCert() (certPEM, keyPEM []byte, err error) {
 		return nil, nil, err
 	}
 	tmpl := x509.Certificate{
-		SerialNumber: serial,
-		Subject:      pkix.Name{CommonName: "caddyforge", Organization: []string{"caddyforge"}},
-		NotBefore:    time.Now().Add(-1 * time.Hour),
-		NotAfter:     time.Now().Add(365 * 24 * time.Hour),
-		KeyUsage:     x509.KeyUsageDigitalSignature | x509.KeyUsageCertSign,
-		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+		SerialNumber:          serial,
+		Subject:               pkix.Name{CommonName: "caddyforge", Organization: []string{"caddyforge"}},
+		NotBefore:             time.Now().Add(-1 * time.Hour),
+		NotAfter:              time.Now().Add(365 * 24 * time.Hour),
+		KeyUsage:              x509.KeyUsageDigitalSignature | x509.KeyUsageCertSign,
+		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
 		BasicConstraintsValid: true,
 		IsCA:                  true,
 		DNSNames:              []string{"localhost"},
@@ -110,12 +110,10 @@ func localAddresses() []net.IP {
 			}
 			for _, a := range addrs {
 				ipnet, ok := a.(*net.IPNet)
-				if !ok {
+				if !ok || ipnet.IP.IsUnspecified() {
 					continue
 				}
-				if ipnet.IP.To4() != nil || ipnet.IP.Is6() {
-					out = append(out, ipnet.IP)
-				}
+				out = append(out, ipnet.IP)
 			}
 		}
 	}
@@ -125,7 +123,7 @@ func localAddresses() []net.IP {
 // handleCert regenerates the self-signed certificate on demand (e.g. after the
 // operator moved the container to a new IP).
 func (s *Server) handleCert(w http.ResponseWriter, r *http.Request) {
-	if _, _, err := s.generateAndStore(); err != nil {
+	if _, err := s.generateAndStore(); err != nil {
 		s.fail(w, r, err, 0)
 		return
 	}

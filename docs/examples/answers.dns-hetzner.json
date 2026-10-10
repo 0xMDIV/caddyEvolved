@@ -1,0 +1,17 @@
+{
+  "binarySource": "custom",
+  "caddyVersion": "2.11.7",
+  "plugins": ["hetzner"],
+  "credentials": {
+    "HETZNER_API_TOKEN": "BIT-DURCH-DEINEN-TOKEN-ERSETZEN"
+  },
+  "email": "hostmaster@example.org",
+  "httpPort": 80,
+  "httpsPort": 443,
+  "adminPort": 2019,
+  "uiPort": 8484,
+  "uiBind": "0.0.0.0",
+  "managed": true,
+  "siteDomain": "proxy.example.org",
+  "siteTarget": "http://127.0.0.1:3000"
+}

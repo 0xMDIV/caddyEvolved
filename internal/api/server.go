@@ -61,7 +61,7 @@ func New(s *Server) *Server {
 		s.Caddy = caddyctl.New(s.Paths.CaddyBin, s.Runner)
 	}
 	if s.Sup == nil {
-		s.Sup = supervisor.New(s.Paths.CaddyBin, s.Paths.Caddyfile, s.Paths.LogFile, s.Paths.PIDFile)
+		s.Sup = supervisor.New(s.Paths.CaddyBin, s.Paths.Caddyfile, s.Paths.EnvFile, s.Paths.LogFile, s.Paths.PIDFile)
 	}
 	if s.Systemd == nil {
 		s.Systemd = systemd.New(s.Runner, s.Paths.UnitsDir)
@@ -135,6 +135,7 @@ func (s *Server) routes() *http.ServeMux {
 	m.HandleFunc("GET /api/install/plan", s.auth(s.handleInstallPlan))
 	m.HandleFunc("POST /api/install/apply", s.auth(s.handleInstallApply))
 	m.HandleFunc("GET /api/install/runs", s.auth(s.handleRuns))
+	m.HandleFunc("POST /api/install/abort", s.auth(s.handleRunAbort))
 
 	m.HandleFunc("GET /api/events", s.auth(s.handleEvents))
 	m.HandleFunc("GET /api/events/stream", s.auth(s.handleEventStream))
@@ -144,8 +145,11 @@ func (s *Server) routes() *http.ServeMux {
 
 	m.HandleFunc("POST /api/logout", s.auth(s.handleLogout))
 	m.HandleFunc("GET /api/session", s.auth(s.handleSession))
+	m.HandleFunc("POST /api/password", s.auth(s.handleChangePassword))
+	m.HandleFunc("GET /api/host", s.auth(s.handleHostStatus))
+	m.HandleFunc("POST /api/cert", s.auth(s.handleCert))
 
 	// Everything else is the SPA.
-	m.HandleFunc("/", webui.Handler())
+	m.Handle("/", webui.Handler())
 	return m
 }

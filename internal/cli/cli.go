@@ -17,7 +17,6 @@ import (
 	"sort"
 	"strings"
 	"syscall"
-	"time"
 
 	"caddyforge/internal/buildinfo"
 )
@@ -25,24 +24,29 @@ import (
 // version is what the version command prints.
 func version() string { return buildinfo.String() }
 
-// commands maps a name to its handler.
-var commands = map[string]command{
-	"install":   {run: cmdInstall, usage: "caddyforge install [--unattended answers.json] [--prefix DIR] [--dry-run] [--force] [--plugin ID ...] [--env KEY=VALUE ...] [--email ADDR] [--managed] [--domain D --target URL] [--variant official|bundle|custom] [--ui-password PW] [--password-file F]", summary: "Caddy + WebUI einrichten (interaktiv oder unbeaufsichtigt)"},
-	"serve":     {run: cmdServe, usage: "caddyforge serve [--bind 0.0.0.0] [--port 8484] [--insecure-dev] [--root DIR]", summary: "WebUI und Verwaltungsdaemon starten (systemd-Dienst)"},
-	"status":    {run: cmdStatus, usage: "caddyforge status [--json] [--root DIR]", summary: "Installations-, Dienst- und Modulstatus anzeigen"},
-	"start":     {run: cmdStart, usage: "caddyforge start [--root DIR]", summary: "caddy starten"},
-	"stop":      {run: cmdStop, usage: "caddyforge stop [--root DIR]", summary: "caddy anhalten"},
-	"restart":   {run: cmdRestart, usage: "caddyforge restart [--root DIR]", summary: "caddy neu starten"},
-	"reload":    {run: cmdReload, usage: "caddyforge reload [--root DIR]", summary: "Caddyfile prüfen und ohne Unterbrechung neu laden"},
-	"validate":  {run: cmdValidate, usage: "caddyforge validate [--file PATH] [--root DIR]", summary: "Caddyfile prüfen, ohne etwas zu ändern"},
-	"logs":      {run: cmdLogs, usage: "caddyforge logs [--lines N] [--follow] [--unit caddy|caddyforge]", summary: "Protokoll anzeigen"},
-	"proxy":     {run: cmdProxy, usage: "caddyforge proxy add|list|remove [--root DIR] ...", summary: "Reverse-Proxy-Sites verwalten"},
-	"token":     {run: cmdToken, usage: "caddyforge token [--ttl HOURS] [--root DIR]", summary: "Einmaliges Anmeldetoken für die WebUI erzeugen"},
-	"passwd":    {run: cmdPasswd, usage: "caddyforge passwd [--root DIR]", summary: "UI-Passwort setzen und alle Sitzungen abmelden"},
-	"do":        {run: cmdDo, usage: "caddyforge do GET /api/status | POST /api/config '{...}' [--token T] [--root DIR]", summary: "HTTP-Aufruf gegen die eigene API (Token aus der Umgebung)"},
-	"uninstall": {run: cmdUninstall, usage: "caddyforge uninstall --yes [--keep-config] [--root DIR]", summary: "Dienste entfernen, optionale Daten löschen"},
-	"version":   {run: cmdVersion, usage: "caddyforge version [--json]", summary: "Version von caddyforge und caddy anzeigen"},
-	"commands":  {run: cmdCommands, usage: "caddyforge commands --json", summary: "Befehle und Flags maschinenlesbar ausgeben"},
+// commandTable maps a name to its handler.
+//
+// A function rather than a package var: cmdCommands prints this table, so a
+// variable initialiser that references it would be an initialisation cycle.
+func commandTable() map[string]command {
+	return map[string]command{
+		"install":   {run: cmdInstall, usage: "caddyforge install [--unattended answers.json] [--prefix DIR] [--root DIR] [--dry-run] [--force] [--yes] [--plugin ID ...] [--env KEY=VALUE ...] [--variant official|bundle|custom] [--caddy-version V] [--email ADDR] [--http-port N --https-port N --admin-port N] [--ui-port N --ui-bind ADDR --ui-behind-proxy] [--managed] [--domain D --target URL] [--ui-password PW] [--password-file F] [--json]", summary: "Caddy + WebUI einrichten (interaktiv oder unbeaufsichtigt)"},
+		"serve":     {run: cmdServe, usage: "caddyforge serve [--bind 0.0.0.0] [--port 8484] [--insecure-dev] [--root DIR]", summary: "WebUI und Verwaltungsdaemon starten (systemd-Dienst)"},
+		"status":    {run: cmdStatus, usage: "caddyforge status [--json] [--ports=false] [--root DIR]", summary: "Installations-, Dienst- und Modulstatus anzeigen"},
+		"start":     {run: cmdStart, usage: "caddyforge start [--root DIR] [--force]", summary: "caddy starten"},
+		"stop":      {run: cmdStop, usage: "caddyforge stop [--root DIR] [--force]", summary: "caddy anhalten"},
+		"restart":   {run: cmdRestart, usage: "caddyforge restart [--root DIR] [--force]", summary: "caddy neu starten"},
+		"reload":    {run: cmdReload, usage: "caddyforge reload [--root DIR] [--force]", summary: "Caddyfile prüfen und ohne Unterbrechung neu laden"},
+		"validate":  {run: cmdValidate, usage: "caddyforge validate [--file PATH] [--adapter caddyfile|json] [--json] [--root DIR]", summary: "Caddyfile prüfen, ohne etwas zu ändern"},
+		"logs":      {run: cmdLogs, usage: "caddyforge logs [--lines N] [--follow] [--unit caddy|caddyforge] [--root DIR]", summary: "Protokoll anzeigen"},
+		"proxy":     {run: cmdProxy, usage: "caddyforge proxy add|list|remove [--root DIR] ...", summary: "Reverse-Proxy-Sites verwalten (geplant für M5)"},
+		"token":     {run: cmdToken, usage: "caddyforge token [--ttl HOURS] [--json] [--root DIR]", summary: "Einmaliges Anmeldetoken für die WebUI erzeugen"},
+		"passwd":    {run: cmdPasswd, usage: "caddyforge passwd [--generate] [--password-file F] [--root DIR]", summary: "UI-Passwort setzen und alle Sitzungen abmelden"},
+		"do":        {run: cmdDo, usage: "caddyforge do GET /api/status | POST /api/state '{}' [--token T] [--port N] [--root DIR]", summary: "HTTP-Aufruf gegen die eigene API (Token aus der Umgebung)"},
+		"uninstall": {run: cmdUninstall, usage: "caddyforge uninstall --yes [--keep-config] [--root DIR]", summary: "Dienste entfernen, optionale Daten löschen (geplant für M7)"},
+		"version":   {run: cmdVersion, usage: "caddyforge version [--json] [--root DIR]", summary: "Version von caddyforge und caddy anzeigen"},
+		"commands":  {run: cmdCommands, usage: "caddyforge commands --json", summary: "Befehle und Flags maschinenlesbar ausgeben"},
+	}
 }
 
 type command struct {
@@ -68,7 +72,7 @@ func Run(args []string, stdout, stderr io.Writer) int {
 		printUsage(stdout)
 		return 0
 	}
-	cmd, ok := commands[args[0]]
+	cmd, ok := commandTable()[args[0]]
 	if !ok {
 		fmt.Fprintf(stderr, "bekannter Befehl ist %q\n", args[0])
 		printUsage(stderr)
@@ -90,7 +94,7 @@ func Run(args []string, stdout, stderr io.Writer) int {
 }
 
 func usageFor(name string, stdout, stderr io.Writer) int {
-	cmd, ok := commands[name]
+	cmd, ok := commandTable()[name]
 	if !ok {
 		fmt.Fprintf(stderr, "bekannter Befehl ist %q\n", name)
 		return 2
@@ -101,13 +105,14 @@ func usageFor(name string, stdout, stderr io.Writer) int {
 
 func printUsage(w io.Writer) {
 	fmt.Fprintf(w, "caddyforge – Caddy Installer und WebUI  (%s)\n\nBefehle:\n", buildinfo.Version)
-	names := make([]string, 0, len(commands))
-	for name := range commands {
+	table := commandTable()
+	names := make([]string, 0, len(table))
+	for name := range table {
 		names = append(names, name)
 	}
 	sort.Strings(names)
 	for _, name := range names {
-		fmt.Fprintf(w, "  %-11s %s\n", name, commands[name].summary)
+		fmt.Fprintf(w, "  %-11s %s\n", name, table[name].summary)
 	}
 	fmt.Fprintf(w, "\nDetails: caddyforge help <befehl>\n")
 }
@@ -123,19 +128,20 @@ func cmdCommands(ctx context.Context, args []string, stdout, stderr io.Writer) e
 		printUsage(stdout)
 		return nil
 	}
+	table := commandTable()
 	type entry struct {
 		Name    string `json:"name"`
 		Usage   string `json:"usage"`
 		Summary string `json:"summary"`
 	}
-	out := make([]entry, 0, len(commands))
-	names := make([]string, 0, len(commands))
-	for name := range commands {
+	out := make([]entry, 0, len(table))
+	names := make([]string, 0, len(table))
+	for name := range table {
 		names = append(names, name)
 	}
 	sort.Strings(names)
 	for _, name := range names {
-		out = append(out, entry{Name: name, Usage: commands[name].usage, Summary: commands[name].summary})
+		out = append(out, entry{Name: name, Usage: table[name].usage, Summary: table[name].summary})
 	}
 	data, err := json.MarshalIndent(map[string]any{"version": buildinfo.Version, "commands": out}, "", "  ")
 	if err != nil {

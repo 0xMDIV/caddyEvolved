@@ -20,16 +20,16 @@ var modulePathPattern = regexp.MustCompile(`^[a-zA-Z0-9.\-_]+(/[a-zA-Z0-9.\-_]+)
 
 // ModuleCheck is the result of validating one operator-supplied module path.
 type ModuleCheck struct {
-	Module    string   `json:"module"`
-	Path      string   `json:"cleanPath"`
-	Version   string   `json:"version,omitempty"`
-	Exists    bool     `json:"exists"`
-	Known     bool     `json:"inCatalog"`
-	Suffix    string   `json:"providerSuffix,omitempty"`
-	Env       []EnvVar `json:"env,omitempty"`
-	Categories  []string `json:"categories,omitempty"`
-	Hint      string   `json:"hint,omitempty"`
-	Warning   string   `json:"warning,omitempty"`
+	Module     string   `json:"module"`
+	Path       string   `json:"cleanPath"`
+	Version    string   `json:"version,omitempty"`
+	Exists     bool     `json:"exists"`
+	Known      bool     `json:"inCatalog"`
+	Suffix     string   `json:"providerSuffix,omitempty"`
+	Env        []EnvVar `json:"env,omitempty"`
+	Categories []string `json:"categories,omitempty"`
+	Hint       string   `json:"hint,omitempty"`
+	Warning    string   `json:"warning,omitempty"`
 }
 
 // ValidateModule normalises a path, checks it against the Go module proxy and

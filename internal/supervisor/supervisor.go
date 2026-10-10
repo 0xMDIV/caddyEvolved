@@ -19,11 +19,11 @@ import (
 
 // Manager owns one supervised caddy process.
 type Manager struct {
-	bin     string
-	config  string
-	envFile string
-	logPath string
-	pidFile string
+	bin      string
+	config   string
+	envFile  string
+	logPath  string
+	pidFile  string
 	adminURL string
 
 	cmd  *exec.Cmd

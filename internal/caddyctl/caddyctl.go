@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -64,17 +65,27 @@ func (c *Client) Exists() bool {
 	return err == nil && !st.IsDir() && st.Mode().Perm()&0o111 != 0
 }
 
+// versionField matches the first version-shaped token of `caddy --version`.
+//
+// The output format is not stable across releases: 2.11 prints
+// "v2.11.7 h1:<digest>" while older builds printed "Caddy version v2.11.7" and a
+// custom build appends "+unknown". Matching the field instead of assuming a
+// prefix is the only parser that survives all three.
+var versionField = regexp.MustCompile(`^v?([0-9]+\.[0-9]+(?:\.[0-9]+)?(?:-[0-9A-Za-z.]+)?)`)
+
 // Version returns the short version string, e.g. "2.11.7".
 func (c *Client) Version(ctx context.Context) (string, error) {
 	out, err := c.run(ctx, "--version")
 	if err != nil {
 		return "", err
 	}
-	// "Caddy version v2.11.7 ..." -> "2.11.7"
-	line := strings.TrimSpace(firstLine(out))
-	_, rest, _ := strings.Cut(line, " ")
-	rest = strings.TrimSpace(rest)
-	return strings.TrimPrefix(rest, "v"), nil
+	for _, field := range strings.Fields(string(out)) {
+		base, _, _ := strings.Cut(field, "+")
+		if m := versionField.FindStringSubmatch(base); m != nil {
+			return m[1], nil
+		}
+	}
+	return "", fmt.Errorf("caddy --version: keine Version in %q", strings.TrimSpace(string(out)))
 }
 
 // ModuleNames lists compiled-in module identifiers ("standard" or "nonstandard"
@@ -206,13 +217,6 @@ func WritePIDFile(path string, pid int) error {
 func (c *Client) run(ctx context.Context, args ...string) (string, error) {
 	out, err := c.runner.Output(ctx, cmdx.Cmd{Name: c.bin, Args: args, Env: c.Env})
 	return string(out), err
-}
-
-func firstLine(s string) string {
-	if i := strings.IndexByte(s, '\n'); i >= 0 {
-		return s[:i]
-	}
-	return s
 }
 
 // JSON is a small helper for endpoints that return one document.

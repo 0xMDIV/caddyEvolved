@@ -71,7 +71,7 @@ func (i Info) UnprivilegedLXC() bool {
 	return strings.HasPrefix(i.Virt, "lxc") && i.Init == InitSystemd && !i.IsRoot
 }
 
-func goos() string  { return runtimeGOOS }
+func goos() string   { return runtimeGOOS }
 func goarch() string { return runtimeGOARCH }
 
 func osRelease() (name, version string) {

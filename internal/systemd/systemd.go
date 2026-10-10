@@ -42,6 +42,16 @@ func (s *Service) Available(ctx context.Context) bool {
 
 // InstallUnit writes the unit, reloads systemd and re-reads dependencies.
 func (s *Service) InstallUnit(ctx context.Context, u Unit) error {
+	if err := s.Write(u); err != nil {
+		return err
+	}
+	return s.DaemonReload(ctx)
+}
+
+// Write places a unit file without touching systemctl. Staging trees need this:
+// a --prefix install must not make the live systemd read files that belong to a
+// test layout, and a non-root caller could not reload it anyway.
+func (s *Service) Write(u Unit) error {
 	if err := os.MkdirAll(s.units, 0o755); err != nil {
 		return err
 	}
@@ -50,10 +60,10 @@ func (s *Service) InstallUnit(ctx context.Context, u Unit) error {
 	if err := os.WriteFile(tmp, []byte(u.Body), 0o644); err != nil {
 		return err
 	}
-	if err := os.Rename(tmp, path); err != nil {
+	if err := os.Chmod(tmp, 0o644); err != nil {
 		return err
 	}
-	return s.DaemonReload(ctx)
+	return os.Rename(tmp, path)
 }
 
 // RemoveUnit deletes a unit file if present, then reloads.

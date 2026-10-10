@@ -14,22 +14,22 @@ import (
 // stateView is the install state as the UI sees it. It never carries secret
 // values, only which key names exist.
 type stateView struct {
-	Installed    bool        `json:"installed"`
-	CaddyVersion string      `json:"caddyVersion,omitempty"`
-	BinarySource string      `json:"binarySource,omitempty"`
-	Variant      string      `json:"variant,omitempty"`
-	Enabled      []string    `json:"enabledPlugins,omitempty"`
-	Email        string      `json:"email,omitempty"`
-	AdminPort    int         `json:"adminPort"`
-	HTTPPort     int         `json:"httpPort"`
-	HTTPSPort    int         `json:"httpsPort"`
-	UIPort       int         `json:"uiPort"`
-	UIBind       string      `json:"uiBind,omitempty"`
-	Managed      bool        `json:"managed"`
-	SiteDomain   string      `json:"siteDomain,omitempty"`
-	SiteTarget   string      `json:"siteTarget,omitempty"`
-	EnvKeys      []string    `json:"envKeys,omitempty"`
-	UpdatedAt    string      `json:"updatedAt,omitempty"`
+	Installed    bool         `json:"installed"`
+	CaddyVersion string       `json:"caddyVersion,omitempty"`
+	BinarySource string       `json:"binarySource,omitempty"`
+	Variant      string       `json:"variant,omitempty"`
+	Enabled      []string     `json:"enabledPlugins,omitempty"`
+	Email        string       `json:"email,omitempty"`
+	AdminPort    int          `json:"adminPort"`
+	HTTPPort     int          `json:"httpPort"`
+	HTTPSPort    int          `json:"httpsPort"`
+	UIPort       int          `json:"uiPort"`
+	UIBind       string       `json:"uiBind,omitempty"`
+	Managed      bool         `json:"managed"`
+	SiteDomain   string       `json:"siteDomain,omitempty"`
+	SiteTarget   string       `json:"siteTarget,omitempty"`
+	EnvKeys      []string     `json:"envKeys,omitempty"`
+	UpdatedAt    string       `json:"updatedAt,omitempty"`
 	Paths        config.Paths `json:"paths"`
 }
 

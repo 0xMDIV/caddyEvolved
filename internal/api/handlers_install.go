@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
@@ -17,14 +18,14 @@ import (
 
 // run is one install execution, tracked so the UI can poll or stream it.
 type run struct {
-	ID       string              `json:"id"`
-	Started  time.Time           `json:"started"`
-	Finished time.Time           `json:"finished,omitempty"`
-	Status   string              `json:"status"`
-	Error    string              `json:"error,omitempty"`
-	Steps    []install.Step      `json:"steps,omitempty"`
-	Answers  install.Answers     `json:"answers,omitempty"`
-	DryRun   bool                `json:"dryRun"`
+	ID       string          `json:"id"`
+	Started  time.Time       `json:"started"`
+	Finished time.Time       `json:"finished,omitempty"`
+	Status   string          `json:"status"`
+	Error    string          `json:"error,omitempty"`
+	Steps    []install.Step  `json:"steps,omitempty"`
+	Answers  install.Answers `json:"answers,omitempty"`
+	DryRun   bool            `json:"dryRun"`
 
 	cancel context.CancelFunc
 	mu     sync.Mutex

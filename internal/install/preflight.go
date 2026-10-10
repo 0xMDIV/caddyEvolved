@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 
@@ -167,6 +168,9 @@ func (p *Plan) selfInstall() error {
 	}
 	data, err := os.ReadFile(exe)
 	if err != nil {
+		return err
+	}
+	if err := os.MkdirAll(filepath.Dir(p.paths.Bin), 0o755); err != nil {
 		return err
 	}
 	tmp := p.paths.Bin + ".new"

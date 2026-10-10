@@ -115,12 +115,13 @@ type State struct {
 	BinarySource  string   `json:"binarySource"`
 	Variant       string   `json:"variant"`
 	Enabled       []string `json:"enabledPlugins"`
-	Email        string   `json:"email"`
+	Email         string   `json:"email"`
 	AdminBind     string   `json:"adminBind"`
 	AdminPort     int      `json:"adminPort"`
 	HTTPPort      int      `json:"httpPort"`
 	HTTPSPort     int      `json:"httpsPort"`
 	UIPort        int      `json:"uiPort"`
+	UIBind        string   `json:"uiBind"`
 	UIDirect      bool     `json:"uiDirect"`
 	Managed       bool     `json:"managed"`
 	DeployPath    string   `json:"deployPath"`

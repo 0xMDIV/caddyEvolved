@@ -224,8 +224,8 @@ func (s *Server) handleHostStatus(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	host := platform.Detect(ctx)
 	writeJSON(w, http.StatusOK, map[string]any{
-		"host": host,
-		"ports": platform.CheckPorts(ctx, 80, 443, 2019, 8484),
+		"host":    host,
+		"ports":   platform.CheckPorts(ctx, 80, 443, 2019, 8484),
 		"systemd": s.Systemd.Available(ctx),
 	})
 }

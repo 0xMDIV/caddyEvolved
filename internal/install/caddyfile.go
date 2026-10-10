@@ -21,6 +21,14 @@ func (p *Plan) renderCaddyfile() (string, error) {
 
 	b.WriteString("{\n")
 	fmt.Fprintf(&b, "\tadmin localhost:%d\n", a.AdminPort)
+	// Non-default listen ports have to reach caddy itself; the systemd unit does
+	// not bind anything, so without these global options the answer would be lost.
+	if a.HTTPSPort != 0 && a.HTTPSPort != 443 {
+		fmt.Fprintf(&b, "\thttps_port %d\n", a.HTTPSPort)
+	}
+	if a.HTTPPort != 0 && a.HTTPPort != 80 {
+		fmt.Fprintf(&b, "\thttp_port %d\n", a.HTTPPort)
+	}
 	if a.Managed {
 		fmt.Fprintf(&b, "\temail %s\n", a.Email)
 	}
@@ -81,7 +89,7 @@ func dnsProvider(ids []string) (plugins.Entry, bool) {
 				ID:     id,
 				Module: id,
 				Name:   rest,
-				Env: []plugins.EnvVar{{Name: providerTokenVar(rest), Required: true, Secret: true, Positional: true}},
+				Env:    []plugins.EnvVar{{Name: providerTokenVar(rest), Required: true, Secret: true, Positional: true}},
 			}, true
 		}
 	}

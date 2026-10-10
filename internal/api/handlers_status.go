@@ -14,34 +14,34 @@ import (
 // request paints the dashboard, and a partially unavailable subsystem shows up
 // in Warnings instead of turning the endpoint into a 500.
 type StatusResponse struct {
-	Installed     bool             `json:"installed"`
-	CaddyVersion  string           `json:"caddyVersion,omitempty"`
-	Variant       string           `json:"variant,omitempty"`
-	AdminURL      string           `json:"adminUrl,omitempty"`
-	AdminReach    bool             `json:"adminReachable"`
-	AdminError    string           `json:"adminError,omitempty"`
-	ServiceState  string           `json:"serviceState,omitempty"`
-	ServiceActive bool             `json:"serviceActive"`
-	MainPID       string           `json:"mainPid,omitempty"`
-	Listening     bool             `json:"listening"`
-	UI            UIStatus         `json:"ui"`
-	Host          HostStatus       `json:"host"`
-	Ports         []platform.PortState `json:"ports"`
-	Enabled       []PluginState    `json:"enabledPlugins"`
+	Installed     bool                   `json:"installed"`
+	CaddyVersion  string                 `json:"caddyVersion,omitempty"`
+	Variant       string                 `json:"variant,omitempty"`
+	AdminURL      string                 `json:"adminUrl,omitempty"`
+	AdminReach    bool                   `json:"adminReachable"`
+	AdminError    string                 `json:"adminError,omitempty"`
+	ServiceState  string                 `json:"serviceState,omitempty"`
+	ServiceActive bool                   `json:"serviceActive"`
+	MainPID       string                 `json:"mainPid,omitempty"`
+	Listening     bool                   `json:"listening"`
+	UI            UIStatus               `json:"ui"`
+	Host          HostStatus             `json:"host"`
+	Ports         []platform.PortState   `json:"ports"`
+	Enabled       []PluginState          `json:"enabledPlugins"`
 	Certificates  []caddyctl.Certificate `json:"certificates,omitempty"`
-	LastEvent     *events.Event    `json:"lastEvent,omitempty"`
-	UpdatedAt     string           `json:"updatedAt,omitempty"`
-	Warnings      []string         `json:"warnings,omitempty"`
+	LastEvent     *events.Event          `json:"lastEvent,omitempty"`
+	UpdatedAt     string                 `json:"updatedAt,omitempty"`
+	Warnings      []string               `json:"warnings,omitempty"`
 }
 
 // UIStatus describes how the operator reaches this daemon.
 type UIStatus struct {
-	Bind      string `json:"bind"`
-	Port      int    `json:"port"`
-	TLS       bool   `json:"tls"`
-	SelfSigned bool  `json:"selfSigned"`
-	AuthSet   bool   `json:"authConfigured"`
-	Sessions  int    `json:"sessions"`
+	Bind       string `json:"bind"`
+	Port       int    `json:"port"`
+	TLS        bool   `json:"tls"`
+	SelfSigned bool   `json:"selfSigned"`
+	AuthSet    bool   `json:"authConfigured"`
+	Sessions   int    `json:"sessions"`
 }
 
 // HostStatus is the container/OS facts the dashboard shows in its header.
@@ -59,7 +59,7 @@ type HostStatus struct {
 func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	resp := StatusResponse{
-		UI:     UIStatus{Bind: s.Bind, Port: s.Port, TLS: !s.Insecure, SelfSigned: !s.Insecure, AuthSet: s.Auth.HasPassword(), Sessions: len(s.Auth.ListSessions())},
+		UI:       UIStatus{Bind: s.Bind, Port: s.Port, TLS: !s.Insecure, SelfSigned: !s.Insecure, AuthSet: s.Auth.HasPassword(), Sessions: len(s.Auth.ListSessions())},
 		AdminURL: caddyctl.AdminURL(s.stateAdminListen()),
 	}
 	host := platform.Detect(ctx)

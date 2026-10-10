@@ -4,8 +4,6 @@ import (
 	"bytes"
 	"context"
 	_ "embed"
-	"fmt"
-	"path/filepath"
 	"strings"
 	"text/template"
 
@@ -66,7 +64,7 @@ func (p *Plan) unitValues() unitData {
 // stepUnits installs both service files.
 func (p *Plan) stepUnits(ctx context.Context, s *Step) error {
 	if p.host.Init != platform.InitSystemd {
-		return skip(s, StatusSkipped, "kein systemd – Dienste per `caddyforge run` starten")
+		return skip(s, StatusSkipped, "kein systemd – Dienste mit `caddyforge start` und `caddyforge serve` laufen lassen")
 	}
 	units, err := p.renderUnits()
 	if err != nil {
@@ -76,6 +74,17 @@ func (p *Plan) stepUnits(ctx context.Context, s *Step) error {
 		return skip(s, StatusPlanned, strings.Join(unitNames(units), ", "))
 	}
 	svc := systemd.New(p.runner, p.paths.UnitsDir)
+	if p.paths.IsPrefixed() {
+		// The staging tree gets the files only: pointing the host's systemd at a
+		// test layout would start a second caddy on the real ports.
+		for _, u := range units {
+			if err := svc.Write(u); err != nil {
+				return err
+			}
+		}
+		s.Reason = "nur geschrieben (Prefix): " + strings.Join(unitNames(units), ", ")
+		return nil
+	}
 	for _, u := range units {
 		if err := svc.InstallUnit(ctx, u); err != nil {
 			return err

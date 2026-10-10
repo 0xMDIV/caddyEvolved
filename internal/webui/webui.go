@@ -44,7 +44,7 @@ func spa(fsys fs.FS) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		upath := path.Clean(r.URL.Path)
 		if upath == "/" {
-		 serveIndex(w, r, fsys, fileServer)
+			serveIndex(w, r, fsys, fileServer)
 			return
 		}
 		name := strings.TrimPrefix(upath, "/")

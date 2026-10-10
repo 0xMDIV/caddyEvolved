@@ -1,0 +1,14 @@
+{
+  "binarySource": "official",
+  "caddyVersion": "",
+  "email": "hostmaster@example.org",
+  "httpPort": 80,
+  "httpsPort": 443,
+  "adminPort": 2019,
+  "uiPort": 8484,
+  "uiBind": "0.0.0.0",
+  "managed": true,
+  "siteDomain": "proxy.example.org",
+  "siteTarget": "http://127.0.0.1:3000",
+  "force": false
+}

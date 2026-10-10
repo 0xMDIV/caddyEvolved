@@ -69,7 +69,7 @@ type Entry struct {
 	LicenseRisk string `json:"licenseRisk,omitempty"`
 	// Conflicts names module ids that cannot be ticked together, e.g. a
 	// config-generating module versus our Caddyfile-as-source-of-truth model.
-	Conflicts  []string `json:"conflicts,omitempty"`
+	Conflicts []string `json:"conflicts,omitempty"`
 	// Requires pairs a module that must be built alongside this one.
 	Requires []string `json:"requires,omitempty"`
 	// CaddyMin is the highest caddy version this module's go.mod demands.

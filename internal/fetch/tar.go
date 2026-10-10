@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"path"
+	"path/filepath"
 	"strings"
 )
 
@@ -40,6 +41,11 @@ func ExtractFileFromTarGz(archivePath, member, dest string, mode os.FileMode) er
 		}
 		if path.Base(hdr.Name) != want && path.Clean(hdr.Name) != want {
 			continue
+		}
+		// The destination directory is not ours to assume: a staging prefix has
+		// no bin/ until something creates it, and a download is that something.
+		if err := os.MkdirAll(filepath.Dir(dest), 0o755); err != nil {
+			return err
 		}
 		out, err := os.OpenFile(dest, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, mode)
 		if err != nil {

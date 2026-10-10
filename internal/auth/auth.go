@@ -96,7 +96,7 @@ type Store struct {
 	Password HashedPassword        `json:"password"`
 	Sessions map[string]Session    `json:"sessions"`
 	Failed   map[string]failRecord `json:"failed"`
-	key      []byte // hmac secret for session ids
+	key      []byte                // hmac secret for session ids
 }
 
 type failRecord struct {

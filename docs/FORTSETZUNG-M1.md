@@ -1,152 +1,157 @@
-# M1 fortsetzen — Wo wir stehen und was als nächstes kommt
+# M1-Status: Build grün, CLI fertig, lokal verifiziert
 
-Handoff-Stand: Commit `0e6a2d6` auf `main`. **Der Build ist rot, und das ist der
-dokumentierte Zustand, nicht ein Versehen.** Diese Datei ist der Wiedereinstieg
-ohne erneutes Analysieren.
+Stand nach dieser Runde (vorher: `df19599`). Der Build ist **grün**, `go vet` sauber,
+`gofmt -l .` leer, und die Installation ist in WSL **ohne root end-to-end durchgelaufen**.
+M1 fehlt nur noch die Verifikation auf echtem systemd (Proxmox-LXC).
 
-## 1. Umgebungs-Realität (nicht nochmal suchen)
+## 1. Was jetzt funktioniert (verifiziert, nicht nur gebaut)
 
-| Fakt | Konsequenz |
+Verifikation lief in WSL Ubuntu-24.04 als uid 1000 gegen einen Prefix-Baum
+(`--prefix`), also ohne root, ohne systemd-Berührung:
+
+```
+caddyforge install --prefix ~/caddytest/stage \
+  --unattended docs/examples/answers.official.json \
+  --http-port 8080 --https-port 8443 --ui-port 8585 --ui-bind 127.0.0.1 --yes
+```
+
+Alle zwölf Schritte `ok`/`skipped`, darunter:
+
+- caddy 2.11.7 von GitHub geladen, **Digest-Prüfung bestanden**, entpackt, ausführbar
+- Caddyfile mit `caddy validate` geprüft, dann geschrieben (Atomic: erst prüfen, dann rennen)
+- UI-Passwort generiert und **einmal** ausgegeben
+- `state.json`, `env` (0600), beide Unit-Dateien gerendernt
+- caddy per Supervisor gestartet, Admin-API auf `localhost:2019` antwortet
+- `status`, `validate`, `version`, `logs`, `stop`, `serve`, `token`, `do` gegen diese
+  Installation ausgeführt; `do POST /api/cert` mit Token 200, ohne Token 401
+
+Tests: `go test ./...` deckt `auth`, `caddyctl`, `cli`, `fetch`, `install`, `plugins`,
+`secrets` ab (7 Pakete, reine Funktion + `httptest`, kein Netz, kein root).
+
+## 2. Die Befehle, die die Arbeit getragen haben
+
+```bash
+# Alles über WSL, Windows hat kein Go.
+wsl -d Ubuntu-24.04 -- bash -c "export PATH=\$HOME/.local/go/bin:\$PATH; \
+  cd /mnt/p/code/caddyEvolved && gofmt -w . && go vet ./... && go test ./..."
+```
+
+Staging-Baum **nicht** in `/tmp` anlegen: WSL fährt die Distro zwischen Aufrufen herunter,
+`/tmp` ist tmpfs und weg. `~/caddytest` überlebt.
+
+## 3. Was diese Runde gefunden und gefixt wurde
+
+Nicht nur Compile-Errors nachziehen – die echte Ausführung hat sechs Fehler zu Tage
+gefördert, die der Build nicht sehen konnte:
+
+| Fehler | Folge ohne Fix | Fix |
+|---|---|---|
+| `caddy_<ver>_checksums.txt` enthält **SHA-512**, wir prüften hart gegen SHA-256 | jede Official-Installation bricht mit "checksum mismatch" | `fetch.ParseDigest` leitet den Algorithmus aus Präfix **oder Länge** ab; `Options.SHA256` → `Options.Digest`; `ToFile` hasht beides |
+| `caddy --version` liefert `v2.11.7 h1:...` (kein "Caddy version"-Präfix mehr) | Versionsvergleich mit `"h1:yj0Y..."`, Installation bricht | Feldsuche per Regex statt Präfix-Annahme (`caddyctl.Version`) |
+| `caddy validate` lief gegen die **noch nicht geschriebene** Caddyfile | Erstinstallation scheitert immer | Inhalt nach `.caddyforge-new` schreiben, prüfen, dann `rename` |
+| `--dry-run` schrieb `env` und Verzeichnisse, und gab ein Passwort aus, das nie entstand | Sicherheitsnetz lügt | Dry-Run-Guard in `directories`, `credentials`; Passwort-Generierung hinter den Dry-Run-Zweig |
+| Prefix-Installation rief `systemctl daemon-reload`/`enable` und `status` auf dem **Live-System** | Non-root bricht ab; im Ernstfall würdest du den echten caddy steuern | `systemd.Service.Write()` ohne Reload; Prefix-Zweige in `stepUnits`, `stepEnableStart`, `stepVerify`; `layout.hasSystemd()` knows prefix |
+| `p.resolved.started` blieb ohne systemd false | `verify` übersprungen, nie ein Health-Check | `enable-start` setzt `started` auch im Supervisor-Pfad |
+
+Dazu die im alten Stand dokumentierten Signaturen (`supervisor.New` mit 5 Argumenten,
+`Entry.Registr`, `config.State.UIBind`) und die 14 fehlenden CLI-Funktionen.
+
+Zwei Entscheidungen, die ich getroffen habe – bitte gegenlesen:
+
+1. **`caddyforge.service` ist `Type=simple`, nicht `Type=notify`.** Das Binary spricht
+   `sd_notify` nicht, also hätte systemd den Start nach `TimeoutStartSec` abgebrochen.
+   `caddy.service` bleibt `notify` (caddy kann das). sd_notify für uns wäre ein eigene
+   Kleinigkeit, aber kein M1-Gewinn.
+2. **`token` fragt den laufenden Daemon** (`POST /api/login`) und fällt nur zurück, wenn
+   nichts lauscht. Der Daemon hält die Session-Tabelle im Speicher; ein direkt in
+   `auth.json` geschriebener Token wäre von einem laufenden Dienst ignoriert worden.
+   `passwd` kann das nicht umgehen und weist deshalb auf den nötigen Neustart hin.
+
+## 4. CLI-Fläche (M1)
+
+| Befehl | Status |
 |---|---|
-| Kein Go auf Windows, nur in WSL (`~/.local/go`, User `dev`) | Alle Build-/Testbefehle über `wsl -d Ubuntu-24.04` |
-| `sudo` in WSL verlangt Passwort | Kein `/usr/local`, kein apt; keine sudo-Befehle einbauen |
-| Repo liegt in WSL unter `/mnt/p/code/caddyEvolved` | Pfade in Scripts so schreiben |
-| Docker-CLI da, **Daemon aus** (Docker Desktop gestoppt) | Kein Container-Build, bis der User ihn startet |
-| `make` fehlt auf Windows | Scripts als `.sh` in WSL oder als Go-Task |
+| `install` | Wizard (interaktiv) + `--unattended answers.json`, `--prefix`, `--dry-run`, `--force`, `--yes`, `--json`, Flags für Quelle/Version/Module/Ports/ Site/Passwort |
+| `serve` | Daemon, Bind/Port aus `state.json`, Flag schlägt State; Shutdown auf SIGTERM |
+| `status` | Text + `--json`; State, Binary, Dienst, Admin-API, WebUI-Probe, Modulprüfung, Ports; Probleme im Exit-Code |
+| `start` `stop` `restart` `reload` | systemd **oder** Supervisor; `reload` validiert vorher |
+| `validate` | `caddy validate` gegen Datei oder installiertes Caddyfile, `--json` |
+| `logs` | `journalctl` bzw. Tail-Datei, `--follow` für beide Pfade |
+| `token` `passwd` | funktionierend (siehe oben) |
+| `do` | HTTP gegen die eigene API, Trailing-Flags werden erkannt |
+| `version` `commands` `help` | vorhanden |
+| `proxy` | bewusste Absage (M5) |
+| `uninstall` | bewusste Absage (M7) – destruktiv, deshalb kein halber Pfad |
 
-Arbeitsbefehl:
+Beispieldateien: `docs/examples/answers.official.json`,
+`docs/examples/answers.dns-hetzner.json` (DNS-01 mit `custom`-Quelle).
 
-```bash
-wsl -d Ubuntu-24.04 -- bash -c "export PATH=\$HOME/.local/go/bin:\$PATH; cd /mnt/p/code/caddyEvolved && go build ./... 2>&1 | head -40"
-```
+## 5. Nächster Schritt: Verifikation auf dem LXC
 
-## 2. Arbeitsreihenfolge bis M1 grün
+Der Prefix-Test belegt die Engine, aber **nicht** systemd + `CAP_NET_BIND_SERVICE` +
+Ports 80/443 in einem unprivilegierten Container. Diese Lücke ist offen.
 
-Die Pakete `supervisor`, `plugins`, `auth` bauen bereits fehlerfrei. Der Rest ist
-kaskadiert — `api` ist aktuell unsichtbar, weil `install` vorher fällt. In dieser
-Reihenfolge abarbeiten, sonst Errors erfinden:
-
-### Schritt 1 — `internal/install` (5 echte Fehler)
-
-```
-runtime.go:167:80  not enough arguments in call to supervisor.New
-                   have (string, string, string, string)
-                   want (string, string, string, string, string)
-steps.go:209:26    e.Registers undefined (plugins.Entry has no field Registers)
-steps.go:275:5     st.UIBind undefined (config.State has no field UIBind)
-units.go:7:2       "fmt" imported and not used
-units.go:8:2       "path/filepath" imported and not used
-```
-
-- `supervisor.New(bin, config, envFile, logPath, pidFile)` — das `envFile`-Argument
-  fehlt an der Aufrufstelle; `p.paths.EnvFile` durchreichen.
-- Feld heißt `Registr`, nicht `Registers`.
-- `UIBind` lebt in `Answers`/`api.stateView`, **nicht** in `config.State`.
-  Entscheidung nötig: entweder `State.UIBind` ergänzen (sinnvoll, die UI braucht es
-  nach jedem Reload), oder den Write in `steps.go` löschen. Ich würde ergänzen.
-- Imports aufräumen.
-
-### Schritt 2 — `internal/api` (jetzt erst sichtbar)
-
-Nach Schritt 1 neu bauen; die dortigen Fehler sind noch unbekannt. Erwartete
-Kandidaten aus dem Schreiben: `handlers_install.go` (`runs`-Feld initialisieren?),
-`middleware.go` (Session-Struktur), `handlers_status.go` (`pluginStates` braucht
-`config.State`-Feld `Enabled` ✓ vorhanden).
-
-### Schritt 3 — `internal/cli` (Hauptblock, 14 fehlende Funktionen)
-
-`cli.go:30-43` referenziert:
-
-```
-cmdInstall cmdServe cmdStatus cmdStart cmdStop cmdRestart cmdReload
-cmdValidate cmdLogs cmdProxy cmdToken cmdPasswd cmdDo cmdUninstall
-```
-
-Unterschätzt das nicht — das ist die halbe M1-Arbeit, nicht ein Nachziehen.
-Sinnvolle Aufteilung in Dateien: `install.go`, `service.go` (start/stop/restart/
-reload/validate), `serve.go`, `status.go`, `secrets.go` (token/passwd), `do.go`,
-`proxy.go`, `uninstall.go`. Alle haben Signatur
-`func(ctx context.Context, args []string, stdout, stderr io.Writer) error`.
-
-Für M1 **Pflicht**: `install` (Wizard + `--unattended`), `serve`, `status`,
-`start/stop/reload`, `version`, `validate`.
-Für M1 **zurückstellbar** (Stub mit "noch nicht in M1" ist okay, damit der Build
-grün wird): `proxy` (M5), `do` (M2+), `logs` (M2), `token`/`passwd` (M7),
-`uninstall` (M7).
-
-### Schritt 4 — Formatierung
+Bauen (statisch, damit die LXC keine Toolchain braucht):
 
 ```bash
-gofmt -l .   # aktuell 19 Dateien
-gofmt -w .
+wsl -d Ubuntu-24.04 -- bash -c "export PATH=\$HOME/.local/go/bin:\$PATH; \
+  cd /mnt/p/code/caddyEvolved && CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
+  go build -trimpath -ldflags '-s -w' -o dist/caddyforge ./cmd/caddyforge && sha256sum dist/caddyforge"
 ```
 
-Vor jedem Commit ausführen, nicht als separater "format only"-Commit.
-
-### Schritt 5 — Verifikation von M1
-
-Erstes echtes Ziel: **eine Installation in einen `--prefix`-Staging-Baum**, die
-Caddy startet und die Admin-API antworten lässt, ohne root und ohne LXC:
+Auf dem LXC (Debian 12 / Ubuntu 24.04, systemd als Init, root):
 
 ```bash
-./caddyforge install --prefix /tmp/stage --unattended answers.json --dry-run
+# 1) Binary ablegen
+install -m 0755 caddyforge /usr/local/bin/caddyforge
+
+# 2) Trockenlauf: schreibt nichts, zeigt den Plan
+caddyforge install --unattended antworten.json --dry-run
+
+# 3) Echte Installation (DNS-01-Variante: Token in antworten.json eintragen)
+caddyforge install --unattended antworten.json
+# 4) Das ausgegebenene UI-Passwort notieren, dann:
+caddyforge status
+systemctl status caddy caddyforge
+journalctl -u caddyforge -n 30
+caddyforge token            # API-Token für die Kommandozeile
+caddyforge do GET /api/status --token <TOKEN>
 ```
 
-Dann `go vet ./...` und Tests für die Stellen, die ohne System auskommen:
-`plugins.Resolve`, `fetch.ParseChecksumFile`, `secrets.Apply`, `auth` Hash/Roundtrip,
-`install.Answers.Validate`. Diese fünf sind reine Funktion und ohne Container testbar.
+Worauf der LXC-Lauf besonders achtet (alles Punkte, die WSL nicht abdeckt):
 
-## 3. Was schon verifiziert ist (nicht erneut prüfen)
+- `useradd --system caddy` und `chown` auf `/var/lib/caddy`, `/etc/caddy`
+- `AmbientCapabilities=CAP_NET_BIND_SERVICE` mit `httpPort 80`/`httpsPort 443`
+- `Type=notify` für caddy: startet und bleibt der Dienst, wenn systemd auf READY=1 wartet?
+- `ProtectSystem=full` + `ReadWritePaths` in `caddyforge.service`: kann der Daemon
+  trotzdem `/etc/caddy/Caddyfile` und `/etc/caddyforge/env` schreiben?
+- HTTPS-Bindung der UI auf `0.0.0.0` mit self-signed Cert, Login vom LAN aus
+- DNS-01: Zertifikatsausstellung für eine echte Domain (Der-Fluss dauert 1–3 Minuten
+  bei `binarySource: custom`, weil caddyserver.com den Build kompiliert)
 
-Der Plugin-Katalog (`internal/plugins/catalog.json`) ist gegen `proxy.golang.org`
-geprüft; Importpfade sind byte-genau. Vier Punkte, die beim Bauen still falsch
-wären und es jetzt nicht sind:
+## 6. Was vor M2 noch offen bleibt
 
-- `github.com/caddy-dns/hetzner/v2` — **ohne `/v2` baut xcaddy gegen v1.0.0 (2025-05)**.
-  Feld `versionSuffix: true` markiert genau diese Fallen.
-- Cloudflare: `CF_API_TOKEN` (lego liest es direkt) — nicht `CLOUDFLARE_API_TOKEN`.
-- `all-inkl` existiert, Caddyfile-Name ist aber `allinkl` (ohne Bindestrich).
-- Die meisten `caddy-dns`-Module lesen **keine** Env-Variablen selbst, sie erwarten
-  Argument/Option. Deshalb interpoliert `install/caddyfile.go` jeden Wert explizit
-  als `{env.X}` — sonst validiert die Config und die Cert-Ausstellung scheitert
-  Minuten später, ohne nachvollziehbare Fehlerquelle.
+- `install`-Report nennt die WebUI-URL mit `<host-ip>` statt einer anklickbaren Adresse
+  (`displayHost` in `install/runtime.go`); schön wäre die tatsächliche LAN-Adresse.
+- LXC-Verifikation (Punkt 5) – M1 gilt erst danach als abgeschlossen.
+- Lizenz des Repos (öffentlich, bisher ohne `LICENSE`).
+- `caddy-security` in der Standard-Variante: Fläche groß, Binary größer – eher opt-in.
+- `Answers.Credentials` landet in `env` (0600) und in `answers.json`; das Beispiel
+  enthält Absichtswerte, aber die Doku sollte auf Dateirechte hinweisen.
 
-Nicht verifiziert, bewusst als `note` markiert: Konfigurationsschlüssel von
-`storage-postgresql`, `transip`-gleiche Pfade, `caddy-security`-Direktivnamen pro
-Site. Vor M6/M3 gezielt nachlesen.
+## 7. Fallstricke (aktualisiert)
 
-## 4. Anschluss an M2 (damit der Übergang nicht überrascht)
-
-- UI bindet `0.0.0.0`, Login mit Passwort (PBKDF2-HMAC-SHA256, 600k Iterationen,
-  bewusst stdlib statt `x/crypto`, damit `go build` ohne Netzwerkmodule läuft).
-  Das erste Passwort generiert der Installer und gibt es **einmal** im Report aus.
-- SSE-Vertrag steht schon: `GET /api/events/stream` mit `Last-Event-ID`, `id:`- und
-  `event:`-Feldern; REST-Endpunkte in `internal/api/server.go` verdrahtet.
-- Der Build ist ohne Internet nicht möglich? Doch: **keine externen Go-Dependencies**
-  in `go.mod`. Das ist eine Eigenschaft, die wir halten wollen (LXC ohne Toolchain).
-- Caddy-Validierung läuft immer über die **installierte** Binary, nicht über
-  einkompilierte Caddy-Pakete — keine Versionskopplung, kein cgo.
-
-## 5. Offene Entscheidungen (brauchen Input, nicht Code)
-
-1. **Echter Proxmox-LXC**: Zu welcher Zeit kann auf eine echte LXC deployt werden?
-   Ein `--prefix`-Test in WSL belegt die Engine, aber nicht systemd + CAP_NET_BIND_SERVICE
-   + DNS-01 in einem unprivilegierten Container. Diese Lücke ist real.
-2. **Docker Desktop**: nur nötig, wenn wir `xcaddy`-Builds lokal (statt im CI) bauen
-   wollen. Bis M8 nicht nötig.
-3. **Lizenz des Projekts** selbst (Repo ist öffentlich, bisher ohne LICENSE).
-4. **`caddy-security` in der Standard-Variante**: vergrößert die Binary spürbar.
-   Wenn die UI es nicht wirklich konfigurieren kann (große Fläche), lieber opt-in.
-
-## 6. Fallstricke, die schon einmal wehgetan haben
-
-- **Mehrzeilige Commit-Bodies per `-m` schneidet cmd.exe bei der ersten leeren Zeile
-  ab.** Immer `git commit -F datei`. Zwei Mal passiert, einmal per amend +
-  `--force-with-lease` repariert.
-- **`.gitignore` muss Binary-Muster gewurzelt schreiben** (`/caddyforge`, nicht
-  `caddyforge`) — sonst verschluckt das Muster `cmd/caddyforge/` komplett. Ist
-  passiert und war still (Datei einfach nicht im Commit).
-- **CRLF ist für uns ein Function-Bug, nicht Style**: systemd-Units parsen CRLF
-  falsch, Shell-Scripts sterben mit "bad interpreter". `.gitattributes` erzwingt LF,
-  `core.autocrlf=input` ist repo-lokal gesetzt.
-- **Kein Feature vor grünem Build**: M2 beginnt erst nach Schritt 5.
+- **SHA-512 in Caddys Checksums-Datei** – siehe Tabelle 3. Ein Digest ist nie "die
+  Hash-Funktion, die wir gerade haben", sondern Präfix oder Länge.
+- **`caddy --version`-Format ist nicht stabil.** Feld-Matching, kein Präfix-Parser.
+- **`flag` stoppt am ersten Positionsargument.** `do GET /x --port 85` schluckt `--port`
+  still; `partitionFlags` in `internal/cli/root.go` zieht die Flags vorher heraus.
+- **`--prefix` ist kein Live-System.** Jeder Pfad, der `systemctl` aufruft, braucht den
+  Prefix-Zweig – sonst steuert ein Test die echte Maschine.
+- **`/tmp` in WSL ist flüchtig**, Staging-Bäume dort verschwinden zwischen Aufrufen
+  (und hinterlassen caddy-Prozesse ohne PID-Datei, die Ports belegen).
+- **Mehrzeilige Commit-Bodies per `-m` schneidet cmd.exe ab** → immer `git commit -F datei`.
+- **`.gitignore`-Muster gewurzelt schreiben** (`/caddyforge`, nicht `caddyforge`).
+- **CRLF ist ein Function-Bug**: systemd-Units und Shell-Scripts brauchen LF
+  (`.gitattributes` erzwingt das, `core.autocrlf=input` repo-lokal).
+- **Kein Feature vor grüner Verifikation**: M2 beginnt erst nach Punkt 5.

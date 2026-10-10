@@ -24,6 +24,11 @@ func (p *Plan) stepUIAuth(ctx context.Context, s *Step) error {
 		p.resolved.authExisting = true
 		return skip(s, StatusSkipped, "UI-Passwort bereits gesetzt")
 	}
+	if p.opts.DryRun {
+		// Generating a password here would print one that was never stored, and
+		// an operator would write it down for nothing.
+		return skip(s, StatusPlanned, "UI-Zugang würde eingerichtet (Passwort entsteht erst im echten Lauf)")
+	}
 	password := p.opts.UIPassword
 	if password == "" {
 		password, err = auth.GeneratePassword()
@@ -31,9 +36,6 @@ func (p *Plan) stepUIAuth(ctx context.Context, s *Step) error {
 			return err
 		}
 		p.resolved.generatedPassword = password
-	}
-	if p.opts.DryRun {
-		return skip(s, StatusPlanned, "UI-Zugang würde eingerichtet")
 	}
 	if err := store.SetPassword(password); err != nil {
 		if errors.Is(err, auth.ErrWeakPassword) {
@@ -60,7 +62,7 @@ func (p *Plan) Warnings() []string {
 		out = append(out, "UI-Passwort existiert bereits – es wird nicht ersetzt")
 	}
 	if p.host.Init != platform.InitSystemd {
-		out = append(out, "Kein systemd: Dienste starten über `caddyforge run`")
+		out = append(out, "Kein systemd: caddy mit `caddyforge start`, die WebUI mit `caddyforge serve` laufen lassen")
 	}
 	if !p.host.CanBind && !p.host.IsRoot {
 		out = append(out, "Ports <1024 nur mit CAP_NET_BIND_SERVICE in der Unit")

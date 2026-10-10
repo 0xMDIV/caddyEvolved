@@ -35,11 +35,11 @@ type Answers struct {
 	UIBind       string            `json:"uiBind"`
 	// UIBehindProxy puts the UI behind a caddy site block instead of letting
 	// caddyforge listen on its own port.
-	UIBehindProxy bool `json:"uiBehindProxy,omitempty"`
-	Managed       bool `json:"managed"`
-	SiteDomain   string            `json:"siteDomain,omitempty"`
-	SiteTarget   string            `json:"siteTarget,omitempty"`
-	Force        bool              `json:"force,omitempty"`
+	UIBehindProxy bool   `json:"uiBehindProxy,omitempty"`
+	Managed       bool   `json:"managed"`
+	SiteDomain    string `json:"siteDomain,omitempty"`
+	SiteTarget    string `json:"siteTarget,omitempty"`
+	Force         bool   `json:"force,omitempty"`
 }
 
 // Defaults fills in what the wizard left alone.
@@ -160,29 +160,29 @@ type Step struct {
 type Plan struct {
 	Steps []*Step
 
-	opts    Options
-	paths   config.Paths
-	host    platform.Info
-	runner  cmdx.Runner
-	sup     *supervisor.Manager
+	opts     Options
+	paths    config.Paths
+	host     platform.Info
+	runner   cmdx.Runner
+	sup      *supervisor.Manager
 	resolved resolvedState
 }
 
 type resolvedState struct {
-	caddyVersion string
-	binaryURL    string
-	binarySHA    string
-	foundBinary  string
-	modules      []string
-	slowDownload bool
-	caddyUserUID int
-	caddyUserGID int
-	pid          int
-	started      bool
-	adminOK      bool
-	authExisting bool
+	caddyVersion      string
+	binaryURL         string
+	binarySHA         string
+	foundBinary       string
+	modules           []string
+	slowDownload      bool
+	caddyUserUID      int
+	caddyUserGID      int
+	pid               int
+	started           bool
+	adminOK           bool
+	authExisting      bool
 	generatedPassword string
-	summary      string
+	summary           string
 }
 
 // NewPlan builds the run context and ordered steps for opts.
@@ -205,7 +205,7 @@ func NewPlan(ctx context.Context, opts Options) (*Plan, error) {
 		runner: opts.Runner,
 	}
 	p.Steps = []*Step{
-		{Name: "preflight", Title: "Host prüfen", },
+		{Name: "preflight", Title: "Host prüfen"},
 		{Name: "system-user", Title: "Dienst-Benutzer anlegen"},
 		{Name: "directories", Title: "Verzeichnisse anlegen"},
 		{Name: "credentials", Title: "Modul-Zugangsdaten schreiben"},
@@ -228,18 +228,18 @@ func NewPlan(ctx context.Context, opts Options) (*Plan, error) {
 // applied because each one is idempotent, so the same command resumes.
 func (p *Plan) Run(ctx context.Context) error {
 	fns := map[string]func(context.Context, *Step) error{
-		"preflight":      p.stepPreflight,
-		"system-user":    p.stepSystemUser,
-		"directories":    p.stepDirectories,
-		"credentials":    p.stepCredentials,
-		"binary":         p.stepBinary,
-		"caddyfile":      p.stepCaddyfile,
-		"ui-auth":        p.stepUIAuth,
-		"forge-config":   p.stepForgeConfig,
-		"systemd-units":  p.stepUnits,
-		"enable-start":   p.stepEnableStart,
-		"verify":         p.stepVerify,
-		"report":         p.stepReport,
+		"preflight":     p.stepPreflight,
+		"system-user":   p.stepSystemUser,
+		"directories":   p.stepDirectories,
+		"credentials":   p.stepCredentials,
+		"binary":        p.stepBinary,
+		"caddyfile":     p.stepCaddyfile,
+		"ui-auth":       p.stepUIAuth,
+		"forge-config":  p.stepForgeConfig,
+		"systemd-units": p.stepUnits,
+		"enable-start":  p.stepEnableStart,
+		"verify":        p.stepVerify,
+		"report":        p.stepReport,
 	}
 	var failed error
 	for _, s := range p.Steps {
@@ -295,10 +295,14 @@ func (p *Plan) StepsCopy() []Step {
 	return out
 }
 
+// GeneratedPassword is the first-run UI password, empty when the install reused
+// an existing one. It exists exactly once, so the caller must print it once.
+func (p *Plan) GeneratedPassword() string { return p.resolved.generatedPassword }
+
 // Report renders the run for the terminal.
 func (p *Plan) Report(w io.Writer) {
 	for _, s := range p.Steps {
-		line := fmt.Sprintf("%-4s %-18s %s", statusMark(s.Status), s.Name, s.Title)
+		line := fmt.Sprintf("%-6s %-18s %s", statusMark(s.Status), s.Name, s.Title)
 		if s.Reason != "" {
 			line += "  — " + s.Reason
 		}

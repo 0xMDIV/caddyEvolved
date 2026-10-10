@@ -15,14 +15,19 @@ import (
 // stepEnableStart brings both services up and proves caddy answers.
 func (p *Plan) stepEnableStart(ctx context.Context, s *Step) error {
 	if p.opts.DryRun {
+		if p.paths.IsPrefixed() || p.host.Init != platform.InitSystemd {
+			return skip(s, StatusPlanned, "caddy würde direkt gestartet (ohne systemd)")
+		}
 		return skip(s, StatusPlanned, "systemctl enable --now caddy caddyforge")
 	}
-	if p.host.Init != platform.InitSystemd {
-		// No systemd: start caddy as a foreground child we can still control.
+	if p.host.Init != platform.InitSystemd || p.paths.IsPrefixed() {
+		// No systemd, or a staging tree we must not hand to the host's init:
+		// start caddy as a detached child we can still control.
 		if err := p.startDetached(ctx); err != nil {
 			return err
 		}
-		s.Reason = "ohne systemd: caddy direkt gestartet (pid " + fmt.Sprint(p.resolved.pid) + ")"
+		s.Reason = "direkt gestartet (pid " + fmt.Sprint(p.resolved.pid) + ")"
+		p.resolved.started = true
 		return nil
 	}
 
@@ -81,7 +86,7 @@ func (p *Plan) stepVerify(ctx context.Context, s *Step) error {
 	}
 	p.resolved.adminOK = true
 
-	if p.host.Init == platform.InitSystemd {
+	if p.host.Init == platform.InitSystemd && !p.paths.IsPrefixed() {
 		svc := systemd.New(p.runner, p.paths.UnitsDir)
 		summary, active, err := svc.Status(ctx, "caddy.service")
 		if err != nil {
@@ -164,7 +169,7 @@ func (p *Plan) startDetached(ctx context.Context) error {
 // caddyManager is the non-systemd process manager for this layout.
 func (p *Plan) caddyManager() *supervisor.Manager {
 	if p.sup == nil {
-		p.sup = supervisor.New(p.paths.CaddyBin, p.paths.Caddyfile, p.paths.LogFile, p.paths.PIDFile)
+		p.sup = supervisor.New(p.paths.CaddyBin, p.paths.Caddyfile, p.paths.EnvFile, p.paths.LogFile, p.paths.PIDFile)
 	}
 	return p.sup
 }
