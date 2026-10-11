@@ -227,6 +227,9 @@ in der Sidebar unter *Plugins*.
 
 ## 7. Prüfen und Fehlersuche
 
+- **Sites → Testen:** prüft eine Site wie ein Besucher – DNS (inkl. Cloudflare-Proxy), Zertifikat,
+  Weg über Caddy zum Ziel und den öffentlichen Weg, auf Wunsch von außen. Das Zertifikats-Symbol
+  daneben zeigt die ausgelieferte Zertifikatskette.
 - **Dashboard:** Caddy läuft, keine Warnungen.
 - **Zertifikate:** Nach dem ersten Aufruf einer Domain erscheint ihr Zertifikat.
 - **Logs:** Hier steht, warum Caddy kein Zertifikat bekommt oder ein Upstream nicht

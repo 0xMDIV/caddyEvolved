@@ -378,3 +378,34 @@ table.compact th, table.compact td { padding: 6px 8px; }
 .advanced summary { cursor: pointer; color: var(--muted); font-size: 13px; }
 .update-hint { display: inline-flex; align-items: center; gap: 4px; color: var(--accent-strong); font-weight: 600; text-decoration: none; }
 .update-hint:hover { text-decoration: underline; }
+
+/* Site test / certificate panel */
+.panel-backdrop { position: fixed; inset: 0; background: rgba(0, 0, 0, .45); z-index: 50; display: flex; justify-content: flex-end; }
+.panel {
+  width: min(620px, 100vw); height: 100%; overflow-y: auto; background: var(--surface); border-left: 1px solid var(--border);
+  box-shadow: var(--shadow); display: flex; flex-direction: column; gap: 14px;
+  padding: calc(18px + env(safe-area-inset-top, 0px)) 20px calc(24px + env(safe-area-inset-bottom, 0px));
+}
+.panel-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.findings { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.finding { display: grid; grid-template-columns: 20px minmax(0, 1fr); gap: 10px; align-items: start; padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; }
+.finding > svg { margin-top: 1px; }
+.finding-title { font-weight: 600; overflow-wrap: anywhere; }
+.finding-detail { overflow-wrap: anywhere; margin-top: 2px; }
+.finding-hint { margin-top: 4px; color: var(--text); }
+.lvl-fail-row { border-color: var(--danger); background: var(--danger-soft); }
+.lvl-warn-row { border-color: var(--warn); background: var(--warn-soft); }
+.lvl-ok { color: var(--accent); }
+.lvl-warn { color: var(--warn); }
+.lvl-fail { color: var(--danger); }
+.lvl-info { color: var(--info); }
+.cert-domain { border: 1px solid var(--border); border-radius: 10px; padding: 12px; }
+.cert-card { margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--border); }
+.cert-dl { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 4px 12px; margin: 6px 0 0; font-size: 13px; }
+.cert-dl dt { color: var(--muted); }
+.cert-dl dd { margin: 0; overflow-wrap: anywhere; }
+.wrap-any { overflow-wrap: anywhere; word-break: break-all; }
+@media (max-width: 520px) {
+  .cert-dl { grid-template-columns: minmax(0, 1fr); }
+  .cert-dl dt { margin-top: 6px; }
+}

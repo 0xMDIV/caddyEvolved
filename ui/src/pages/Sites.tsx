@@ -3,10 +3,13 @@ import { AccessListsResponse, api, emptySite, Site, SiteMode, SitesResponse } fr
 import { DefenderFields, FEATURE_PLUGINS, RateLimitFields, useCompiledPlugins, WafFields } from "../components/features";
 import { Badge, ConfirmButton, ErrorBox, PageHead, Spinner, Switch, useAction, useLoad, useToast } from "../components/ui";
 import { formatTarget, FormSection, parseTarget, SiteHelp, Target, TargetEditor, TlsPicker, ToggleRow } from "../components/siteform";
+import { PanelTab, SitePanel } from "../components/sitecheck";
+import { IconCertificate, IconStethoscope } from "@tabler/icons-react";
 
 export default function Sites() {
   const list = useLoad(() => api.get<SitesResponse>("/api/sites"));
   const [editing, setEditing] = useState<{ site: Site; isNew: boolean } | null>(null);
+  const [panel, setPanel] = useState<{ site: Site; tab: PanelTab } | null>(null);
   const { busy, run } = useAction();
 
   async function toggle(site: Site, enabled: boolean) {
@@ -31,7 +34,11 @@ export default function Sites() {
         dnsProviders={list.data?.dnsProviders ?? []}
         onDone={(saved) => {
           setEditing(null);
-          if (saved) list.reload();
+          if (saved) {
+            list.reload();
+            // Show right away whether the new configuration works.
+            setPanel({ site: saved, tab: "test" });
+          }
         }}
       />
     );
@@ -102,6 +109,14 @@ export default function Sites() {
                     </td>
                     <td style={{ textAlign: "right", whiteSpace: "nowrap" }}>
                       <span className="row" style={{ justifyContent: "flex-end" }}>
+                        <button className="btn ghost sm" title="Testen" aria-label="Site testen" onClick={() => setPanel({ site: s, tab: "test" })}>
+                          <IconStethoscope size={16} /> Testen
+                        </button>
+                        {s.tls !== "off" && (
+                          <button className="btn ghost sm" title="Zertifikat ansehen" aria-label="Zertifikat ansehen" onClick={() => setPanel({ site: s, tab: "cert" })}>
+                            <IconCertificate size={16} />
+                          </button>
+                        )}
                         <button className="btn sm" onClick={() => setEditing({ site: { ...emptySite(), ...s }, isNew: false })}>
                           Bearbeiten
                         </button>
@@ -117,6 +132,7 @@ export default function Sites() {
           </div>
         )}
       </div>
+      {panel && <SitePanel site={panel.site} tab={panel.tab} onTab={(tab) => setPanel({ ...panel, tab })} onClose={() => setPanel(null)} />}
     </>
   );
 }
@@ -164,7 +180,7 @@ function SiteEditor({
   initial: Site;
   isNew: boolean;
   dnsProviders: { id: string; name: string; ready: boolean }[];
-  onDone: (saved: boolean) => void;
+  onDone: (saved: Site | null) => void;
 }) {
   // Old entries may still carry "https://" in the address; that becomes the
   // HTTPS switch, the same rule the server applies.
@@ -220,7 +236,7 @@ function SiteEditor({
         ? await api.post<{ site: Site; reloaded: boolean }>("/api/sites", full)
         : await api.put<{ site: Site; reloaded: boolean }>(`/api/sites/${encodeURIComponent(initial.id)}`, full);
       toast("ok", r.reloaded ? "Gespeichert und Caddy neu geladen" : "Gespeichert");
-      onDone(true);
+      onDone(r.site);
     } catch (e) {
       setSaveErr(e);
     } finally {
@@ -231,7 +247,7 @@ function SiteEditor({
   return (
     <>
       <PageHead title={isNew ? "Neue Site" : `Site ${initial.id} bearbeiten`}>
-        <button className="btn" onClick={() => onDone(false)}>
+        <button className="btn" onClick={() => onDone(null)}>
           Abbrechen
         </button>
         <button className="btn primary" onClick={save} disabled={saving || (full.mode !== "raw" && full.domains.length === 0)}>

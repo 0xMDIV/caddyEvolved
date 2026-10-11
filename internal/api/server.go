@@ -186,6 +186,8 @@ func (s *Server) routes() *http.ServeMux {
 	m.HandleFunc("PUT /api/sites/{id}", s.auth(s.handleSiteUpdate))
 	m.HandleFunc("DELETE /api/sites/{id}", s.auth(s.handleSiteDelete))
 	m.HandleFunc("POST /api/sites/{id}/enabled", s.auth(s.handleSiteEnabled))
+	m.HandleFunc("POST /api/sites/{id}/test", s.auth(s.handleSiteTest))
+	m.HandleFunc("GET /api/sites/{id}/certificate", s.auth(s.handleSiteCertificate))
 
 	m.HandleFunc("GET /api/caddyfile", s.auth(s.handleCaddyfileGet))
 	m.HandleFunc("PUT /api/caddyfile", s.auth(s.handleCaddyfileSave))

@@ -2,9 +2,7 @@ package cli
 
 import (
 	"bufio"
-	"bytes"
 	"context"
-	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
@@ -18,6 +16,7 @@ import (
 	"caddyevolved/internal/certs"
 	"caddyevolved/internal/config"
 	"caddyevolved/internal/platform"
+	"caddyevolved/internal/probe"
 	"caddyevolved/internal/sites"
 	"caddyevolved/internal/tui"
 )
@@ -26,22 +25,16 @@ import (
 // host, firewall, public IP and port forwarding, DNS of every site and the
 // certificates caddy obtained. Each finding carries the fix.
 
-type checkLevel string
+type checkLevel = probe.Level
 
 const (
-	levelOK   checkLevel = "ok"
-	levelWarn checkLevel = "warn"
-	levelFail checkLevel = "fail"
-	levelInfo checkLevel = "info"
+	levelOK   = probe.OK
+	levelWarn = probe.Warn
+	levelFail = probe.Fail
+	levelInfo = probe.Info
 )
 
-type finding struct {
-	Group  string     `json:"group"`
-	Level  checkLevel `json:"level"`
-	Title  string     `json:"title"`
-	Detail string     `json:"detail,omitempty"`
-	Hint   string     `json:"hint,omitempty"`
-}
+type finding = probe.Finding
 
 type doctor struct {
 	ctx      context.Context
@@ -89,10 +82,30 @@ func cmdDoctor(ctx context.Context, args []string, stdout, stderr io.Writer) err
 	d.checkPorts(view, enabled)
 	d.checkFirewall()
 	d.checkPublic(enabled)
-	d.checkDomains(enabled)
-	d.checkCertificates(enabled)
 	d.checkSites(enabled)
 	return d.finish(stdout, *jsonOut)
+}
+
+// checkSites runs the same per-site test as the WebUI's test button.
+func (d *doctor) checkSites(enabled []sites.Site) {
+	if len(enabled) == 0 {
+		d.group = "Sites"
+		d.add(levelInfo, "Keine aktiven Sites", "", "In der WebUI unter Sites anlegen")
+		return
+	}
+	list, err := certs.List(d.l.paths.CaddyStorage)
+	if err != nil {
+		d.group = "Sites"
+		d.add(levelWarn, "Zertifikatsspeicher nicht lesbar", err.Error(), "als root ausführen: sudo caddyevolved doctor")
+	}
+	env := probe.Env{
+		HTTPPort: d.st.HTTPPort, HTTPSPort: d.st.HTTPSPort,
+		PublicIP: d.publicIP, LANIP: platform.PrimaryIP(), Extern: d.extern,
+		Certs: list, ACMEErrors: probe.RecentACMEErrors(d.ctx),
+	}
+	for _, s := range enabled {
+		d.findings = append(d.findings, probe.Site(d.ctx, s, env)...)
+	}
 }
 
 // ---- local -----------------------------------------------------------------
@@ -213,7 +226,7 @@ func ufwAllows(status string, port int) bool {
 func (d *doctor) checkPublic(enabled []sites.Site) {
 	d.group = "Internet"
 	lan := platform.PrimaryIP()
-	ip, err := publicIP(d.ctx)
+	ip, err := probe.PublicIP(d.ctx)
 	if err != nil {
 		d.add(levelFail, "Öffentliche IP nicht ermittelbar", err.Error(), "Hat der Server Internet? ping 1.1.1.1; DNS: resolvectl status")
 		return
@@ -230,7 +243,7 @@ func (d *doctor) checkPublic(enabled []sites.Site) {
 	host := ""
 	for _, s := range enabled {
 		for _, dom := range s.Domains {
-			if publicDomain(dom) && s.TLS != sites.TLSInternal {
+			if probe.PublicDomain(dom) && s.TLS != sites.TLSInternal {
 				host = strings.TrimPrefix(dom, "*.")
 				break
 			}
@@ -263,7 +276,7 @@ func (d *doctor) checkPublic(enabled []sites.Site) {
 		return
 	}
 	for _, port := range []int{d.st.HTTPPort, d.st.HTTPSPort} {
-		ok, total, detail, err := externalTCP(d.ctx, net.JoinHostPort(ip, strconv.Itoa(port)))
+		ok, total, detail, err := probe.ExternalTCP(d.ctx, net.JoinHostPort(ip, strconv.Itoa(port)))
 		switch {
 		case err != nil:
 			d.add(levelWarn, fmt.Sprintf("Externer Test Port %d nicht möglich", port), err.Error(), "")
@@ -276,29 +289,6 @@ func (d *doctor) checkPublic(enabled []sites.Site) {
 			d.add(levelWarn, fmt.Sprintf("Port %d nur teilweise erreichbar", port), fmt.Sprintf("%d von %d Messpunkten: %s", ok, total, detail), "")
 		}
 	}
-}
-
-func publicIP(ctx context.Context) (string, error) {
-	var last error
-	for _, u := range []string{"https://api.ipify.org", "https://ifconfig.me/ip", "https://icanhazip.com"} {
-		ctx, cancel := context.WithTimeout(ctx, 6*time.Second)
-		req, _ := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
-		req.Header.Set("User-Agent", "caddyevolved-doctor")
-		resp, err := http.DefaultClient.Do(req)
-		if err == nil {
-			body, _ := io.ReadAll(io.LimitReader(resp.Body, 100))
-			resp.Body.Close()
-			cancel()
-			if ip := net.ParseIP(strings.TrimSpace(string(body))); ip != nil && ip.To4() != nil {
-				return ip.String(), nil
-			}
-			last = fmt.Errorf("%s: unerwartete Antwort", u)
-			continue
-		}
-		cancel()
-		last = err
-	}
-	return "", last
 }
 
 // probeHTTP sends one plain request to ip:port with the given Host and returns
@@ -321,59 +311,6 @@ func probeHTTP(ctx context.Context, ip string, port int, host string) (string, e
 	return resp.Header.Get("Server"), nil
 }
 
-// externalTCP asks check-host.net to open a TCP connection from several
-// places on the internet. It only learns the IP and port, not the domain.
-func externalTCP(ctx context.Context, hostport string) (ok, total int, detail string, err error) {
-	id, err := checkHostStart(ctx, "check-tcp", hostport)
-	if err != nil {
-		return 0, 0, "", err
-	}
-	var errs []string
-	for i := 0; i < 8; i++ {
-		select {
-		case <-ctx.Done():
-			return 0, 0, "", ctx.Err()
-		case <-time.After(2 * time.Second):
-		}
-		var res map[string][]struct {
-			Address string  `json:"address"`
-			Time    float64 `json:"time"`
-			Error   string  `json:"error"`
-		}
-		if err := checkHostGet(ctx, "https://check-host.net/check-result/"+id, &res); err != nil {
-			return 0, 0, "", err
-		}
-		pending := false
-		ok, total, errs = 0, len(res), nil
-		for _, r := range res {
-			switch {
-			case r == nil:
-				pending = true
-			case len(r) > 0 && r[0].Error == "" && r[0].Address != "":
-				ok++
-			case len(r) > 0:
-				errs = append(errs, r[0].Error)
-			}
-		}
-		if !pending {
-			break
-		}
-	}
-	return ok, total, strings.Join(uniq(errs), "; "), nil
-}
-
-func uniq(in []string) []string {
-	seen := map[string]bool{}
-	var out []string
-	for _, s := range in {
-		if s != "" && !seen[s] {
-			seen[s] = true
-			out = append(out, s)
-		}
-	}
-	return out
-}
-
 // ---- domains and certificates ---------------------------------------------
 
 func (d *doctor) enabledSites() []sites.Site {
@@ -388,193 +325,6 @@ func (d *doctor) enabledSites() []sites.Site {
 		}
 	}
 	return out
-}
-
-// publicDomain is a name a public CA can issue for and DNS on the internet
-// can resolve: no IP, no port-only address, no LAN-only suffix.
-func publicDomain(d string) bool {
-	d = strings.TrimPrefix(strings.TrimPrefix(strings.TrimPrefix(d, "http://"), "https://"), "*.")
-	if h, _, err := net.SplitHostPort(d); err == nil {
-		d = h
-	}
-	if d == "" || net.ParseIP(d) != nil || !strings.Contains(d, ".") || d == "localhost" {
-		return false
-	}
-	for _, suf := range []string{".lan", ".local", ".home", ".internal", ".localhost", ".home.arpa", ".fritz.box"} {
-		if strings.HasSuffix("."+d, suf) {
-			return false
-		}
-	}
-	return true
-}
-
-func (d *doctor) checkDomains(enabled []sites.Site) {
-	d.group = "DNS"
-	any := false
-	for _, s := range enabled {
-		for _, dom := range s.Domains {
-			if !publicDomain(dom) {
-				continue
-			}
-			any = true
-			host := strings.TrimPrefix(dom, "*.")
-			if strings.HasPrefix(dom, "*.") {
-				// Any name below the wildcard must resolve; test a random one.
-				host = "caddyevolved-doctor-" + strconv.FormatInt(time.Now().Unix()%100000, 10) + "." + host
-			}
-			c, cancel := context.WithTimeout(d.ctx, 5*time.Second)
-			ips, err := net.DefaultResolver.LookupHost(c, host)
-			cancel()
-			switch {
-			case err != nil:
-				d.add(levelFail, dom+" löst nicht auf", err.Error(), "Beim DNS-Anbieter einen A-Eintrag "+dom+" → "+orDefault(d.publicIP, "<öffentliche IP>")+" anlegen")
-			case d.publicIP == "":
-				d.add(levelInfo, dom+" → "+strings.Join(ips, ", "), "öffentliche IP unbekannt, nicht verglichen", "")
-			case contains(ips, d.publicIP):
-				d.add(levelOK, dom+" zeigt auf diesen Server", strings.Join(ips, ", "), "")
-			case s.TLS == sites.TLSDNS:
-				d.add(levelWarn, dom+" zeigt nicht auf diesen Server", strings.Join(ips, ", ")+" statt "+d.publicIP,
-					"Für das Zertifikat egal (DNS-Challenge), Besucher landen aber dort – Proxy wie Cloudflare? Dann ok.")
-			default:
-				d.add(levelFail, dom+" zeigt nicht auf diesen Server", strings.Join(ips, ", ")+" statt "+d.publicIP,
-					"A-Eintrag auf "+d.publicIP+" ändern. Cloudflare-Proxy (orange Wolke) blockiert die HTTP-Challenge nicht, verdeckt aber die IP – dann ist das hier normal.")
-			}
-		}
-	}
-	if !any {
-		d.add(levelInfo, "Keine öffentlichen Domains", "nur LAN-Namen oder noch keine Site", "")
-	}
-}
-
-func contains(list []string, v string) bool {
-	for _, x := range list {
-		if x == v {
-			return true
-		}
-	}
-	return false
-}
-
-func (d *doctor) checkCertificates(enabled []sites.Site) {
-	d.group = "Zertifikate"
-	list, err := certs.List(d.l.paths.CaddyStorage)
-	if err != nil {
-		d.add(levelWarn, "Zertifikatsspeicher nicht lesbar", err.Error(), "als root ausführen: sudo caddyevolved doctor")
-		return
-	}
-	acmeErrs := recentACMEErrors(d.ctx)
-	checked := false
-	for _, s := range enabled {
-		if s.TLS == sites.TLSOff || s.TLS == sites.TLSInternal {
-			continue
-		}
-		for _, dom := range s.Domains {
-			if !publicDomain(dom) {
-				continue
-			}
-			checked = true
-			c, found := coveringCert(list, dom)
-			switch {
-			case found && c.DaysLeft < 0:
-				d.add(levelFail, dom+": Zertifikat abgelaufen", c.NotAfter.Format("02.01.2006"), "Logs prüfen: journalctl -u caddy | grep -i "+dom)
-			case found && c.DaysLeft < 14:
-				d.add(levelWarn, dom+": Zertifikat läuft bald ab", fmt.Sprintf("noch %d Tage – Caddy erneuert ab 30 Tagen, das klappt gerade nicht", c.DaysLeft), "Logs prüfen: journalctl -u caddy | grep -i "+dom)
-			case found:
-				d.add(levelOK, dom+": Zertifikat gültig", fmt.Sprintf("%s, noch %d Tage", c.Issuer, c.DaysLeft), "")
-			default:
-				msg := acmeErrs[strings.TrimPrefix(dom, "*.")]
-				if msg == "" {
-					msg = acmeErrs[dom]
-				}
-				hint := "Domain einmal im Browser aufrufen; Caddy holt das Zertifikat beim ersten Zugriff bzw. kurz nach dem Anlegen."
-				if msg != "" {
-					hint = acmeHint(msg)
-				}
-				d.add(levelFail, dom+": noch kein Zertifikat", msg, hint)
-			}
-		}
-	}
-	if !checked {
-		d.add(levelInfo, "Keine öffentlichen Zertifikate erwartet", "", "")
-	}
-}
-
-func coveringCert(list []certs.Cert, dom string) (certs.Cert, bool) {
-	var best certs.Cert
-	found := false
-	for _, c := range list {
-		if c.Staging {
-			continue
-		}
-		for _, n := range c.Domains {
-			if n == dom || (strings.HasPrefix(n, "*.") && strings.Count(dom, ".") == strings.Count(n, ".") && strings.HasSuffix(dom, n[1:])) {
-				if !found || c.NotAfter.After(best.NotAfter) {
-					best, found = c, true
-				}
-			}
-		}
-	}
-	return best, found
-}
-
-// recentACMEErrors maps domains to the last certificate error caddy logged in
-// the past day.
-func recentACMEErrors(ctx context.Context) map[string]string {
-	out := map[string]string{}
-	c, cancel := context.WithTimeout(ctx, 8*time.Second)
-	defer cancel()
-	data, err := exec.CommandContext(c, "journalctl", "-u", "caddy", "--since", "-24h", "-o", "cat", "--no-pager").Output()
-	if err != nil {
-		return out
-	}
-	for _, line := range bytes.Split(data, []byte("\n")) {
-		if !bytes.Contains(line, []byte(`"error"`)) || !bytes.Contains(line, []byte(`"tls`)) {
-			continue
-		}
-		var e struct {
-			Level      string `json:"level"`
-			Logger     string `json:"logger"`
-			Identifier string `json:"identifier"`
-			Msg        string `json:"msg"`
-			Error      string `json:"error"`
-		}
-		if json.Unmarshal(line, &e) != nil || e.Level != "error" || e.Identifier == "" {
-			continue
-		}
-		msg := e.Msg
-		if e.Error != "" {
-			msg = e.Error
-		}
-		if len(msg) > 220 {
-			msg = msg[:220] + "…"
-		}
-		out[e.Identifier] = msg
-	}
-	return out
-}
-
-// acmeHint turns the usual ACME failures into the step that fixes them.
-func acmeHint(msg string) string {
-	m := strings.ToLower(msg)
-	switch {
-	case strings.Contains(m, "timeout") || strings.Contains(m, "connection refused") || strings.Contains(m, "connection reset"):
-		return "Let's Encrypt erreicht den Server nicht: Portweiterleitung 80/443 und Firewall prüfen (sudo caddyevolved doctor --extern)."
-	case strings.Contains(m, "nxdomain") || strings.Contains(m, "no valid a records") || strings.Contains(m, "dns problem"):
-		return "DNS-Eintrag fehlt oder ist noch nicht verbreitet – A-Eintrag prüfen, ein paar Minuten warten."
-	case strings.Contains(m, "acme:error:tls") || strings.Contains(m, "fetching https://"):
-		// Caddy answers HTTP-01 on port 80 itself; a fetch over https means
-		// something else on port 80 redirected Let's Encrypt.
-		return "Let's Encrypt wurde von Port 80 auf HTTPS umgeleitet – Caddy macht das bei der Challenge nie. Port 80 im Router zeigt wohl auf ein anderes Gerät (alter Proxy?): auf " + orDefault(platform.PrimaryIP(), "diesen Server") + " umstellen."
-	case strings.Contains(m, "rejectedidentifier"):
-		return "Für diesen Namen stellt Let's Encrypt grundsätzlich nicht aus (Test-/gesperrte Domain) – echte Domain verwenden oder TLS „Intern“."
-	case strings.Contains(m, "rate limit") || strings.Contains(m, "ratelimit"):
-		return "Let's-Encrypt-Limit erreicht – Caddy versucht es automatisch später erneut, nichts weiter tun."
-	case strings.Contains(m, "unauthorized") || strings.Contains(m, "403"):
-		return "Die Challenge landete woanders: zeigt der A-Eintrag wirklich hierher, leitet der Router auf diesen Server?"
-	case strings.Contains(m, "dns") && (strings.Contains(m, "token") || strings.Contains(m, "auth") || strings.Contains(m, "credential")):
-		return "DNS-Plugin kann sich nicht anmelden – API-Token unter „Plugins & Build“ prüfen."
-	}
-	return "Details: journalctl -u caddy -n 100"
 }
 
 // ---- output ----------------------------------------------------------------
