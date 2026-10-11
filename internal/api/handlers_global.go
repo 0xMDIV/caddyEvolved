@@ -95,6 +95,8 @@ func (s *Server) handleGlobalSave(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusBadRequest, "bad_request", errText(err))
 		return
 	}
+	// The firewall has its own page and endpoint; this form does not send it.
+	g.Firewall = s.loadGlobal().Firewall
 	g.Normalize()
 	if err := g.Validate(); err != nil {
 		s.siteError(w, r, err)
@@ -104,14 +106,24 @@ func (s *Server) handleGlobalSave(w http.ResponseWriter, r *http.Request) {
 		s.siteError(w, r, &sites.ValidationError{Problems: missing})
 		return
 	}
+	reloaded, err := s.applyGlobal(r.Context(), g, "Globale Optionen geändert")
+	if err != nil {
+		s.siteError(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"global": g, "reloaded": reloaded, "caps": s.Sites.Options().Caps})
+}
+
+// applyGlobal stores validated options and applies them through the
+// validate-and-reload transaction; a rejected config restores the old file.
+func (s *Server) applyGlobal(ctx context.Context, g sites.Global, summary string) (bool, error) {
 	prev, _ := os.ReadFile(s.globalFile())
 	data, _ := json.MarshalIndent(g, "", "  ")
 	if err := os.WriteFile(s.globalFile(), data, 0o644); err != nil {
-		writeErr(w, http.StatusInternalServerError, "write", errText(err))
-		return
+		return false, err
 	}
 	s.Sites.SetOptions(s.siteOptions())
-	ctx, cancel := context.WithTimeout(r.Context(), time.Minute)
+	ctx, cancel := context.WithTimeout(ctx, time.Minute)
 	defer cancel()
 	var reloaded bool
 	if err := s.Sites.Sync(ctx, s.siteCommit(&reloaded)); err != nil {
@@ -121,11 +133,10 @@ func (s *Server) handleGlobalSave(w http.ResponseWriter, r *http.Request) {
 			_ = os.Remove(s.globalFile())
 		}
 		s.Sites.SetOptions(s.siteOptions())
-		s.siteError(w, r, err)
-		return
+		return false, err
 	}
-	s.Events.Record(events.Event{Kind: events.KindConfig, Step: "global", OK: true, Summary: "Globale Optionen geändert"})
-	writeJSON(w, http.StatusOK, map[string]any{"global": g, "reloaded": reloaded, "caps": s.Sites.Options().Caps})
+	s.Events.Record(events.Event{Kind: events.KindConfig, Step: "global", OK: true, Summary: summary})
+	return reloaded, nil
 }
 
 // missingCredentials names the keys a switched-on feature needs but the env

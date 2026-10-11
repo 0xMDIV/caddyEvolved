@@ -11,6 +11,7 @@ import {
 } from "../api";
 import { Chart, Series, TopList } from "../components/charts";
 import { ErrorBox, PageHead, Spinner, useLoad } from "../components/ui";
+import { navigate } from "../router";
 import { IconRefresh } from "@tabler/icons-react";
 
 const RANGES: AnalyticsRange[] = ["15m", "1h", "6h", "24h", "7d", "30d"];
@@ -129,6 +130,14 @@ export default function Analytics() {
             <Kpi label="Ø Antwortzeit" value={fmtMs(tot?.avgMs)} />
             <Kpi label="p95" value={fmtMs(tot?.p95Ms)} />
           </div>
+          {(tot?.blocked ?? 0) > 0 && (
+            <div className="small muted">
+              Warum geblockt wurde und von wem:{" "}
+              <button className="link-btn" onClick={() => navigate("/firewall")}>
+                Firewall → Blockiert / WAF-Treffer
+              </button>
+            </div>
+          )}
 
           {empty ? (
             <div className="card empty">

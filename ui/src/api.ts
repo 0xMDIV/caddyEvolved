@@ -269,6 +269,7 @@ export interface Site {
   rateLimit?: SiteRateLimit;
   /** Exempt from the CrowdSec bouncer. */
   noCrowdsec?: boolean;
+  noFirewall?: boolean;
   /** Store responses in the Souin cache. */
   cache?: boolean;
   /** Serve on the tailnet only, as this node name. */
@@ -282,23 +283,135 @@ export interface SiteWaf {
   mode: "block" | "detect";
   /** CRS paranoia level 1–4 (0/undefined = 1). */
   paranoia?: number;
+  /** Higher level evaluated for the log only. */
+  detectParanoia?: number;
   /** Inbound anomaly score that blocks (0/undefined = 5). */
   threshold?: number;
+  /** Outbound anomaly score (0/undefined = 4). */
+  outThreshold?: number;
+  earlyBlocking?: boolean;
+  /** Allowed HTTP methods; empty = CRS default GET HEAD POST OPTIONS. */
+  methods?: string[];
+  /** Request content types allowed on top of the CRS list. */
+  contentTypes?: string[];
+  bodyLimitMb?: number;
+  bodyPartial?: boolean;
+  noResponse?: boolean;
+  /** CRS rule groups switched off (WAF_GROUPS keys). */
+  groupsOff?: string[];
   /** CRS rule IDs switched off for this site. */
   exclude?: number[];
+  skipPaths?: string[];
+  pathExcludes?: { path: string; ids: number[] }[];
+  custom?: string;
 }
 export interface SiteDefender {
   enabled: boolean;
-  responder: "block" | "tarpit" | "garbage" | "drop";
+  responder: "block" | "tarpit" | "garbage" | "drop" | "custom" | "redirect";
   ranges: string[];
+  message?: string;
+  statusCode?: number;
+  url?: string;
+  whitelist?: string[];
+  serveIgnore?: boolean;
+  tarpitTimeout?: string;
+  tarpitBps?: number;
+}
+export interface RateRule {
+  paths: string[];
+  methods?: string[];
+  events: number;
+  window: string;
 }
 export interface SiteRateLimit {
   enabled: boolean;
   events: number;
   window: string;
+  key?: "ip" | "ip-path";
+  rules?: RateRule[];
 }
 
-export const DEFENDER_RANGES = ["openai", "aws", "gcloud", "azurepubliccloud", "deepseek", "githubcopilot", "cloudflare", "vpn", "private", "all"];
+export const DEFENDER_RANGES = [
+  "openai", "deepseek", "githubcopilot", "mistral", "aws", "aws-us-east-1", "aws-us-west-1", "gcloud",
+  "azurepubliccloud", "oci", "aliyun", "huawei", "digitalocean", "linode", "vultr", "cloudflare",
+  "datadog", "vpn", "private", "all",
+];
+
+/** CRS v4 request rule groups (sites/security.go WAFGroups). */
+export const WAF_GROUPS: { key: string; label: string; block: number }[] = [
+  { key: "scanner", label: "Scanner-Erkennung (Nikto, sqlmap, …)", block: 913 },
+  { key: "protocol", label: "Protokoll-Prüfung (Header, Kodierung)", block: 920 },
+  { key: "protocol-attack", label: "Protokoll-Angriffe (Request Smuggling, Header-Injection)", block: 921 },
+  { key: "multipart", label: "Multipart-Angriffe (Uploads)", block: 922 },
+  { key: "lfi", label: "Local File Inclusion (../, Systemdateien)", block: 930 },
+  { key: "rfi", label: "Remote File Inclusion", block: 931 },
+  { key: "rce", label: "Befehlsausführung (Shell, RCE)", block: 932 },
+  { key: "php", label: "PHP-Angriffe", block: 933 },
+  { key: "generic", label: "Generische Angriffe (Node.js, SSRF, Prototype Pollution)", block: 934 },
+  { key: "xss", label: "Cross-Site-Scripting (XSS)", block: 941 },
+  { key: "sqli", label: "SQL-Injection", block: 942 },
+  { key: "session", label: "Session-Fixation", block: 943 },
+  { key: "java", label: "Java-Angriffe (Log4Shell, Deserialisierung)", block: 944 },
+];
+
+// ---- firewall -------------------------------------------------------------------
+
+export interface Firewall {
+  enabled: boolean;
+  allow?: string[];
+  block?: string[];
+  lists?: string[];
+  blockCountries?: string[];
+  allowCountries?: string[];
+  blockAsn?: number[];
+  drop: boolean;
+}
+export interface FirewallList {
+  id: string;
+  name: string;
+  desc: string;
+  source: string;
+  license: string;
+  entries: number;
+  updated?: string;
+}
+export interface GeoInfo {
+  path: string;
+  updated?: string;
+}
+export interface FirewallResponse {
+  firewall: Firewall;
+  lists: FirewallList[];
+  geo: { country: GeoInfo; asn: GeoInfo };
+  caps: { geo: boolean; waf: boolean };
+  file: string;
+  yourIp?: string;
+}
+export interface BlockedRequest {
+  ts: string;
+  host: string;
+  method: string;
+  uri: string;
+  status: number;
+  ip: string;
+  agent?: string;
+  block: string;
+}
+export interface WafEvent {
+  ts: string;
+  id: string;
+  host: string;
+  uri: string;
+  ip: string;
+  blocked: boolean;
+  rules: { id: number; msg: string; severity?: string; data?: string }[];
+}
+export interface FirewallLogResponse {
+  blocked: BlockedRequest[];
+  waf: WafEvent[];
+  reasons?: { key: string; count: number }[];
+  ips?: { key: string; count: number }[];
+}
 
 export const defaultWaf = (): SiteWaf => ({ enabled: true, mode: "block" });
 export const defaultDefender = (): SiteDefender => ({ enabled: true, responder: "block", ranges: ["openai", "deepseek", "githubcopilot"] });
@@ -627,6 +740,7 @@ export interface GlobalOptions {
   crowdsec: { enabled: boolean; apiUrl?: string; appsecUrl?: string };
   tailscale: { enabled: boolean; ephemeral: boolean };
   cache: { enabled: boolean; ttl?: string };
+  firewall?: Firewall;
 }
 
 export interface Caps {

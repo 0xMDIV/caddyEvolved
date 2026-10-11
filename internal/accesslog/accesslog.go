@@ -28,11 +28,15 @@ type Entry struct {
 	Agent     string    `json:"agent,omitempty"`
 	Referer   string    `json:"referer,omitempty"`
 	Tags      []string  `json:"tags,omitempty"`
+	// Block names the rule that refused the request (log_append cev_block),
+	// or a guess from the status for the plugins that cannot tag.
+	Block string `json:"block,omitempty"`
 }
 
 type line struct {
 	TS        float64 `json:"ts"`
 	Msg       string  `json:"msg"`
+	Block     string  `json:"cev_block"`
 	Status    int     `json:"status"`
 	Size      int64   `json:"size"`
 	BytesRead int64   `json:"bytes_read"`
@@ -81,6 +85,10 @@ func Parse(raw []byte) (Entry, bool) {
 		IP:        ip,
 		Agent:     cut(first(l.Request.Headers["User-Agent"]), 300),
 		Referer:   cut(first(l.Request.Headers["Referer"]), 300),
+		Block:     cut(l.Block, 40),
+	}
+	if e.Block == "" && l.Status == 429 {
+		e.Block = "ratelimit"
 	}
 	e.Tags = Tags(e)
 	return e, true
@@ -168,7 +176,7 @@ func Tags(e Entry) []string {
 	if !contains(out, TagScanner) && containsAnyPrefix(path, scannerPaths) {
 		out = append(out, TagScanner)
 	}
-	if e.Status == 403 || e.Status == 429 {
+	if e.Block != "" || e.Status == 403 || e.Status == 429 {
 		out = append(out, TagBlocked)
 	}
 	if e.Status >= 500 {

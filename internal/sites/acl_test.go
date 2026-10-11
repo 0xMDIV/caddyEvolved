@@ -35,7 +35,7 @@ func TestACLValidate(t *testing.T) {
 	bad := []AccessList{
 		{ID: "a", Name: "x", Allow: []string{"10.0.0.0/8 }"}},
 		{ID: "a", Name: "x", Deny: []string{"evil.com"}},
-		{ID: "a", Name: "x", AllowCountries: []string{"DE"}},                      // no db
+		{ID: "a", Name: "x", AllowCountries: []string{"DE"}, GeoDB: "geo.mmdb"},   // relative db path
 		{ID: "a", Name: "x", Users: []ACLUser{{Username: "u", Hash: "plain"}}},    // not bcrypt
 		{ID: "a", Name: "x", Users: []ACLUser{{Username: "u x", Hash: testHash}}}, // bad name
 		{ID: "a", Name: "x"}, // empty

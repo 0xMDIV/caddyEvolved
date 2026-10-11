@@ -149,6 +149,7 @@ func (s *Server) StartBackground(ctx context.Context) {
 		})
 	}
 	go s.autoBackupLoop(ctx)
+	go s.firewallLoop(ctx)
 	go s.Sys.Run(ctx, 5*time.Second)
 	s.Analytics.Follow(ctx, s.Paths.AccessLog)
 }
@@ -175,26 +176,36 @@ func ensureCaddyOwned(dir string) error {
 // can. `caddy validate` provisions the loggers, and run by this root daemon
 // it would otherwise create the file as root 0600, which the caddy service
 // then cannot open. Cheap enough to run before every validation.
+// The same holds for every log file the managed config names, such as the
+// WAF log: a root-owned file there keeps caddy from starting at all.
 func (s *Server) ensureAccessLog() {
-	if s.Paths.IsPrefixed() || s.Analytics == nil {
+	if s.Paths.IsPrefixed() {
 		return
 	}
+	if s.Analytics != nil {
+		ensureCaddyFile(s.Paths.AccessLog)
+	}
+	ensureCaddyFile(s.wafLog())
+}
+
+// ensureCaddyFile creates path (if missing) owned by the caddy user, 0640.
+func ensureCaddyFile(path string) {
 	u, err := user.Lookup("caddy")
 	if err != nil {
 		return
 	}
 	uid, _ := strconv.Atoi(u.Uid)
 	gid, _ := strconv.Atoi(u.Gid)
-	f, err := os.OpenFile(s.Paths.AccessLog, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o640)
+	f, err := os.OpenFile(path, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o640)
 	if err != nil {
 		return
 	}
 	f.Close()
-	if st, err := os.Stat(s.Paths.AccessLog); err == nil {
+	if st, err := os.Stat(path); err == nil {
 		if sys, ok := fileOwner(st); ok && sys == uid {
 			return
 		}
 	}
-	os.Chown(s.Paths.AccessLog, uid, gid)
-	os.Chmod(s.Paths.AccessLog, 0o640)
+	os.Chown(path, uid, gid)
+	os.Chmod(path, 0o640)
 }

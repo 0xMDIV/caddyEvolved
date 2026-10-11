@@ -3,6 +3,7 @@ package sites
 import (
 	"fmt"
 	"net/url"
+	"path/filepath"
 	"regexp"
 	"strings"
 
@@ -146,6 +147,15 @@ type Options struct {
 	Caps   Caps
 	// StateDir keeps plugin state such as the tailscale node keys.
 	StateDir string
+	// FirewallLists are the downloaded public blocklists by id; GeoDB and
+	// ASNDB the DB-IP databases ("" while not downloaded). FirewallPath is
+	// set by the Manager: the rule file the sites import.
+	FirewallLists map[string][]string
+	GeoDB, ASNDB  string
+	FirewallPath  string
+	// WAFLog receives Coraza's rule matches, so the UI can name the rule
+	// behind a block; empty leaves them in caddy's own log.
+	WAFLog string
 }
 
 // LogRoll configures caddy's file rotation. Field names follow the zero
@@ -240,10 +250,21 @@ func RenderWith(s Site, acl *AccessList, opt Options) string {
 	body := renderBody(s)
 	if s.needsRoute(acl, opt) {
 		b.WriteString("\troute {\n")
-		if acl != nil {
-			b.WriteString(renderACL(*acl))
+		if s.firewallOn(opt) {
+			fmt.Fprintf(&b, "\t\timport %s\n", filepath.ToSlash(opt.FirewallPath))
 		}
-		b.WriteString(renderSecurity(s, opt))
+		if acl != nil {
+			b.WriteString(renderACL(*acl, opt))
+		}
+		if sec := renderSecurity(s, opt); sec != "" && s.trusted(opt) {
+			// Trusted addresses skip the filters, not the site's access list.
+			fmt.Fprintf(&b, "\t\t@cev_fw_untrusted not client_ip %s\n", strings.Join(opt.Global.Firewall.Allow, " "))
+			b.WriteString("\t\troute @cev_fw_untrusted {\n")
+			b.WriteString(indent(strings.TrimRight(sec, "\n")))
+			b.WriteString("\t\t}\n")
+		} else {
+			b.WriteString(sec)
+		}
 		b.WriteString(indent(strings.TrimRight(body, "\n")))
 		b.WriteString("\t}\n")
 	} else {

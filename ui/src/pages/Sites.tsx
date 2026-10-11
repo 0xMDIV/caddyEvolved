@@ -448,6 +448,14 @@ function SiteEditor({
               <span className="hint">IP-, Länder- und Login-Regeln. Anlegen unter „Access Lists“.</span>
             </label>
 
+            {g?.firewall?.enabled && (
+              <ToggleRow
+                checked={!site.noFirewall}
+                onChange={(v) => set("noFirewall", !v)}
+                label="Firewall"
+                hint="Gesperrte IPs, Sperrlisten, Länder und Netze (gilt für alle Sites, einstellbar unter „Firewall“). Ausschalten nur für Dienste, die jeder erreichen muss."
+              />
+            )}
             {compiled[FEATURE_PLUGINS.waf] && <WafFields value={site.waf} onChange={(v) => set("waf", v)} />}
             {compiled[FEATURE_PLUGINS.defender] && <DefenderFields value={site.defender} onChange={(v) => set("defender", v)} />}
             {compiled[FEATURE_PLUGINS.rateLimit] && <RateLimitFields value={site.rateLimit} onChange={(v) => set("rateLimit", v)} />}

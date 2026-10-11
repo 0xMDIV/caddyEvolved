@@ -101,12 +101,12 @@ func renderGuard(extra []string) string {
 	var b strings.Builder
 	b.WriteString("\t# Schutz: Dateien mit Zugangsdaten sind über den Proxy nie erreichbar (caddyEvolved, nicht abschaltbar)\n")
 	fmt.Fprintf(&b, "\t@cev_hidden {\n\t\tpath %s /*\n\t\tpath_regexp %s\n\t\tnot path_regexp %s\n\t}\n", guardPad, guardDotSegment, guardWellKnown)
-	fmt.Fprintf(&b, "\thandle @cev_hidden {\n\t\trespond 404\n\t}\n")
+	fmt.Fprintf(&b, "\thandle @cev_hidden {\n\t\tlog_append cev_block geschuetzt\n\t\trespond 404\n\t}\n")
 	fmt.Fprintf(&b, "\t@cev_secret {\n\t\tpath %s /*\n\t\tpath_regexp %s\n\t}\n", guardPad, guardFiles)
-	fmt.Fprintf(&b, "\thandle @cev_secret {\n\t\trespond 404\n\t}\n")
+	fmt.Fprintf(&b, "\thandle @cev_secret {\n\t\tlog_append cev_block geschuetzt\n\t\trespond 404\n\t}\n")
 	if len(extra) > 0 {
 		fmt.Fprintf(&b, "\t@cev_custom {\n\t\tpath %s %s\n\t}\n", guardPad, strings.Join(extra, " "))
-		fmt.Fprintf(&b, "\thandle @cev_custom {\n\t\trespond 404\n\t}\n")
+		fmt.Fprintf(&b, "\thandle @cev_custom {\n\t\tlog_append cev_block geschuetzt\n\t\trespond 404\n\t}\n")
 	}
 	return b.String()
 }

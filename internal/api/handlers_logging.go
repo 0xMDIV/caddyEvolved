@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"caddyevolved/internal/accesslog"
+	"caddyevolved/internal/blocklists"
 	"caddyevolved/internal/events"
 	"caddyevolved/internal/sites"
 )
@@ -61,9 +62,14 @@ func (ls logSettings) validate() error {
 // the running binary which optional modules it has, so features of a missing
 // plugin are left out instead of breaking the config.
 func (s *Server) siteOptions() sites.Options {
+	g := s.loadGlobal()
 	return sites.Options{
 		AccessLog: s.Paths.AccessLog, Roll: s.loadLogSettings().roll(), GuardExtra: s.loadProtect().Extra,
-		Global: s.loadGlobal(), Caps: s.caps(), StateDir: s.Paths.CaddyData,
+		Global: g, Caps: s.caps(), StateDir: s.Paths.CaddyData,
+		FirewallLists: blocklists.Load(s.listDir(), g.Firewall.Lists),
+		GeoDB:         blocklists.GeoPath(s.geoDir(), blocklists.GeoCountry),
+		ASNDB:         blocklists.GeoPath(s.geoDir(), blocklists.GeoASN),
+		WAFLog:        s.wafLog(),
 	}
 }
 

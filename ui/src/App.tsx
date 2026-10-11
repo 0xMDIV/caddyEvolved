@@ -19,6 +19,7 @@ import Mcp from "./pages/Mcp";
 import Backup from "./pages/Backup";
 import System from "./pages/System";
 import Toolbox from "./pages/Toolbox";
+import FirewallPage from "./pages/Firewall";
 import { useUpdateCheck } from "./components/update";
 import {
   Icon,
@@ -53,6 +54,7 @@ const NAV: { path: string; label: string; icon: Icon }[] = [
   { path: "/toolbox", label: "Toolbox", icon: IconTool },
   { path: "/sites", label: "Sites", icon: IconArrowsExchange },
   { path: "/import", label: "Import", icon: IconFileImport },
+  { path: "/firewall", label: "Firewall", icon: IconShieldCheck },
   { path: "/access-lists", label: "Access Lists", icon: IconShieldLock },
   { path: "/certificates", label: "Zertifikate", icon: IconCertificate },
   { path: "/build", label: "Plugins & Build", icon: IconPuzzle },
@@ -170,6 +172,9 @@ export default function App() {
   switch (pluginPage !== null ? "/plugin" : current?.path) {
     case "/plugin":
       page = <PluginPage page={pluginPage!} nav={pluginNav} />;
+      break;
+    case "/firewall":
+      page = <FirewallPage />;
       break;
     case "/access-lists":
       page = <AccessLists />;

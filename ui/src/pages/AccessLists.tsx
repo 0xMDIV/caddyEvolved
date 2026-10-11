@@ -167,7 +167,7 @@ function ACLEditor({ initial, geoAvailable, onDone }: { initial: AccessList | nu
   const [deny, setDeny] = useState((initial?.deny ?? []).join("\n"));
   const [allowCountries, setAllowCountries] = useState((initial?.allowCountries ?? []).join(" "));
   const [denyCountries, setDenyCountries] = useState((initial?.denyCountries ?? []).join(" "));
-  const [geoDb, setGeoDb] = useState(initial?.geoDb || "/var/lib/caddyevolved/GeoLite2-Country.mmdb");
+  const [geoDb, setGeoDb] = useState(initial?.geoDb ?? "");
   const [users, setUsers] = useState<UserRow[]>((initial?.users ?? []).map((u) => ({ username: u.username, password: "", hasPassword: u.hasPassword })));
   const [err, setErr] = useState<unknown>(null);
   const [saving, setSaving] = useState(false);
@@ -244,7 +244,7 @@ function ACLEditor({ initial, geoAvailable, onDone }: { initial: AccessList | nu
           {showGeo ? (
             <div className="feature">
               <div className="feature-head">
-                Länder <span className="hint">(MaxMind GeoLite2)</span>
+                Länder <span className="hint">(kostenlose DB-IP-Daten, ohne Account)</span>
                 {!geoAvailable && <Badge kind="warn">Geo-Plugin nicht in der Binary</Badge>}
               </div>
               <div className="form-grid">
@@ -257,9 +257,9 @@ function ACLEditor({ initial, geoAvailable, onDone }: { initial: AccessList | nu
                   <input value={denyCountries} placeholder="RU CN" onChange={(e) => setDenyCountries(e.target.value)} />
                 </label>
                 <label className="field full">
-                  Pfad zur GeoLite2-Country.mmdb
-                  <input value={geoDb} onChange={(e) => setGeoDb(e.target.value)} />
-                  <span className="hint">Datei muss auf dem Server liegen und für caddy lesbar sein.</span>
+                  Eigene Geo-Datenbank (optional)
+                  <input className="mono" value={geoDb} placeholder="leer = DB-IP Lite, lädt caddyEvolved automatisch" onChange={(e) => setGeoDb(e.target.value)} />
+                  <span className="hint">Nur für eine eigene MaxMind-Datei (.mmdb, für caddy lesbar). Das eigene Netz (private IPs) wird nie gesperrt.</span>
                 </label>
               </div>
             </div>

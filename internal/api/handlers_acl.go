@@ -109,6 +109,14 @@ func (s *Server) upsertACL(w http.ResponseWriter, r *http.Request, create bool) 
 		}
 		a.Users = append(a.Users, sites.ACLUser{Username: strings.TrimSpace(u.Username), Hash: hash})
 	}
+	if a.UsesGeo() && strings.TrimSpace(a.GeoDB) == "" {
+		// Country rules without an own database use DB-IP Lite; fetch it
+		// now, a silently skipped rule would leave the site open.
+		if err := s.ensureGeoRules(r.Context(), true, false); err != nil {
+			writeErr(w, http.StatusUnprocessableEntity, "invalid_site", "Eingaben prüfen", err.Error())
+			return
+		}
+	}
 	var reloaded bool
 	saved, err := s.Sites.UpsertACL(r.Context(), a, create, s.siteCommit(&reloaded))
 	verb := "geändert"

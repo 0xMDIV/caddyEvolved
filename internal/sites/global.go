@@ -20,6 +20,7 @@ type Global struct {
 	CrowdSec  CrowdSec  `json:"crowdsec"`
 	Tailscale Tailscale `json:"tailscale"`
 	Cache     Cache     `json:"cache"`
+	Firewall  Firewall  `json:"firewall"`
 }
 
 // RealIP makes caddy trust proxies in front of it, so access lists, rate
@@ -75,6 +76,8 @@ type Caps struct {
 	Cache        bool            `json:"cache"`
 	Brotli       bool            `json:"brotli"`
 	WebDAV       bool            `json:"webdav"`
+	Geo          bool            `json:"geo"` // maxmind_geolocation matcher
+	WAF          bool            `json:"waf"` // coraza
 	DNS          map[string]bool `json:"dns"` // provider names, e.g. "cloudflare"
 }
 
@@ -89,6 +92,8 @@ func CapsFromModules(mods map[string]bool) Caps {
 		Cache:        mods["http.handlers.cache"],
 		Brotli:       mods["http.encoders.br"],
 		WebDAV:       mods["http.handlers.webdav"],
+		Geo:          mods["http.matchers.maxmind_geolocation"],
+		WAF:          mods["http.handlers.waf"],
 		DNS:          map[string]bool{},
 	}
 	for m := range mods {
@@ -150,6 +155,7 @@ func (g *Global) Normalize() {
 	if g.Cache.TTL == "" {
 		g.Cache.TTL = "120s"
 	}
+	g.Firewall.Normalize()
 }
 
 // Validate reports every problem, worded for the UI.
@@ -198,6 +204,7 @@ func (g Global) Validate() error {
 	if g.Cache.Enabled && !reDuration.MatchString(g.Cache.TTL) {
 		problems = append(problems, "Cache: Dauer wie 120s oder 10m")
 	}
+	problems = append(problems, g.Firewall.validate()...)
 	if len(problems) > 0 {
 		return &ValidationError{Problems: problems}
 	}
@@ -284,6 +291,13 @@ func RenderGlobal(o Options) string {
 
 	if o.cacheOn() {
 		fmt.Fprintf(&b, "cache {\n\tttl %s\n}\n", g.Cache.TTL)
+	}
+
+	if c.WAF && o.WAFLog != "" {
+		// Coraza logs every rule match; a file of its own lets the Firewall
+		// page name the rule behind a block.
+		fmt.Fprintf(&b, "log cev_waf {\n\toutput file %s {\n\t\troll_size 10MiB\n\t\troll_keep 3\n\t}\n\tformat json\n\tinclude http.handlers.waf\n}\n",
+			filepath.ToSlash(o.WAFLog))
 	}
 	return b.String()
 }

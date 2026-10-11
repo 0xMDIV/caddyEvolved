@@ -21,7 +21,8 @@ type AccessList struct {
 	// caddy's shorthand for RFC1918 + loopback + ULA.
 	Allow []string `json:"allow,omitempty"`
 	Deny  []string `json:"deny,omitempty"`
-	// Countries are ISO-3166 alpha-2 codes; they need GeoDB.
+	// Countries are ISO-3166 alpha-2 codes. GeoDB is an own MaxMind-format
+	// database; empty uses the DB-IP Lite database caddyEvolved downloads.
 	AllowCountries []string `json:"allowCountries,omitempty"`
 	DenyCountries  []string `json:"denyCountries,omitempty"`
 	GeoDB          string   `json:"geoDb,omitempty"`
@@ -80,10 +81,9 @@ func (a AccessList) Validate() error {
 			problems = append(problems, fmt.Sprintf("Ländercode %q ungültig (zwei Buchstaben, z. B. DE)", c))
 		}
 	}
-	if len(a.AllowCountries)+len(a.DenyCountries) > 0 {
-		if !strings.HasPrefix(a.GeoDB, "/") || strings.ContainsAny(a.GeoDB, " \t\n{}\"") {
-			problems = append(problems, "Länderregeln brauchen den absoluten Pfad zur GeoLite2-Country.mmdb")
-		}
+	// Without an own database the DB-IP one caddyEvolved downloads is used.
+	if a.GeoDB != "" && (!strings.HasPrefix(a.GeoDB, "/") || strings.ContainsAny(a.GeoDB, " \t\n{}\"")) {
+		problems = append(problems, "Eigene Geo-Datenbank: absoluter Pfad zu einer .mmdb-Datei")
 	}
 	seen := map[string]bool{}
 	for _, u := range a.Users {

@@ -24,10 +24,11 @@ import (
 )
 
 const (
-	minuteKeep = 48 * time.Hour
-	hourKeep   = 35 * 24 * time.Hour
-	topKeep    = 200 // entries per top list per hour bucket
-	recentKeep = 300
+	minuteKeep  = 48 * time.Hour
+	hourKeep    = 35 * 24 * time.Hour
+	topKeep     = 200 // entries per top list per hour bucket
+	recentKeep  = 300
+	blockedKeep = 500
 )
 
 // Bucket aggregates requests of one host in one time slot.
@@ -64,7 +65,7 @@ func (b *Bucket) add(o *Bucket) {
 	}
 }
 
-func (b *Bucket) record(status int, size, read int64, dur float64) {
+func (b *Bucket) record(status int, size, read int64, dur float64, blocked bool) {
 	b.Requests++
 	switch {
 	case status >= 500:
@@ -76,7 +77,7 @@ func (b *Bucket) record(status int, size, read int64, dur float64) {
 	default:
 		b.S2xx++
 	}
-	if status == 403 || status == 429 {
+	if blocked || status == 403 || status == 429 {
 		b.Blocked++
 	}
 	b.Bytes += size
@@ -143,10 +144,13 @@ type hourTops struct {
 	Status   Top `json:"status"`
 	Referers Top `json:"referers"`
 	Tags     Top `json:"tags"`
+	// Blocks counts refusals by reason, BlockedIPs the refused clients.
+	Blocks     Top `json:"blocks"`
+	BlockedIPs Top `json:"blockedIps"`
 }
 
 func newTops() *hourTops {
-	return &hourTops{Paths: Top{}, IPs: Top{}, Agents: Top{}, Status: Top{}, Referers: Top{}, Tags: Top{}}
+	return &hourTops{Paths: Top{}, IPs: Top{}, Agents: Top{}, Status: Top{}, Referers: Top{}, Tags: Top{}, Blocks: Top{}, BlockedIPs: Top{}}
 }
 
 // Request is one entry of the live list.
@@ -161,6 +165,22 @@ type Request struct {
 	IP       string    `json:"ip"`
 	Agent    string    `json:"agent,omitempty"`
 	Tags     []string  `json:"tags,omitempty"`
+	Block    string    `json:"block,omitempty"`
+}
+
+// BlockReason names why a request was refused: the tag the firewall, access
+// list or guard wrote, else a guess from the status. A plain 403 comes from
+// a plugin that cannot tag (WAF, CrowdSec, bot filter) – or from the app.
+func BlockReason(tag string, status int) string {
+	switch {
+	case tag != "":
+		return tag
+	case status == 429:
+		return "ratelimit"
+	case status == 403:
+		return "403"
+	}
+	return ""
 }
 
 // Store holds all aggregates.
@@ -170,6 +190,7 @@ type Store struct {
 	hours   map[int64]map[string]*Bucket // unix hour -> host -> bucket
 	tops    map[int64]map[string]*hourTops
 	recent  []Request
+	blocked []Request
 	offset  int64 // read position in the log, persisted
 	inode   uint64
 	snap    string
@@ -204,8 +225,8 @@ func (s *Store) Ingest(line []byte) {
 	defer s.mu.Unlock()
 	minute := ts.Unix() / 60
 	hour := ts.Unix() / 3600
-	bucket(s.minutes, minute, host).record(e.Status, e.Size, e.BytesRead, e.Duration/1000)
-	bucket(s.hours, hour, host).record(e.Status, e.Size, e.BytesRead, e.Duration/1000)
+	bucket(s.minutes, minute, host).record(e.Status, e.Size, e.BytesRead, e.Duration/1000, e.Block != "")
+	bucket(s.hours, hour, host).record(e.Status, e.Size, e.BytesRead, e.Duration/1000, e.Block != "")
 	t := s.topsFor(hour, host)
 	t.Paths.inc(path)
 	t.IPs.inc(ip)
@@ -215,12 +236,23 @@ func (s *Store) Ingest(line []byte) {
 	for _, tag := range e.Tags {
 		t.Tags.inc(tag)
 	}
+	if reason := BlockReason(e.Block, e.Status); reason != "" {
+		t.Blocks.inc(reason)
+		t.BlockedIPs.inc(ip)
+	}
 	s.recent = append(s.recent, Request{
 		TS: ts, Host: host, Method: e.Method, URI: truncate(e.URI, 300), Status: e.Status,
 		Size: e.Size, Duration: e.Duration, IP: ip, Agent: agent, Tags: e.Tags,
+		Block: BlockReason(e.Block, e.Status),
 	})
 	if len(s.recent) > recentKeep {
 		s.recent = s.recent[len(s.recent)-recentKeep:]
+	}
+	if req := s.recent[len(s.recent)-1]; req.Block != "" {
+		s.blocked = append(s.blocked, req)
+		if len(s.blocked) > blockedKeep {
+			s.blocked = s.blocked[len(s.blocked)-blockedKeep:]
+		}
 	}
 }
 
@@ -250,6 +282,9 @@ func (s *Store) topsFor(hour int64, host string) *hourTops {
 		hosts[host] = t
 	}
 	// Snapshots from before tags existed load without the map.
+	if t.Blocks == nil {
+		t.Blocks, t.BlockedIPs = Top{}, Top{}
+	}
 	if t.Tags == nil {
 		t.Tags = Top{}
 	}
@@ -346,6 +381,8 @@ func (s *Store) Query(rng time.Duration, hosts []string) Report {
 			mergeTop(merged.Status, t.Status)
 			mergeTop(merged.Referers, t.Referers)
 			mergeTop(merged.Tags, t.Tags)
+			mergeTop(merged.Blocks, t.Blocks)
+			mergeTop(merged.BlockedIPs, t.BlockedIPs)
 		}
 	}
 	rep.Top["paths"] = topN(merged.Paths, 15)
@@ -354,6 +391,8 @@ func (s *Store) Query(rng time.Duration, hosts []string) Report {
 	rep.Top["status"] = topN(merged.Status, 20)
 	rep.Top["referers"] = topN(merged.Referers, 10)
 	rep.Top["tags"] = topN(merged.Tags, 10)
+	rep.Top["blocks"] = topN(merged.Blocks, 15)
+	rep.Top["blockedIps"] = topN(merged.BlockedIPs, 15)
 	return rep
 }
 
@@ -363,6 +402,18 @@ func point(t time.Time, b Bucket) Point {
 		p.AvgMs = math.Round(b.DurSum/float64(b.Requests)*100000) / 100
 	}
 	return p
+}
+
+// RecentBlocked returns the newest refused requests, newest first. They are
+// kept apart from the general list, which busy sites flush within seconds.
+func (s *Store) RecentBlocked(limit int) []Request {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	out := []Request{}
+	for i := len(s.blocked) - 1; i >= 0 && len(out) < limit; i-- {
+		out = append(out, s.blocked[i])
+	}
+	return out
 }
 
 // Recent returns the newest requests, newest first.
@@ -437,6 +488,7 @@ type snapshot struct {
 	Tops    map[int64]map[string]*hourTops `json:"tops"`
 	Offset  int64                          `json:"offset"`
 	Inode   uint64                         `json:"inode"`
+	Blocked []Request                      `json:"blocked,omitempty"`
 }
 
 func (s *Store) load() {
@@ -458,12 +510,13 @@ func (s *Store) load() {
 		s.tops = sn.Tops
 	}
 	s.offset, s.inode = sn.Offset, sn.Inode
+	s.blocked = sn.Blocked
 }
 
 // Save writes the snapshot atomically.
 func (s *Store) Save() error {
 	s.mu.Lock()
-	data, err := json.Marshal(snapshot{Minutes: s.minutes, Hours: s.hours, Tops: s.tops, Offset: s.offset, Inode: s.inode})
+	data, err := json.Marshal(snapshot{Minutes: s.minutes, Hours: s.hours, Tops: s.tops, Offset: s.offset, Inode: s.inode, Blocked: s.blocked})
 	s.mu.Unlock()
 	if err != nil {
 		return err

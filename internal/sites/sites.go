@@ -62,6 +62,8 @@ type Site struct {
 	// NoCrowdSec exempts the site from the CrowdSec bouncer, which otherwise
 	// runs on every site once it is set up.
 	NoCrowdSec bool `json:"noCrowdsec,omitempty"`
+	// NoFirewall exempts the site from the host-wide firewall rules.
+	NoFirewall bool `json:"noFirewall,omitempty"`
 	// Cache stores responses in the Souin cache.
 	Cache bool `json:"cache,omitempty"`
 	// Tailnet serves the site on the tailnet only, as this node name.
@@ -102,6 +104,7 @@ func New(file, dir, caddyfile string) *Manager {
 func (m *Manager) SetOptions(o Options) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
+	o.FirewallPath = m.FirewallFile()
 	m.opt = o
 }
 
@@ -123,6 +126,9 @@ func (m *Manager) NeedsSync() bool {
 		return false
 	}
 	if g, err := os.ReadFile(m.GlobalFile()); err != nil || string(g) != RenderGlobal(m.opt) {
+		return true
+	}
+	if !m.firewallCurrent() {
 		return true
 	}
 	if main, err := os.ReadFile(m.caddyfile); err == nil {
@@ -326,6 +332,7 @@ func (m *Manager) applyDoc(ctx context.Context, prev, next document, commit Comm
 	}
 	mainBefore, mainErr := os.ReadFile(m.caddyfile)
 	globalBefore, globalErr := os.ReadFile(m.GlobalFile())
+	fwBefore, fwErr := os.ReadFile(m.FirewallFile())
 
 	restore := func() {
 		restoreDir(m.dir, backup)
@@ -334,6 +341,9 @@ func (m *Manager) applyDoc(ctx context.Context, prev, next document, commit Comm
 		}
 		if globalErr == nil {
 			writeAtomic(m.GlobalFile(), globalBefore, 0o644)
+		}
+		if fwErr == nil {
+			writeAtomic(m.FirewallFile(), fwBefore, 0o644)
 		}
 		m.saveDoc(prev)
 	}
@@ -347,6 +357,10 @@ func (m *Manager) applyDoc(ctx context.Context, prev, next document, commit Comm
 		return err
 	}
 	if err := m.writeGlobal(); err != nil {
+		restore()
+		return err
+	}
+	if err := m.writeFirewall(); err != nil {
 		restore()
 		return err
 	}
