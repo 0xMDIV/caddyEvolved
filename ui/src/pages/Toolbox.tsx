@@ -182,9 +182,13 @@ function Took({ s }: { s: number }) {
 // ---------- Netzrechner ----------
 
 function CIDRTool({ networks }: { networks: string[] }) {
-  const [q, setQ] = useState(networks[0] ?? "192.168.1.0/24");
+  const [q, setQ] = useState(networks[0] ?? "");
   const [info, setInfo] = useState<CIDRInfo | null>(null);
   const [err, setErr] = useState("");
+  // The server's networks arrive after the first render.
+  useEffect(() => {
+    if (networks[0]) setQ((v) => v || networks[0]);
+  }, [networks]);
   useEffect(() => {
     if (!q.trim()) {
       setInfo(null);
@@ -643,14 +647,20 @@ function MDNSTool({ go }: { go: (t: Tab, host: string) => void }) {
                       </td>
                     </tr>
                     {list.map((s) => {
-                      const addr = s.addrs?.[0] || s.from;
+                      // Devices announce many IPv6 addresses; IPv4 first, the rest folded.
+                      const all = s.addrs?.length ? s.addrs : [s.from];
+                      const sorted = [...all.filter((a) => !a.includes(":")), ...all.filter((a) => a.includes(":"))];
+                      const addr = sorted[0];
                       return (
                         <tr key={s.instance + s.type}>
                           <td className="wrap-any">{s.instance}</td>
                           <td className="mono small wrap-any">{s.host || "–"}</td>
                           <td className="mono small">
-                            {(s.addrs?.length ? s.addrs : [s.from]).join(", ")}
-                            {s.port ? `:${s.port}` : ""}{" "}
+                            <span title={sorted.join("\n")}>
+                              {addr}
+                              {s.port ? `:${s.port}` : ""}
+                              {sorted.length > 1 && <span className="muted"> +{sorted.length - 1}</span>}
+                            </span>{" "}
                             {addr && (
                               <button className="btn sm ghost" onClick={() => go("ports", addr)}>
                                 Ports

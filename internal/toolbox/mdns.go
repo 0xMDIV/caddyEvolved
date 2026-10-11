@@ -2,11 +2,14 @@ package toolbox
 
 import (
 	"context"
+	"encoding/hex"
 	"fmt"
 	"net"
 	"sort"
 	"strings"
 	"time"
+	"unicode"
+	"unicode/utf8"
 
 	"golang.org/x/net/dns/dnsmessage"
 )
@@ -104,7 +107,10 @@ func BrowseMDNS(ctx context.Context, wait time.Duration) ([]MDNSService, error) 
 				ask(svc.Host, dnsmessage.TypeA)
 			case *dnsmessage.TXTResource:
 				svc := service(services, name, "")
-				svc.TXT = body.TXT
+				svc.TXT = make([]string, 0, len(body.TXT))
+				for _, t := range body.TXT {
+					svc.TXT = append(svc.TXT, printableTXT(t))
+				}
 			case *dnsmessage.AResource:
 				hosts[name] = appendUniq(hosts[name], net.IP(body.A[:]).String())
 			case *dnsmessage.AAAAResource:
@@ -216,4 +222,20 @@ func LookupDNS(ctx context.Context, name string) ([]DNSRecord, error) {
 		return nil, fmt.Errorf("%s: keine Einträge gefunden", name)
 	}
 	return out, nil
+}
+
+// printableTXT shows a TXT entry as text, or its value as hex when it is
+// binary (Thread border routers announce raw IDs this way).
+func printableTXT(t string) string {
+	key, val, ok := strings.Cut(t, "=")
+	if !ok {
+		key, val = "", t
+	}
+	if utf8.ValidString(val) && strings.IndexFunc(val, func(r rune) bool { return !unicode.IsPrint(r) }) < 0 {
+		return t
+	}
+	if !ok {
+		return "0x" + hex.EncodeToString([]byte(val))
+	}
+	return key + "=0x" + hex.EncodeToString([]byte(val))
 }

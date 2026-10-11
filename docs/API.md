@@ -283,3 +283,21 @@ veröffentlichen (Upstream `https://127.0.0.1:8484`, `upstreamInsecure: true`, m
 | `POST /api/caddyfile/validate` `{content}` | `{ok, output}` |
 | `POST /api/caddyfile/fmt` `{content}` | `{content}` |
 | `PUT /api/caddyfile` `{content}` | validieren, schreiben, reload. `{ok, output, reloaded}`; 422 `invalid_config` |
+
+## Toolbox (Netzwerk-Werkzeuge)
+
+Laufen auf dem Server. Die POST-Werkzeuge nur mit Login (nicht per API-Token) und eines nach dem
+anderen – läuft schon eines, kommt 409 `tool_busy`. Antwort: `{result, error, seconds}`; `error`
+kann bei einem Teilergebnis gesetzt sein.
+
+| Route | Antwort |
+|---|---|
+| `GET /api/tools` | `{networks:["192.168.10.0/24"], commonPorts:[…]}` |
+| `GET /api/tools/cidr?q=192.168.1.17/24` | `{network, version, address, broadcast, first, last, netmask, wildcard, bits, total, usable, private, contains}` |
+| `GET /api/tools/cidr?from=A&to=B` | `{cidrs:[…]}` kleinste CIDR-Liste für den Bereich |
+| `GET /api/tools/dns?name=` | `{records:[{type, value}]}` – A/AAAA/CNAME/MX/NS/TXT, bei einer IP PTR |
+| `POST /api/tools/ping` `{host, count}` | `{host, addr, sent, received, loss, minMs, avgMs, maxMs, replies:[{seq, rttMs, ttl}]}` (`rttMs` −1 = verloren) |
+| `POST /api/tools/traceroute` `{host, maxHops}` | `{addr, hops:[{ttl, addr, name, rttMs[], reached}]}` |
+| `POST /api/tools/ports` `{host, ports:"22,80,8000-8100"}` | `{addr, scanned, open:[{port, service, rttMs, banner}]}`; leere `ports` = häufige Ports |
+| `POST /api/tools/hosts` `{cidr}` | `{hosts:[{ip, rttMs, via:"icmp"\|"tcp", name, mac, self, openOn[]}]}` – höchstens /22 |
+| `POST /api/tools/mdns` `{seconds}` | `{services:[{instance, type, host, port, addrs[], txt[], from}]}` |

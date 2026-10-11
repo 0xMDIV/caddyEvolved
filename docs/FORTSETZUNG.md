@@ -4,7 +4,7 @@
 
 ## Wo wir stehen
 
-Letztes Release: **v0.10.0** (läuft auf dem Test-LXC 192.168.10.27). Release-Weg:
+Letztes Release: **v0.11.0** (läuft auf dem Test-LXC 192.168.10.27). Release-Weg:
 `git tag vX.Y.Z && git push origin vX.Y.Z` → GitHub Actions baut amd64/arm64 →
 auf dem Server `sudo caddyevolved update` oder Knopf unter Einstellungen → Updates.
 
@@ -19,29 +19,17 @@ Erledigt aus der Wunschliste:
 | v0.8.0 | Backup/Restore (`internal/backup`, Seite Backup, CLI `backup`/`restore`) |
 | v0.9.0 | Logger: Zugriffs-Log mit Filtern + Markierungen (Torrent, KI-Crawler, Bot, Scanner, Geblockt, Fehler), Rotation/gzip einstellbar (`internal/accesslog`) |
 | v0.10.0 | Traffic rein/raus pro Site (Analytics), Seite System mit CPU/RAM/Netz von Caddy und caddyEvolved (`internal/sysstat`) |
+| v0.11.0 | Toolbox: CIDR-Rechner, Ping, Traceroute, Port-Scan, IP-Scan, mDNS, DNS (`internal/toolbox`) |
 
-## In Arbeit: Toolbox (noch kein Release)
+## Toolbox (v0.11.0)
 
-**Backend fertig, getestet, committet – UI fehlt.**
-
-- `internal/toolbox/cidr.go` – CIDR-Rechner (v4/v6, Maske, Broadcast, nutzbare Hosts), IP-Bereich → CIDR-Liste
-- `internal/toolbox/icmp.go` – Ping und Traceroute über ICMP (raw Socket als root, sonst ping_group_range)
-- `internal/toolbox/scan.go` – Port-Scanner (TCP connect, Banner), Host-Scanner (ICMP-Sweep + TCP-Fallback, rDNS, MAC aus ARP), `LocalNetworks()`
-- `internal/toolbox/mdns.go` – mDNS-Browser (Legacy-Unicast-Abfrage, kein Konflikt mit avahi), DNS-Lookup
-- `internal/api/handlers_tools.go` – Endpunkte:
-  - `GET /api/tools` (lokale Netze, Standard-Ports), `GET /api/tools/cidr?q=` bzw. `?from=&to=`, `GET /api/tools/dns?name=`
-  - `POST /api/tools/ping {host,count}`, `/traceroute {host,maxHops}`, `/ports {host,ports}`, `/hosts {cidr}`, `/mdns {seconds}`
-  - Scanner nur mit Login (nicht per API-Token), ein Scan gleichzeitig (409 sonst)
-- Neue Abhängigkeit: `golang.org/x/net v0.30.0` (icmp, ipv4/ipv6, dnsmessage)
-
-**Nächste Schritte Toolbox:**
-
-1. `ui/src/pages/Toolbox.tsx`: Karten bzw. Tabs für CIDR-Rechner (live beim Tippen), Bereich→CIDR,
-   Ping, Traceroute, Port-Scan (Vorgabe „häufige Ports“), IP-Scan (Netz aus `/api/tools` vorschlagen),
-   mDNS, DNS-Lookup. Nav-Eintrag „Toolbox“ (Icon z. B. `IconTool`) in `App.tsx`, Route `/toolbox`.
-2. Auf dem LXC live testen: Ping/Traceroute zu 1.1.1.1, IP-Scan 192.168.10.0/24, mDNS im LAN,
-   Port-Scan auf 192.168.10.132. Im unprivilegierten LXC prüfen, ob raw ICMP geht.
-3. Doku (README-Tabelle, INSTALLATION.md), Release v0.11.0.
+- Backend: `internal/toolbox` (CIDR, ICMP-Ping/Traceroute, Port-/Host-Scan, mDNS, DNS), Endpunkte in
+  `internal/api/handlers_tools.go`, beschrieben in `docs/API.md` → Toolbox.
+- UI: `ui/src/pages/Toolbox.tsx`, Route `/toolbox`, Tabs (auch per `#ping` usw. in der URL).
+  IP-Scan und mDNS öffnen per Knopf Port-Scan bzw. Ping für ein Gerät.
+- Live auf dem LXC geprüft: raw ICMP geht im unprivilegierten LXC; Ping/Traceroute 1.1.1.1,
+  IP-Scan 192.168.10.0/24 (25 Geräte, ~11 s), mDNS (~20 Dienste), Port-Scan .132 (12 offen).
+  Binäre TXT-Werte (Thread-Router) werden als Hex angezeigt.
 
 ## Danach offen
 

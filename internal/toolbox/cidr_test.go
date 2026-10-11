@@ -103,3 +103,18 @@ func TestScanPortsLocal(t *testing.T) {
 		t.Fatalf("%+v %v", open, err)
 	}
 }
+
+func TestPrintableTXT(t *testing.T) {
+	for in, want := range map[string]string{
+		"version=1.4":       "version=1.4",
+		"xa=\x01\xff":       "xa=0x01ff",
+		"flag":              "flag",
+		"\x00\x01":          "0x0001",
+		"nn=ha-thread-9793": "nn=ha-thread-9793",
+		"name=Küche":        "name=Küche",
+	} {
+		if got := printableTXT(in); got != want {
+			t.Errorf("printableTXT(%q) = %q, want %q", in, got, want)
+		}
+	}
+}

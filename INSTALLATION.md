@@ -239,6 +239,9 @@ in der Sidebar unter *Plugins*.
   DNS und Zertifikate und sagt bei jedem Problem, was zu tun ist. Mit `--extern` testet es
   die Ports 80/443 zusätzlich von außen (über check-host.net, übermittelt nur IP und Port).
 - `caddyevolved status` zeigt den Zustand der Installation kompakt.
+- **Toolbox:** Ping, Traceroute, Port-Scan und DNS-Abfrage laufen auf dem Server – also aus Sicht
+  von Caddy. Antwortet das Ziel einer Site dort nicht, liegt es nicht an Caddy. Der IP-Scan findet
+  Geräte im LAN samt Name und MAC; von dort öffnet „Ports“ den Port-Scan für das Gerät.
 
 | Symptom | Ursache und Lösung |
 |---|---|

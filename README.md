@@ -23,6 +23,7 @@ bestehender Seiten: **[INSTALLATION.md](INSTALLATION.md)**.
 | **Schutz** | WAF (Coraza + OWASP Core Rule Set), Bot- und KI-Crawler-Abwehr, Rate Limit. |
 | **Analytics** | Graphen für Anfragen, Fehler, Geblockte und Antwortzeiten; Traffic rein und raus über Caddy, gesamt und pro Site; Top-Pfade, IPs, User-Agents, Markierungen; Live-Liste. |
 | **System** | Wie stark Caddy und caddyEvolved den Server belasten: CPU, RAM, Platte und Netzwerk im Verhältnis zum ganzen System, letzte Stunde. |
+| **Toolbox** | Netzwerk-Werkzeuge, die vom Server aus laufen: CIDR-Rechner und IP-Bereich → CIDR, Ping, Traceroute, Port-Scan, IP-Scan des LANs (Name, MAC), mDNS-Browser, DNS-Abfrage. |
 | **Logs** | Zugriffe aller Sites mit Filtern (Zeitraum, Site, Status, IP, Pfad, User-Agent, Dauer, Freitext) und Markierungen für Torrent, KI-Crawler, Bots, Scanner, Geblockte und Fehler; liest auch rotierte, komprimierte Dateien. Rotation und gzip-Kompression einstellbar. |
 | **Audit Log** | Wer hat wann was geändert – per Login, API-Token oder KI. |
 | **Backup** | Sites, Access Lists, Einstellungen, Zugangsdaten und optional Zertifikate sichern – verschlüsselt mit Passwort, täglich automatisch, Wiederherstellung mit Vorschau und automatischem Rollback. |
@@ -112,6 +113,7 @@ internal/builder/     lokaler xcaddy-Build: Go-Toolchain, Jobs, Live-Log, Aktivi
 internal/sites/       Sites, Access Lists, WAF/Bot/Rate-Limit-Rendering, transaktional
 internal/certs/       Zertifikate aus Caddys Speicher lesen
 internal/analytics/   Access-Log-Follower und Aggregation (Minute/Stunde, Top-Listen)
+internal/toolbox/    Netzwerk-Werkzeuge: CIDR, Ping/Traceroute (ICMP), Port- und Host-Scan, mDNS, DNS
 internal/importer/    Import aus Caddyfile, Zoraxy, Traefik, Nginx Proxy Manager
 internal/api/         HTTP-Routen, Auth-Middleware, SSE, MCP, self-signed TLS
 internal/auth/        PBKDF2-Passwort, Sessions, API-Tokens, Lockout
