@@ -191,6 +191,7 @@ func (s *Server) routes() *http.ServeMux {
 	m.HandleFunc("PUT /api/firewall", s.auth(s.handleFirewallSave))
 	m.HandleFunc("POST /api/firewall/quick", s.auth(s.handleFirewallQuick))
 	m.HandleFunc("POST /api/firewall/refresh", s.auth(s.handleFirewallRefresh))
+	m.HandleFunc("POST /api/firewall/lists/test", s.auth(s.handleFirewallListTest))
 	m.HandleFunc("GET /api/firewall/log", s.auth(s.handleFirewallLog))
 	m.HandleFunc("POST /api/firewall/bans/clear", s.auth(s.handleAutobanClear))
 

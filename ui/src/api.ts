@@ -361,6 +361,7 @@ export interface Firewall {
   allow?: string[];
   block?: string[];
   lists?: string[];
+  customLists?: CustomList[];
   blockCountries?: string[];
   allowCountries?: string[];
   blockAsn?: number[];
@@ -389,12 +390,19 @@ export interface Ban {
   times: number;
   hits: number;
 }
+export interface CustomList {
+  id: string;
+  name: string;
+  url: string;
+}
 export interface FirewallList {
   id: string;
   name: string;
   desc: string;
   source: string;
   license: string;
+  level: "sicher" | "mittel" | "streng" | "";
+  custom?: boolean;
   entries: number;
   updated?: string;
 }

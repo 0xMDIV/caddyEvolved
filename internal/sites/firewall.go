@@ -20,8 +20,11 @@ type Firewall struct {
 	// Allow are trusted addresses (whitelist), Block refused ones (blacklist).
 	Allow []string `json:"allow,omitempty"`
 	Block []string `json:"block,omitempty"`
-	// Lists are public blocklists by catalog id (blocklists.Catalog).
+	// Lists are the active blocklists: catalog ids (blocklists.Catalog) or
+	// ids of CustomLists.
 	Lists []string `json:"lists,omitempty"`
+	// CustomLists are lists the operator added by URL.
+	CustomLists []CustomList `json:"customLists,omitempty"`
 	// Countries are ISO codes. With AllowCountries set, only those pass;
 	// private addresses always pass, the plugin would see them as unknown.
 	BlockCountries []string `json:"blockCountries,omitempty"`
@@ -32,6 +35,29 @@ type Firewall struct {
 	Drop bool `json:"drop"`
 	// AutoBan blocks addresses by what they do, see AutoBan.
 	AutoBan AutoBan `json:"autoBan"`
+}
+
+// CustomList is a blocklist the operator added: one IP or CIDR per line,
+// comments after # or ;, as most published lists are.
+type CustomList struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+	URL  string `json:"url"`
+}
+
+var reCustomList = regexp.MustCompile(`^` + blocklists.CustomPrefix + `[a-z0-9-]{1,40}$`)
+
+// ListByID finds an active list in the catalog or among the custom ones.
+func (f Firewall) ListByID(id string) (blocklists.List, bool) {
+	if l, ok := blocklists.ByID(id); ok {
+		return l, true
+	}
+	for _, c := range f.CustomLists {
+		if c.ID == id {
+			return blocklists.List{ID: c.ID, Name: c.Name, URLs: []string{c.URL}, Source: c.URL, Custom: true}, true
+		}
+	}
+	return blocklists.List{}, false
 }
 
 // AutoBan blocks clients automatically: a request to a trap path (or to a
@@ -106,6 +132,15 @@ func (f *Firewall) Normalize() {
 	f.AllowCountries = slices.Compact(f.AllowCountries)
 	slices.Sort(f.BlockASN)
 	f.BlockASN = slices.Compact(f.BlockASN)
+	for i := range f.CustomLists {
+		c := &f.CustomLists[i]
+		c.ID, c.Name, c.URL = strings.TrimSpace(c.ID), strings.TrimSpace(c.Name), strings.TrimSpace(c.URL)
+	}
+	// An active id whose custom list is gone would fail validation forever.
+	f.Lists = slices.DeleteFunc(f.Lists, func(id string) bool {
+		_, ok := f.ListByID(id)
+		return !ok && strings.HasPrefix(id, blocklists.CustomPrefix)
+	})
 	f.AutoBan.Traps = cleanList(f.AutoBan.Traps)
 	slices.Sort(f.AutoBan.Traps)
 	f.AutoBan.Traps = slices.Compact(f.AutoBan.Traps)
@@ -124,9 +159,24 @@ func (f Firewall) validate() []string {
 		}
 	}
 	for _, id := range f.Lists {
-		if _, ok := blocklists.ByID(id); !ok {
+		if _, ok := f.ListByID(id); !ok {
 			problems = append(problems, fmt.Sprintf("Firewall: unbekannte Sperrliste %q", id))
 		}
+	}
+	if len(f.CustomLists) > 30 {
+		problems = append(problems, "Firewall: höchstens 30 eigene Sperrlisten")
+	}
+	seen := map[string]bool{}
+	for _, c := range f.CustomLists {
+		switch {
+		case !reCustomList.MatchString(c.ID) || seen[c.ID]:
+			problems = append(problems, fmt.Sprintf("Firewall: eigene Sperrliste %q braucht eine eindeutige ID", c.Name))
+		case strings.TrimSpace(c.Name) == "" || len(c.Name) > 80:
+			problems = append(problems, "Firewall: eigene Sperrliste braucht einen Namen (bis 80 Zeichen)")
+		case !blocklists.ValidURL(c.URL):
+			problems = append(problems, fmt.Sprintf("Firewall: Sperrliste %q – Adresse muss mit https:// oder http:// beginnen", c.Name))
+		}
+		seen[c.ID] = true
 	}
 	for _, c := range append(append([]string{}, f.BlockCountries...), f.AllowCountries...) {
 		if !reCountry.MatchString(c) {
@@ -222,10 +272,20 @@ func RenderFirewall(o Options) string {
 		}
 	}
 
+	// Lists overlap a lot (FireHOL contains Spamhaus, …): each entry once.
 	var blocked []string
-	blocked = append(blocked, f.Block...)
+	seenIP := map[string]bool{}
+	add := func(l []string) {
+		for _, r := range l {
+			if !seenIP[r] {
+				seenIP[r] = true
+				blocked = append(blocked, r)
+			}
+		}
+	}
+	add(f.Block)
 	for _, id := range f.Lists {
-		blocked = append(blocked, o.FirewallLists[id]...)
+		add(o.FirewallLists[id])
 	}
 	if len(blocked) > 0 {
 		b.WriteString("\t\t@cev_fw_ip {\n")

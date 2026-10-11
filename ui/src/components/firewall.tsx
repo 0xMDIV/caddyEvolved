@@ -3,6 +3,7 @@ import { api, Firewall, FirewallResponse } from "../api";
 import { navigate } from "../router";
 import { CountryPicker, COUNTRY_PRESETS } from "./countries";
 import { ListArea } from "./features";
+import { Blocklists } from "./blocklists";
 import { Badge, Switch, useAction } from "./ui";
 
 // Data-center networks: real visitors rarely come from there, scanners do.
@@ -40,7 +41,6 @@ export function FirewallRules({ data, onSaved }: { data: FirewallResponse; onSav
   const set = <K extends keyof Firewall>(k: K, v: Firewall[K]) => setF((x) => ({ ...x, [k]: v }));
   const asn = new Set(f.blockAsn ?? []);
   const toggleAsn = (a: number, on: boolean) => set("blockAsn", on ? [...asn, a] : [...asn].filter((x) => x !== a));
-  const lists = new Set(f.lists ?? []);
 
   const save = () => {
     const extra = asnText.split(/[\s,;]+/).map((x) => parseInt(x.replace(/^AS/i, ""), 10)).filter((n) => n > 0);
@@ -102,28 +102,14 @@ export function FirewallRules({ data, onSaved }: { data: FirewallResponse; onSav
 
       <div className="card stack" style={{ gap: 10 }}>
         <div className="row">
-          <h2 style={{ margin: 0, fontSize: 15 }}>Öffentliche Sperrlisten</h2>
+          <h2 style={{ margin: 0, fontSize: 15 }}>Sperrlisten</h2>
           <span className="spacer" />
           <button className="btn sm" onClick={refresh} disabled={busy === "refresh"}>
             {busy === "refresh" ? "Lädt…" : "Jetzt aktualisieren"}
           </button>
         </div>
-        <span className="hint">Werden täglich automatisch geladen. Private und reservierte Netze darin werden immer übersprungen.</span>
-        {data.lists.map((l) => (
-          <label key={l.id} className="check" style={{ alignItems: "flex-start" }}>
-            <input type="checkbox" checked={lists.has(l.id)} onChange={(e) => set("lists", e.target.checked ? [...lists, l.id] : [...lists].filter((x) => x !== l.id))} />
-            <span>
-              <b>{l.name}</b> <span className="muted small">– {l.desc}</span>
-              <br />
-              <span className="muted small">
-                {l.entries ? `${l.entries.toLocaleString("de-DE")} Einträge, Stand ${fmtDate(l.updated)}` : "noch nicht geladen"} ·{" "}
-                <a href={l.source} target="_blank" rel="noreferrer">
-                  Quelle
-                </a>
-              </span>
-            </span>
-          </label>
-        ))}
+        <span className="hint">Werden täglich automatisch geladen. Private und reservierte Netze darin werden immer übersprungen; dein LAN bleibt also erreichbar.</span>
+        <Blocklists lists={data.lists} f={f} onChange={setF} />
       </div>
 
       {needsGeo && !data.caps.geo && (

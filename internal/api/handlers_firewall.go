@@ -56,16 +56,23 @@ type listOut struct {
 
 func (s *Server) handleFirewallGet(w http.ResponseWriter, r *http.Request) {
 	caps := s.Sites.Options().Caps
-	stats := map[string]blocklists.Info{}
-	for _, i := range blocklists.Stat(s.listDir()) {
-		stats[i.ID] = i
+	fw := s.loadGlobal().Firewall
+	all := slices.Clone(blocklists.Catalog)
+	for _, c := range fw.CustomLists {
+		l, _ := fw.ListByID(c.ID)
+		all = append(all, l)
 	}
-	lists := make([]listOut, 0, len(blocklists.Catalog))
-	for _, l := range blocklists.Catalog {
+	ids := make([]string, len(all))
+	for i, l := range all {
+		ids[i] = l.ID
+	}
+	stats := blocklists.Stat(s.listDir(), ids)
+	lists := make([]listOut, 0, len(all))
+	for _, l := range all {
 		lists = append(lists, listOut{List: l, Entries: stats[l.ID].Entries, Updated: stats[l.ID].Updated})
 	}
 	out := map[string]any{
-		"firewall": s.loadGlobal().Firewall,
+		"firewall": fw,
 		"lists":    lists,
 		"geo": map[string]geoInfo{
 			"country": geoState(s.geoDir(), blocklists.GeoCountry),
@@ -90,11 +97,18 @@ func (s *Server) handleFirewallSave(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	g := s.loadGlobal()
+	before := g.Firewall
 	g.Firewall = f
 	g.Normalize()
 	if err := g.Validate(); err != nil {
 		s.siteError(w, r, err)
 		return
+	}
+	// A custom list with a new address is downloaded again.
+	for _, c := range g.Firewall.CustomLists {
+		if old, ok := before.ListByID(c.ID); ok && old.URLs[0] != c.URL {
+			blocklists.Remove(s.listDir(), c.ID)
+		}
 	}
 	if err := s.ensureFirewallData(r.Context(), g.Firewall, false); err != nil {
 		writeErr(w, http.StatusUnprocessableEntity, "invalid_site", "Firewall-Daten fehlen", err.Error())
@@ -105,7 +119,37 @@ func (s *Server) handleFirewallSave(w http.ResponseWriter, r *http.Request) {
 		s.siteError(w, r, err)
 		return
 	}
+	for _, c := range before.CustomLists {
+		if _, ok := g.Firewall.ListByID(c.ID); !ok {
+			blocklists.Remove(s.listDir(), c.ID)
+		}
+	}
 	writeJSON(w, http.StatusOK, map[string]any{"firewall": g.Firewall, "reloaded": reloaded})
+}
+
+// handleFirewallListTest downloads a list without saving it, so the
+// operator sees before adding it whether the address works.
+func (s *Server) handleFirewallListTest(w http.ResponseWriter, r *http.Request) {
+	var in struct {
+		URL string `json:"url"`
+	}
+	if err := decode(r, &in); err != nil {
+		writeErr(w, http.StatusBadRequest, "bad_request", errText(err))
+		return
+	}
+	in.URL = strings.TrimSpace(in.URL)
+	if !blocklists.ValidURL(in.URL) {
+		writeErr(w, http.StatusBadRequest, "bad_request", "Adresse muss mit https:// oder http:// beginnen")
+		return
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), 90*time.Second)
+	defer cancel()
+	entries, err := blocklists.Fetch(ctx, []string{in.URL})
+	if err != nil {
+		writeErr(w, http.StatusBadGateway, "download", err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"entries": len(entries), "sample": entries[:min(len(entries), 5)], "limited": len(entries) >= blocklists.MaxEntries})
 }
 
 // handleFirewallQuick adds one address to the block or allow list, the
@@ -194,7 +238,11 @@ func (s *Server) ensureFirewallData(ctx context.Context, f sites.Firewall, force
 		if !force && age < 20*time.Hour {
 			continue
 		}
-		if _, err := blocklists.Update(ctx, s.listDir(), id); err != nil && age > 1<<61 {
+		l, ok := f.ListByID(id)
+		if !ok {
+			continue
+		}
+		if _, err := blocklists.Update(ctx, s.listDir(), l); err != nil && age > 1<<61 {
 			errs = append(errs, err)
 		}
 	}

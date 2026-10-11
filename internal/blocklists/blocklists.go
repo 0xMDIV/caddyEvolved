@@ -13,6 +13,7 @@ import (
 	"io"
 	"net/http"
 	"net/netip"
+	"net/url"
 	"os"
 	"path/filepath"
 	"slices"
@@ -23,33 +24,92 @@ import (
 
 // List is one public blocklist.
 type List struct {
-	ID      string   `json:"id"`
-	Name    string   `json:"name"`
-	Desc    string   `json:"desc"`
-	URLs    []string `json:"-"`
-	Source  string   `json:"source"`
-	License string   `json:"license"`
+	ID     string   `json:"id"`
+	Name   string   `json:"name"`
+	Desc   string   `json:"desc"`
+	URLs   []string `json:"urls"`
+	Source string   `json:"source"`
+	// Level says how likely real visitors are hit: "sicher" (almost
+	// never), "mittel" or "streng" (recent reports, some false alarms).
+	Level   string `json:"level"`
+	License string `json:"license"`
+	Custom  bool   `json:"custom,omitempty"`
 }
 
-// Catalog are the lists the firewall offers. All are free for this use and
-// conservative enough that a home server will not lock out real visitors.
+// Catalog are the lists the firewall offers, all free for this use.
 var Catalog = []List{
 	{
-		ID: "spamhaus-drop", Name: "Spamhaus DROP",
+		ID: "spamhaus-drop", Name: "Spamhaus DROP", Level: "sicher",
 		Desc:    "Gekaperte Netze und Netze krimineller Betreiber. Sehr wenige Fehlalarme – die sichere Grundlage.",
 		URLs:    []string{"https://www.spamhaus.org/drop/drop.txt", "https://www.spamhaus.org/drop/drop_v6.txt"},
 		Source:  "https://www.spamhaus.org/blocklists/do-not-route-or-peer/",
 		License: "frei nutzbar (Spamhaus DROP)",
 	},
 	{
-		ID: "firehol-level1", Name: "FireHOL Level 1",
+		ID: "firehol-level1", Name: "FireHOL Level 1", Level: "sicher",
 		Desc:    "Sammelliste bekannter Angreifer (DShield, Feodo, Spamhaus u. a.). Für Firewalls gedacht, wenige Fehlalarme.",
 		URLs:    []string{"https://iplists.firehol.org/files/firehol_level1.netset"},
 		Source:  "https://iplists.firehol.org/?ipset=firehol_level1",
 		License: "frei nutzbar (FireHOL)",
 	},
 	{
-		ID: "tor-exit", Name: "Tor-Exit-Knoten",
+		ID: "dshield", Name: "DShield Top 20", Level: "sicher",
+		Desc:    "Die 20 Netze, aus denen in den letzten Tagen am meisten angegriffen wurde (SANS Internet Storm Center).",
+		URLs:    []string{"https://iplists.firehol.org/files/dshield.netset"},
+		Source:  "https://isc.sans.edu/block.txt",
+		License: "frei nutzbar (SANS ISC)",
+	},
+	{
+		ID: "et-compromised", Name: "Emerging Threats: kompromittierte Hosts", Level: "sicher",
+		Desc:    "Übernommene Rechner, die gerade für Angriffe genutzt werden (Proofpoint).",
+		URLs:    []string{"https://rules.emergingthreats.net/blockrules/compromised-ips.txt"},
+		Source:  "https://rules.emergingthreats.net/blockrules/",
+		License: "frei nutzbar (Proofpoint ET Open)",
+	},
+	{
+		ID: "firehol-level2", Name: "FireHOL Level 2", Level: "mittel",
+		Desc:    "Angriffe der letzten 48 Stunden aus mehreren Quellen (blocklist.de, GreenSnow, DShield …).",
+		URLs:    []string{"https://iplists.firehol.org/files/firehol_level2.netset"},
+		Source:  "https://iplists.firehol.org/?ipset=firehol_level2",
+		License: "frei nutzbar (FireHOL)",
+	},
+	{
+		ID: "blocklist-de", Name: "blocklist.de", Level: "mittel",
+		Desc:    "Von fail2ban-Servern gemeldete Angreifer der letzten 48 Stunden: SSH, Mail, Web, Brute Force.",
+		URLs:    []string{"https://lists.blocklist.de/lists/all.txt"},
+		Source:  "https://www.blocklist.de/",
+		License: "frei nutzbar (blocklist.de)",
+	},
+	{
+		ID: "cins-army", Name: "CINS Army", Level: "mittel",
+		Desc:    "Adressen mit schlechtem Ruf aus dem Sentinel-IPS-Netz von Collective Intelligence.",
+		URLs:    []string{"https://cinsscore.com/list/ci-badguys.txt"},
+		Source:  "https://cinsscore.com/",
+		License: "frei nutzbar (CINS Score)",
+	},
+	{
+		ID: "greensnow", Name: "GreenSnow", Level: "mittel",
+		Desc:    "Von GreenSnow-Sensoren erkannte Angreifer: Scans, Brute Force, Spam.",
+		URLs:    []string{"https://blocklist.greensnow.co/greensnow.txt"},
+		Source:  "https://greensnow.co/",
+		License: "frei nutzbar (GreenSnow)",
+	},
+	{
+		ID: "ipsum-3", Name: "IPsum (Stufe 3)", Level: "mittel",
+		Desc:    "Adressen, die auf mindestens 3 von über 30 öffentlichen Sperrlisten stehen – täglich neu.",
+		URLs:    []string{"https://raw.githubusercontent.com/stamparm/ipsum/master/levels/3.txt"},
+		Source:  "https://github.com/stamparm/ipsum",
+		License: "Unlicense (stamparm/ipsum)",
+	},
+	{
+		ID: "firehol-level3", Name: "FireHOL Level 3", Level: "streng",
+		Desc:    "Angriffe der letzten 30 Tage. Erwischt mehr, sperrt aber auch neu vergebene Adressen ehemaliger Angreifer.",
+		URLs:    []string{"https://iplists.firehol.org/files/firehol_level3.netset"},
+		Source:  "https://iplists.firehol.org/?ipset=firehol_level3",
+		License: "frei nutzbar (FireHOL)",
+	},
+	{
+		ID: "tor-exit", Name: "Tor-Exit-Knoten", Level: "streng",
 		Desc:    "Anfragen aus dem Tor-Netz. Sperrt auch harmlose Tor-Nutzer – nur bei Bedarf.",
 		URLs:    []string{"https://check.torproject.org/torbulkexitlist"},
 		Source:  "https://check.torproject.org/",
@@ -67,8 +127,17 @@ func ByID(id string) (List, bool) {
 	return List{}, false
 }
 
-// maxEntries keeps a broken upstream from bloating the Caddyfile.
-const maxEntries = 30000
+// CustomPrefix marks the ids of lists the operator added by URL.
+const CustomPrefix = "eigene-"
+
+// ValidURL reports whether u can be fetched as a list.
+func ValidURL(u string) bool {
+	p, err := url.Parse(u)
+	return err == nil && (p.Scheme == "https" || p.Scheme == "http") && p.Host != "" && len(u) <= 1000
+}
+
+// MaxEntries keeps a broken upstream from bloating the Caddyfile.
+const MaxEntries = 30000
 
 // special are ranges no public list may block: the operator's own network,
 // loopback and documentation space. FireHOL level 1 ships the bogons,
@@ -92,12 +161,14 @@ func Parse(r io.Reader) []string {
 	var out []string
 	sc := bufio.NewScanner(r)
 	sc.Buffer(make([]byte, 64*1024), 1024*1024)
-	for sc.Scan() && len(out) < maxEntries {
+	for sc.Scan() && len(out) < MaxEntries {
 		line := sc.Text()
 		if i := strings.IndexAny(line, "#;"); i >= 0 {
 			line = line[:i]
 		}
-		f := strings.Fields(line)
+		// The address is the first field, separated by blanks or commas
+		// (CSV exports, "ip<TAB>count" as in IPsum).
+		f := strings.FieldsFunc(line, func(r rune) bool { return r == ' ' || r == '\t' || r == ',' || r == '\r' })
 		if len(f) == 0 {
 			continue
 		}
@@ -157,19 +228,24 @@ func Load(dir string, ids []string) map[string][]string {
 	return out
 }
 
-// Stat reports what is on disk for every catalog list.
-func Stat(dir string) []Info {
-	var out []Info
-	for _, l := range Catalog {
-		i := Info{ID: l.ID}
-		if st, err := os.Stat(listFile(dir, l.ID)); err == nil {
-			i.Updated = st.ModTime().UTC()
-			i.Entries = len(Load(dir, []string{l.ID})[l.ID])
+// Stat reports what is on disk for the given lists.
+func Stat(dir string, ids []string) map[string]Info {
+	out := map[string]Info{}
+	for _, id := range ids {
+		i := Info{ID: id}
+		if data, err := os.ReadFile(listFile(dir, id)); err == nil {
+			if st, err := os.Stat(listFile(dir, id)); err == nil {
+				i.Updated = st.ModTime().UTC()
+			}
+			i.Entries = bytes.Count(data, []byte("\n"))
 		}
-		out = append(out, i)
+		out[id] = i
 	}
 	return out
 }
+
+// Remove deletes a stored list (a custom list the operator dropped).
+func Remove(dir, id string) { os.Remove(listFile(dir, id)) }
 
 // Age is how old a stored list is; missing lists are infinitely old.
 func Age(dir, id string) time.Duration {
@@ -208,23 +284,11 @@ func get(ctx context.Context, url string, limit int64) ([]byte, error) {
 
 // Update downloads one list. An empty result keeps the old file: an upstream
 // hiccup must not silently switch a list off.
-func Update(ctx context.Context, dir, id string) (Info, error) {
-	l, ok := ByID(id)
-	if !ok {
-		return Info{ID: id}, fmt.Errorf("unbekannte Liste %q", id)
-	}
-	var buf bytes.Buffer
-	for _, u := range l.URLs {
-		data, err := get(ctx, u, 16<<20)
-		if err != nil {
-			return Info{ID: id, Error: err.Error()}, err
-		}
-		buf.Write(data)
-		buf.WriteByte('\n')
-	}
-	entries := Parse(&buf)
-	if len(entries) == 0 {
-		err := fmt.Errorf("%s: keine Einträge erhalten", l.Name)
+func Update(ctx context.Context, dir string, l List) (Info, error) {
+	id := l.ID
+	entries, err := Fetch(ctx, l.URLs)
+	if err != nil {
+		err = fmt.Errorf("%s: %w", l.Name, err)
 		return Info{ID: id, Error: err.Error()}, err
 	}
 	if err := os.MkdirAll(dir, 0o755); err != nil {
@@ -234,6 +298,25 @@ func Update(ctx context.Context, dir, id string) (Info, error) {
 		return Info{ID: id}, err
 	}
 	return Info{ID: id, Entries: len(entries), Updated: time.Now().UTC()}, nil
+}
+
+// Fetch downloads and parses the URLs of one list. A list without a single
+// address is an error: most likely an HTML page or a changed format.
+func Fetch(ctx context.Context, urls []string) ([]string, error) {
+	var buf bytes.Buffer
+	for _, u := range urls {
+		data, err := get(ctx, u, 16<<20)
+		if err != nil {
+			return nil, err
+		}
+		buf.Write(data)
+		buf.WriteByte('\n')
+	}
+	entries := Parse(&buf)
+	if len(entries) == 0 {
+		return nil, errors.New("keine IP-Adressen gefunden – eine Adresse oder ein Bereich pro Zeile erwartet")
+	}
+	return entries, nil
 }
 
 // writeAtomic writes a world-readable file: caddy runs as its own user and

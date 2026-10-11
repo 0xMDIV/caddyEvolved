@@ -26,3 +26,10 @@ not-an-ip
 		t.Errorf("Parse = %v, erwartet %v", got, want)
 	}
 }
+
+func TestParseSeparators(t *testing.T) {
+	got := Parse(strings.NewReader("45.43.60.98\t7\n66.132.224.94,scanner\n# x\n"))
+	if len(got) != 2 || got[0] != "45.43.60.98/32" || got[1] != "66.132.224.94/32" {
+		t.Fatalf("got %v", got)
+	}
+}

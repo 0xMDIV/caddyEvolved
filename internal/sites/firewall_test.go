@@ -202,3 +202,29 @@ func TestRenderAutoBan(t *testing.T) {
 		t.Errorf("validate = %v", p)
 	}
 }
+
+func TestCustomLists(t *testing.T) {
+	f := Firewall{
+		Lists:       []string{"spamhaus-drop", "eigene-meine", "eigene-weg"},
+		CustomLists: []CustomList{{ID: "eigene-meine", Name: " Meine ", URL: " https://example.com/l.txt "}},
+	}
+	f.Normalize()
+	if len(f.Lists) != 2 || f.CustomLists[0].URL != "https://example.com/l.txt" {
+		t.Fatalf("normalize: %+v", f)
+	}
+	if p := f.validate(); len(p) != 0 {
+		t.Fatalf("validate: %v", p)
+	}
+	if l, ok := f.ListByID("eigene-meine"); !ok || !l.Custom || l.URLs[0] != "https://example.com/l.txt" {
+		t.Fatalf("ListByID: %+v", l)
+	}
+	bad := Firewall{CustomLists: []CustomList{{ID: "x", Name: "a", URL: "https://a"}, {ID: "eigene-b", Name: "b", URL: "ftp://b"}}}
+	if p := bad.validate(); len(p) != 2 {
+		t.Fatalf("validate bad: %v", p)
+	}
+	// Overlapping lists render each entry once.
+	o := fwOptions(Firewall{Block: []string{"2.56.0.0/16"}, Lists: []string{"spamhaus-drop"}})
+	if got := RenderFirewall(o); strings.Count(got, "2.56.0.0/16") != 1 {
+		t.Fatalf("doppelt:\n%s", got)
+	}
+}
