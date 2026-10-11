@@ -111,6 +111,7 @@ export interface PluginState {
   docs?: string;
   standard: boolean;
   deprecated?: boolean;
+  recommended?: boolean;
   license?: string;
   licenseRisk?: string;
   conflicts?: string[];

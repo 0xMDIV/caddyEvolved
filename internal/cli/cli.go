@@ -19,6 +19,7 @@ import (
 	"syscall"
 
 	"caddyevolved/internal/buildinfo"
+	"caddyevolved/internal/tui"
 )
 
 // version is what the version command prints.
@@ -84,6 +85,12 @@ func Run(args []string, stdout, stderr io.Writer) int {
 	switch {
 	case err == nil:
 		return 0
+	case errors.Is(err, tui.ErrAborted):
+		// The UI already said so on screen.
+		return 130
+	case errors.Is(err, context.Canceled):
+		fmt.Fprintln(stderr, "Abgebrochen.")
+		return 130
 	case errors.Is(err, context.DeadlineExceeded):
 		fmt.Fprintln(stderr, "Zeitüberschreitung")
 		return 124

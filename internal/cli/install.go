@@ -3,6 +3,7 @@ package cli
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -11,6 +12,7 @@ import (
 
 	"caddyevolved/internal/config"
 	"caddyevolved/internal/install"
+	"caddyevolved/internal/tui"
 )
 
 // installFlags is the parsed command line of `caddyevolved install`.
@@ -85,11 +87,13 @@ func cmdInstall(ctx context.Context, args []string, stdout, stderr io.Writer) er
 	}
 	l := newLayout(ctx, firstNonEmpty(f.prefix, f.root))
 
-	answers, err := f.collectAnswers(ctx, l, stdout)
+	answers, confirmed, err := f.collectAnswers(ctx, l, stdout)
+	if errors.Is(err, errDeclined) {
+		return nil
+	}
 	if err != nil {
 		return err
 	}
-	answers.Defaults()
 	if err := answers.Validate(); err != nil {
 		return err
 	}
@@ -114,11 +118,10 @@ func cmdInstall(ctx context.Context, args []string, stdout, stderr io.Writer) er
 		return err
 	}
 
-	if !f.dryRun && !f.jsonOut {
+	if !f.dryRun && !f.jsonOut && !confirmed {
 		printIntent(stdout, answers, l.paths)
 		if !f.yes && !newPrompt(stdout).confirm("Jetzt installieren?", true) {
-			data, _ := json.MarshalIndent(answers, "", "  ")
-			fmt.Fprintf(stdout, "Abgebrochen. Dieselben Antworten unbeaufsichtigt:\n  caddyevolved install --unattended antworten.json\n%s\n", data)
+			printDeclined(stdout, answers)
 			return nil
 		}
 	}
@@ -150,31 +153,73 @@ func cmdInstall(ctx context.Context, args []string, stdout, stderr io.Writer) er
 	return nil
 }
 
+// errDeclined means the user said no on the summary; nothing was changed.
+var errDeclined = errors.New("nicht bestätigt")
+
 // collectAnswers reads --unattended or runs the wizard, then applies flag
 // overrides so `install --unattended a.json --force` behaves as written.
-func (f *installFlags) collectAnswers(ctx context.Context, l *layout, stdout io.Writer) (install.Answers, error) {
+// confirmed reports that the wizard already showed the summary and got a yes.
+func (f *installFlags) collectAnswers(ctx context.Context, l *layout, stdout io.Writer) (install.Answers, bool, error) {
 	var a install.Answers
 	if f.unattended != "" {
 		data, err := os.ReadFile(f.unattended)
 		if err != nil {
-			return a, fmt.Errorf("answers-Datei: %w", err)
+			return a, false, fmt.Errorf("answers-Datei: %w", err)
 		}
 		if err := json.Unmarshal(data, &a); err != nil {
-			return a, fmt.Errorf("%s: %w", f.unattended, err)
+			return a, false, fmt.Errorf("%s: %w", f.unattended, err)
 		}
-	} else {
-		if f.dryRun {
-			fmt.Fprintln(stdout, "Trockendurchlauf: es wird nichts geschrieben und kein Passwort gesetzt.")
-		}
-		w := newWizard(ctx, stdout, l.host)
-		res, werr := w.run()
-		if werr != nil {
-			return a, werr
-		}
-		a = res
+		f.override(&a)
+		a.Defaults()
+		return a, false, nil
+	}
+
+	// The terminal UI stays open through the summary and is closed before the
+	// plan runs, so step output and Ctrl+C behave normally again.
+	ui := openUI(ctx, stdout)
+	defer ui.Close()
+	w := newWizard(ctx, ui, l.host, f.dryRun)
+	a, err := w.run()
+	if err != nil {
+		return a, false, err
 	}
 	f.override(&a)
-	return a, nil
+	a.Defaults()
+	if f.dryRun || f.jsonOut || f.yes {
+		return a, true, nil
+	}
+	ok, err := w.summary(a)
+	if err != nil {
+		return a, false, err
+	}
+	if !ok {
+		printDeclined(ui.Out(), a)
+		return a, false, errDeclined
+	}
+	return a, true, nil
+}
+
+// openUI uses the arrow-key interface on a terminal and numbered prompts
+// everywhere else.
+func openUI(ctx context.Context, stdout io.Writer) tui.UI {
+	if out, ok := stdout.(*os.File); ok {
+		return tui.New(ctx, os.Stdin, out)
+	}
+	return tui.NewPlain(ctx, os.Stdin, stdout)
+}
+
+// printDeclined offers the answers for an unattended rerun. Credentials are
+// left out: they would otherwise end up in the scrollback.
+func printDeclined(w io.Writer, a install.Answers) {
+	if len(a.Credentials) > 0 {
+		masked := map[string]string{}
+		for k := range a.Credentials {
+			masked[k] = "<eintragen>"
+		}
+		a.Credentials = masked
+	}
+	data, _ := json.MarshalIndent(a, "", "  ")
+	fmt.Fprintf(w, "Nicht installiert. Dieselben Antworten unbeaufsichtigt:\n  caddyevolved install --unattended antworten.json\n%s\n", data)
 }
 
 // override lets explicit flags win over the file or the wizard.

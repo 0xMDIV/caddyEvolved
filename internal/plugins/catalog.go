@@ -59,6 +59,8 @@ type Entry struct {
 	InStandard bool `json:"standard"`
 	// Deprecated modules are listed but never auto-selected and warn in the UI.
 	Deprecated bool `json:"deprecated,omitempty"`
+	// Recommended plugins are highlighted in the installer and the UI.
+	Recommended bool `json:"recommended,omitempty"`
 	// VersionSuffix is a build trap we must not silently drop: the unsuffixed
 	// path of hetzner or caddy-docker-proxy resolves to an old major version.
 	VersionSuffix bool `json:"versionSuffix,omitempty"`

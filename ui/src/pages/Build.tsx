@@ -227,6 +227,7 @@ function NewBuild({ plugins, busy, onStarted }: { plugins: PluginsResponse; busy
                         <div className="row" style={{ gap: 6 }}>
                           <span className="name">{p.name}</span>
                           {p.detected && <Badge kind="ok">eingebaut</Badge>}
+                          {p.recommended && <Badge kind="ok">empfohlen</Badge>}
                           {p.deprecated && <Badge kind="warn">veraltet</Badge>}
                         </div>
                         <div className="mod">{p.module}</div>

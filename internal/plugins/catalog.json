@@ -785,6 +785,7 @@
     },
     {
       "id": "caddy-defender",
+      "recommended": true,
       "module": "pkg.jsn.cam/caddy-defender",
       "name": "Caddy Defender (Bot-Filter)",
       "category": "auth",
@@ -904,6 +905,7 @@
     },
     {
       "id": "caddy-ratelimit",
+      "recommended": true,
       "module": "github.com/mholt/caddy-ratelimit",
       "name": "Rate Limit (Sliding Window)",
       "category": "infra",
@@ -953,6 +955,7 @@
     },
     {
       "id": "coraza",
+      "recommended": true,
       "module": "github.com/corazawaf/coraza-caddy/v2",
       "name": "Coraza WAF (OWASP CRS)",
       "category": "auth",

@@ -48,9 +48,22 @@ Das Skript
    [Release](https://github.com/0xMDIV/caddyEvolved/releases),
 2. prüft die **SHA-256-Summe** gegen `SHA256SUMS` des Releases,
 3. legt `caddyevolved` nach `/usr/local/bin` und
-4. startet den **Assistenten**. Der fragt nach Caddy-Version, Ports, E-Mail für
-   Let's Encrypt und optional einer ersten Site. Die Vorgaben passen für die meisten Fälle –
-   einfach mit Enter bestätigen.
+4. startet den **Assistenten**. Bedienung mit **↑/↓**, **Leertaste** (an/aus) und
+   **Enter**; **Strg+C** bricht jederzeit ab, ohne etwas zu ändern. Die Vorgaben passen für
+   die meisten Fälle – einfach mit Enter bestätigen.
+
+### Die Fragen des Assistenten
+
+| Frage | Empfehlung |
+|---|---|
+| **Welches Caddy?** | **Offizielles Caddy** – Original von GitHub, Prüfsumme geprüft, in Sekunden da. Plugins baust du danach in der WebUI dazu. *Caddy mit Plugins (custom)* lässt dich Plugins schon jetzt wählen; caddyserver.com baut die Binary dann (1–3 Minuten, ohne veröffentlichte Prüfsumme). *Fertiges Paket (bundle)* kommt in einer späteren Version. |
+| **Plugins** (nur bei custom) | Die empfohlenen – Coraza WAF, Caddy Defender, Rate Limit – sind vorausgewählt (grüner Punkt). Ein DNS-Plugin nur, wenn du Wildcard-Zertifikate brauchst oder Port 80 nicht offen ist. Plugins lassen sich **jederzeit** in der WebUI unter *Plugins & Build* hinzufügen oder entfernen. |
+| **Zugangsdaten** | Eingabe bleibt verborgen. Leer lassen und später in der WebUI eintragen geht auch. |
+| **Zertifikate** | *Let's Encrypt* für Domains aus dem Internet (braucht eine echte E-Mail-Adresse), *Interne CA* nur fürs LAN. |
+| **Standard-Ports?** | Ja (80/443, WebUI 8484). |
+| **Erste Site?** | Nein – Sites legst du bequemer in der WebUI an. |
+
+Zum Schluss zeigt der Assistent eine Zusammenfassung und installiert erst nach „Ja“.
 
 Am Ende stehen die Adresse der WebUI und das **UI-Passwort**. Das Passwort wird nur
 dieses eine Mal angezeigt – notieren.
