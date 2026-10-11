@@ -447,3 +447,11 @@ table.compact th, table.compact td { padding: 6px 8px; }
 /* Certificates: waiting domains */
 .pending-cert { display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-2); }
 .pending-cert summary { cursor: pointer; }
+
+/* Sites list: name opens the editor, icon opens the site */
+.site-names { display: flex; flex-direction: column; gap: 2px; }
+.site-name { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
+.site-name .link-btn { font-weight: 600; color: var(--text); text-decoration: none; text-align: left; overflow-wrap: anywhere; }
+.site-name .link-btn:hover { color: var(--accent-strong); text-decoration: underline; }
+.site-open { color: var(--muted); display: inline-flex; flex: none; }
+.site-open:hover { color: var(--accent-strong); }

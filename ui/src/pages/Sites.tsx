@@ -5,7 +5,7 @@ import { DefenderFields, FEATURE_PLUGINS, RateLimitFields, useCompiledPlugins, W
 import { Badge, ConfirmButton, ErrorBox, PageHead, Spinner, Switch, useAction, useLoad, useToast } from "../components/ui";
 import { formatTarget, FormSection, parseTarget, SiteHelp, Target, TargetEditor, TlsPicker, ToggleRow } from "../components/siteform";
 import { PanelTab, SitePanel } from "../components/sitecheck";
-import { IconCertificate, IconStethoscope } from "@tabler/icons-react";
+import { IconCertificate, IconExternalLink, IconStethoscope } from "@tabler/icons-react";
 
 export default function Sites() {
   const list = useLoad(() => api.get<SitesResponse>("/api/sites"));
@@ -94,7 +94,20 @@ export default function Sites() {
                       <Switch checked={s.enabled} disabled={busy === "toggle-" + s.id} onChange={(v) => toggle(s, v)} label="Site aktiv" />
                     </td>
                     <td>
-                      <div style={{ fontWeight: 600 }}>{s.domains.join(", ") || s.id}</div>
+                      <div className="site-names">
+                        {(s.domains.length ? s.domains : [s.id]).map((d) => (
+                          <span key={d} className="site-name">
+                            <button className="link-btn" title="Bearbeiten" onClick={() => setEditing({ site: { ...emptySite(), ...s }, isNew: false })}>
+                              {d}
+                            </button>
+                            {siteURL(s, d) && (
+                              <a href={siteURL(s, d)!} target="_blank" rel="noreferrer" className="site-open" title={`${siteURL(s, d)} öffnen`} aria-label={`${d} im Browser öffnen`}>
+                                <IconExternalLink size={15} />
+                              </a>
+                            )}
+                          </span>
+                        ))}
+                      </div>
                       <div className="small muted mono">{s.id}</div>
                     </td>
                     <td className="small">
@@ -137,6 +150,14 @@ export default function Sites() {
       {panel && <SitePanel site={panel.site} tab={panel.tab} onTab={(tab) => setPanel({ ...panel, tab })} onClose={() => setPanel(null)} />}
     </>
   );
+}
+
+/** The address a visitor would open, or null for wildcards and bare ports. */
+function siteURL(site: Site, domain: string): string | null {
+  const d = domain.trim();
+  if (/^https?:\/\//.test(d)) return d;
+  if (!d || d.startsWith(":") || d.includes("*") || d.includes("/")) return null;
+  return (site.tls === "off" ? "http://" : "https://") + d;
 }
 
 function TargetText({ site }: { site: Site }) {
