@@ -18,6 +18,7 @@ import Import from "./pages/Import";
 import Mcp from "./pages/Mcp";
 import Backup from "./pages/Backup";
 import System from "./pages/System";
+import Toolbox from "./pages/Toolbox";
 import { useUpdateCheck } from "./components/update";
 import {
   Icon,
@@ -42,12 +43,14 @@ import {
   IconShieldCheck,
   IconShieldLock,
   IconSparkles,
+  IconTool,
 } from "@tabler/icons-react";
 
 const NAV: { path: string; label: string; icon: Icon }[] = [
   { path: "/", label: "Dashboard", icon: IconLayoutDashboard },
   { path: "/analytics", label: "Analytics", icon: IconChartLine },
   { path: "/system", label: "System", icon: IconCpu },
+  { path: "/toolbox", label: "Toolbox", icon: IconTool },
   { path: "/sites", label: "Sites", icon: IconArrowsExchange },
   { path: "/import", label: "Import", icon: IconFileImport },
   { path: "/access-lists", label: "Access Lists", icon: IconShieldLock },
@@ -203,6 +206,9 @@ export default function App() {
       break;
     case "/system":
       page = <System />;
+      break;
+    case "/toolbox":
+      page = <Toolbox />;
       break;
     case "/backup":
       page = <Backup />;

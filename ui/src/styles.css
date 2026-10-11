@@ -437,3 +437,9 @@ table.compact th, table.compact td { padding: 6px 8px; }
 .sysbar { display: flex; flex-direction: column; gap: 4px; margin-bottom: 8px; }
 .sysbar-track { display: flex; height: 8px; border-radius: 4px; overflow: hidden; background: var(--surface-2); }
 .sysbar-track span { display: block; height: 100%; }
+
+/* Toolbox */
+.tool-form { display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; }
+.tool-form .grow { flex: 1 1 220px; min-width: 0; }
+.mono-dd dd { font-family: var(--mono); font-size: 12.5px; }
+.rtt-bar { height: 6px; border-radius: 3px; background: var(--accent); min-width: 2px; }
