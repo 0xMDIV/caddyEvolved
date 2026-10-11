@@ -86,10 +86,7 @@ type Row struct{ Label, Value string }
 // Done prints the closing box of a successful run: a green headline, the
 // highlighted rows and plain notes. Colour only when w is a terminal.
 func Done(w io.Writer, title string, rows []Row, notes ...string) {
-	st := style{}
-	if f, ok := w.(*os.File); ok && term.IsTerminal(int(f.Fd())) && colorWanted() && os.Getenv("TERM") != "dumb" {
-		st.on = true
-	}
+	st := PaintFor(w).st
 	labelW := 0
 	for _, r := range rows {
 		labelW = max(labelW, utf8.RuneCountInString(r.Label))
@@ -114,6 +111,23 @@ func Done(w io.Writer, title string, rows []Row, notes ...string) {
 	}
 	fmt.Fprintln(w, rule)
 }
+
+// Paint colours text for one writer: on a terminal with colours allowed, plain
+// everywhere else (pipes, logs, tests).
+type Paint struct{ st style }
+
+// PaintFor decides once per writer.
+func PaintFor(w io.Writer) Paint {
+	f, ok := w.(*os.File)
+	return Paint{style{on: ok && term.IsTerminal(int(f.Fd())) && colorWanted() && os.Getenv("TERM") != "dumb"}}
+}
+
+func (p Paint) Green(s string) string  { return p.st.green(s) }
+func (p Paint) Red(s string) string    { return p.st.red(s) }
+func (p Paint) Yellow(s string) string { return p.st.yellow(s) }
+func (p Paint) Cyan(s string) string   { return p.st.cyan(s) }
+func (p Paint) Dim(s string) string    { return p.st.dim(s) }
+func (p Paint) Bold(s string) string   { return p.st.bold(s) }
 
 // ---- styling -------------------------------------------------------------
 
