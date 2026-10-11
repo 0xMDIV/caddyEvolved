@@ -47,9 +47,9 @@ func (s *Server) handleToolDNS(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"records": recs})
 }
 
-// runTool decodes the request, takes the scan lock and answers with fn's
+// runNetTool decodes the request, takes the scan lock and answers with fn's
 // result.
-func (s *Server) runTool(w http.ResponseWriter, r *http.Request, limit time.Duration, req any, fn func(ctx context.Context) (any, error)) {
+func (s *Server) runNetTool(w http.ResponseWriter, r *http.Request, limit time.Duration, req any, fn func(ctx context.Context) (any, error)) {
 	if !tokenAdmin(w, r) {
 		return
 	}
@@ -78,7 +78,7 @@ func (s *Server) handleToolPing(w http.ResponseWriter, r *http.Request) {
 		Host  string `json:"host"`
 		Count int    `json:"count"`
 	}
-	s.runTool(w, r, 40*time.Second, &req, func(ctx context.Context) (any, error) {
+	s.runNetTool(w, r, 40*time.Second, &req, func(ctx context.Context) (any, error) {
 		return toolbox.Ping(ctx, req.Host, req.Count, 2*time.Second)
 	})
 }
@@ -88,7 +88,7 @@ func (s *Server) handleToolTraceroute(w http.ResponseWriter, r *http.Request) {
 		Host    string `json:"host"`
 		MaxHops int    `json:"maxHops"`
 	}
-	s.runTool(w, r, 90*time.Second, &req, func(ctx context.Context) (any, error) {
+	s.runNetTool(w, r, 90*time.Second, &req, func(ctx context.Context) (any, error) {
 		addr, hops, err := toolbox.Traceroute(ctx, req.Host, req.MaxHops, time.Second)
 		if hops == nil && err != nil {
 			return nil, err
@@ -102,7 +102,7 @@ func (s *Server) handleToolPorts(w http.ResponseWriter, r *http.Request) {
 		Host  string `json:"host"`
 		Ports string `json:"ports"`
 	}
-	s.runTool(w, r, 60*time.Second, &req, func(ctx context.Context) (any, error) {
+	s.runNetTool(w, r, 60*time.Second, &req, func(ctx context.Context) (any, error) {
 		ports, err := toolbox.ParsePorts(req.Ports)
 		if err != nil {
 			return nil, err
@@ -122,7 +122,7 @@ func (s *Server) handleToolHosts(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		CIDR string `json:"cidr"`
 	}
-	s.runTool(w, r, 60*time.Second, &req, func(ctx context.Context) (any, error) {
+	s.runNetTool(w, r, 60*time.Second, &req, func(ctx context.Context) (any, error) {
 		hosts, err := toolbox.ScanHosts(ctx, req.CIDR, 1500*time.Millisecond)
 		if hosts == nil && err != nil {
 			return nil, err
@@ -138,7 +138,7 @@ func (s *Server) handleToolMDNS(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Seconds int `json:"seconds"`
 	}
-	s.runTool(w, r, 30*time.Second, &req, func(ctx context.Context) (any, error) {
+	s.runNetTool(w, r, 30*time.Second, &req, func(ctx context.Context) (any, error) {
 		wait := time.Duration(req.Seconds) * time.Second
 		if wait < 2*time.Second || wait > 15*time.Second {
 			wait = 4 * time.Second
