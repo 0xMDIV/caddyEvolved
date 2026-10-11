@@ -425,3 +425,15 @@ table.compact th, table.compact td { padding: 6px 8px; }
 .nowrap { white-space: nowrap; }
 .link-btn { border: 0; background: none; padding: 0; font: inherit; color: var(--accent-strong); cursor: pointer; text-decoration: underline dotted; }
 .log-detail { margin: 4px 0; }
+.traffic-list { display: flex; flex-direction: column; gap: 8px; }
+.traffic-bar { display: flex; height: 6px; border-radius: 3px; overflow: hidden; background: var(--surface-2); margin-top: 3px; }
+.traffic-bar span { display: block; height: 100%; }
+
+/* System page */
+.impact { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px; align-items: center; }
+@media (max-width: 760px) { .impact { grid-template-columns: minmax(0, 1fr); } }
+.impact-big { font-size: 22px; font-weight: 700; margin: 4px 0; }
+.impact-bars { display: flex; flex-direction: column; gap: 10px; }
+.sysbar { display: flex; flex-direction: column; gap: 4px; margin-bottom: 8px; }
+.sysbar-track { display: flex; height: 8px; border-radius: 4px; overflow: hidden; background: var(--surface-2); }
+.sysbar-track span { display: block; height: 100%; }

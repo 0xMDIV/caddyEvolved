@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -79,5 +80,25 @@ func TestFollowResumesAndSurvivesRoll(t *testing.T) {
 	run(s3, 1500*time.Millisecond)
 	if n := s3.Query(time.Hour, nil).Totals.Requests; n != 3 {
 		t.Fatalf("nach Rotation: %d (erwartet 3)", n)
+	}
+}
+
+// TestTrafficAndTags: bytes in and out per site, tag counts in the top lists.
+func TestTrafficAndTags(t *testing.T) {
+	s := New(filepath.Join(t.TempDir(), "a.json"))
+	now := time.Now().UTC()
+	big := strings.Replace(line(now, "big.example.com", "/upload", 200, 0.01), `"bytes_read":0`, `"bytes_read":4096`, 1)
+	s.Ingest([]byte(big))
+	s.Ingest([]byte(line(now, "big.example.com", "/announce?info_hash=x", 200, 0.01)))
+	s.Ingest([]byte(line(now, "small.example.com", "/", 200, 0.01)))
+	r := s.Query(time.Hour, nil)
+	if len(r.Traffic) != 2 || r.Traffic[0].Host != "big.example.com" || r.Traffic[0].BytesIn != 4096 || r.Traffic[0].BytesOut != 1024 {
+		t.Fatalf("traffic: %+v", r.Traffic)
+	}
+	if r.Totals.BytesIn != 4096 || r.Totals.Bytes != 1536 {
+		t.Fatalf("totals in %d out %d", r.Totals.BytesIn, r.Totals.Bytes)
+	}
+	if len(r.Top["tags"]) != 1 || r.Top["tags"][0].Key != "torrent" || r.Top["tags"][0].Count != 1 {
+		t.Fatalf("tags: %+v", r.Top["tags"])
 	}
 }

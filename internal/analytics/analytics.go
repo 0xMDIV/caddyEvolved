@@ -38,8 +38,9 @@ type Bucket struct {
 	S4xx     int64   `json:"s4xx"`
 	S5xx     int64   `json:"s5xx"`
 	Blocked  int64   `json:"blocked"` // 403 and 429: access list, WAF, bot filter, rate limit
-	Bytes    int64   `json:"bytes"`
-	DurSum   float64 `json:"durSum"` // seconds
+	Bytes    int64   `json:"bytes"`   // sent to clients
+	BytesIn  int64   `json:"bytesIn"` // received from clients (request bodies)
+	DurSum   float64 `json:"durSum"`  // seconds
 	DurMax   float64 `json:"durMax"`
 	// Lat is a coarse latency histogram (ms upper bounds in latBounds).
 	Lat [len(latBounds) + 1]int64 `json:"lat"`
@@ -55,6 +56,7 @@ func (b *Bucket) add(o *Bucket) {
 	b.S5xx += o.S5xx
 	b.Blocked += o.Blocked
 	b.Bytes += o.Bytes
+	b.BytesIn += o.BytesIn
 	b.DurSum += o.DurSum
 	b.DurMax = math.Max(b.DurMax, o.DurMax)
 	for i := range b.Lat {
@@ -62,7 +64,7 @@ func (b *Bucket) add(o *Bucket) {
 	}
 }
 
-func (b *Bucket) record(status int, size int64, dur float64) {
+func (b *Bucket) record(status int, size, read int64, dur float64) {
 	b.Requests++
 	switch {
 	case status >= 500:
@@ -78,6 +80,7 @@ func (b *Bucket) record(status int, size int64, dur float64) {
 		b.Blocked++
 	}
 	b.Bytes += size
+	b.BytesIn += read
 	b.DurSum += dur
 	b.DurMax = math.Max(b.DurMax, dur)
 	ms := dur * 1000
@@ -139,10 +142,11 @@ type hourTops struct {
 	Agents   Top `json:"agents"`
 	Status   Top `json:"status"`
 	Referers Top `json:"referers"`
+	Tags     Top `json:"tags"`
 }
 
 func newTops() *hourTops {
-	return &hourTops{Paths: Top{}, IPs: Top{}, Agents: Top{}, Status: Top{}, Referers: Top{}}
+	return &hourTops{Paths: Top{}, IPs: Top{}, Agents: Top{}, Status: Top{}, Referers: Top{}, Tags: Top{}}
 }
 
 // Request is one entry of the live list.
@@ -200,14 +204,17 @@ func (s *Store) Ingest(line []byte) {
 	defer s.mu.Unlock()
 	minute := ts.Unix() / 60
 	hour := ts.Unix() / 3600
-	bucket(s.minutes, minute, host).record(e.Status, e.Size, e.Duration/1000)
-	bucket(s.hours, hour, host).record(e.Status, e.Size, e.Duration/1000)
+	bucket(s.minutes, minute, host).record(e.Status, e.Size, e.BytesRead, e.Duration/1000)
+	bucket(s.hours, hour, host).record(e.Status, e.Size, e.BytesRead, e.Duration/1000)
 	t := s.topsFor(hour, host)
 	t.Paths.inc(path)
 	t.IPs.inc(ip)
 	t.Agents.inc(agent)
 	t.Status.inc(itoa(e.Status))
 	t.Referers.inc(refHost(e.Referer))
+	for _, tag := range e.Tags {
+		t.Tags.inc(tag)
+	}
 	s.recent = append(s.recent, Request{
 		TS: ts, Host: host, Method: e.Method, URI: truncate(e.URI, 300), Status: e.Status,
 		Size: e.Size, Duration: e.Duration, IP: ip, Agent: agent, Tags: e.Tags,
@@ -242,6 +249,10 @@ func (s *Store) topsFor(hour int64, host string) *hourTops {
 		t = newTops()
 		hosts[host] = t
 	}
+	// Snapshots from before tags existed load without the map.
+	if t.Tags == nil {
+		t.Tags = Top{}
+	}
 	return t
 }
 
@@ -261,13 +272,15 @@ type Entry struct {
 
 // Report answers one dashboard query.
 type Report struct {
-	From   time.Time          `json:"from"`
-	To     time.Time          `json:"to"`
-	Step   string             `json:"step"`
-	Series []Point            `json:"series"`
-	Totals Point              `json:"totals"`
-	Hosts  []Entry            `json:"hosts"`
-	Top    map[string][]Entry `json:"top"`
+	From   time.Time `json:"from"`
+	To     time.Time `json:"to"`
+	Step   string    `json:"step"`
+	Series []Point   `json:"series"`
+	Totals Point     `json:"totals"`
+	Hosts  []Entry   `json:"hosts"`
+	// Traffic is bytes per site, largest first.
+	Traffic []HostTraffic      `json:"traffic"`
+	Top     map[string][]Entry `json:"top"`
 }
 
 // Query aggregates the range ending now. hosts filters (empty = all).
@@ -292,12 +305,21 @@ func (s *Store) Query(rng time.Duration, hosts []string) Report {
 	rep := Report{From: from, To: now, Step: step, Top: map[string][]Entry{}}
 	var total Bucket
 	perHost := map[string]int64{}
+	traffic := map[string]*HostTraffic{}
 	for slot := start; slot <= end; slot++ {
 		var b Bucket
 		for h, hb := range src[slot] {
 			if match(h) {
 				b.add(hb)
 				perHost[h] += hb.Requests
+				ht := traffic[h]
+				if ht == nil {
+					ht = &HostTraffic{Host: h}
+					traffic[h] = ht
+				}
+				ht.Requests += hb.Requests
+				ht.BytesOut += hb.Bytes
+				ht.BytesIn += hb.BytesIn
 			}
 		}
 		total.add(&b)
@@ -305,6 +327,12 @@ func (s *Store) Query(rng time.Duration, hosts []string) Report {
 	}
 	rep.Totals = point(from, total)
 	rep.Hosts = topN(Top(perHost), 50)
+	for _, ht := range traffic {
+		rep.Traffic = append(rep.Traffic, *ht)
+	}
+	sort.Slice(rep.Traffic, func(i, j int) bool {
+		return rep.Traffic[i].BytesOut+rep.Traffic[i].BytesIn > rep.Traffic[j].BytesOut+rep.Traffic[j].BytesIn
+	})
 
 	merged := newTops()
 	for hour := from.Unix() / 3600; hour <= now.Unix()/3600; hour++ {
@@ -317,6 +345,7 @@ func (s *Store) Query(rng time.Duration, hosts []string) Report {
 			mergeTop(merged.Agents, t.Agents)
 			mergeTop(merged.Status, t.Status)
 			mergeTop(merged.Referers, t.Referers)
+			mergeTop(merged.Tags, t.Tags)
 		}
 	}
 	rep.Top["paths"] = topN(merged.Paths, 15)
@@ -324,6 +353,7 @@ func (s *Store) Query(rng time.Duration, hosts []string) Report {
 	rep.Top["agents"] = topN(merged.Agents, 10)
 	rep.Top["status"] = topN(merged.Status, 20)
 	rep.Top["referers"] = topN(merged.Referers, 10)
+	rep.Top["tags"] = topN(merged.Tags, 10)
 	return rep
 }
 
@@ -567,4 +597,12 @@ func itoa(n int) string {
 		b[i] = '-'
 	}
 	return string(b[i:])
+}
+
+// HostTraffic is the volume of one site in a range.
+type HostTraffic struct {
+	Host     string `json:"host"`
+	Requests int64  `json:"requests"`
+	BytesOut int64  `json:"bytesOut"`
+	BytesIn  int64  `json:"bytesIn"`
 }

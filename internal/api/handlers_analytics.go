@@ -149,6 +149,7 @@ func (s *Server) StartBackground(ctx context.Context) {
 		})
 	}
 	go s.autoBackupLoop(ctx)
+	go s.Sys.Run(ctx, 5*time.Second)
 	s.Analytics.Follow(ctx, s.Paths.AccessLog)
 }
 

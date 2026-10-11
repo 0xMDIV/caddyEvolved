@@ -26,6 +26,10 @@ const LAT_SERIES: Series[] = [
   { key: "p95Ms", label: "p95 ms", color: "var(--c-p95)" },
 ];
 const BLOCK_SERIES: Series[] = [{ key: "blocked", label: "Geblockt", color: "var(--c-blocked)" }];
+const TRAFFIC_SERIES: Series[] = [
+  { key: "bytesOut", label: "Raus (an Besucher)", color: "var(--c-3xx)" },
+  { key: "bytesIn", label: "Rein (Uploads)", color: "var(--c-2xx)" },
+];
 
 export function statusKind(s: number): "ok" | "info" | "warn" | "err" {
   if (s >= 500) return "err";
@@ -68,6 +72,8 @@ export default function Analytics() {
         avgMs: p.avgMs,
         p95Ms: p.p95Ms,
         requests: p.requests,
+        bytesOut: p.bytes,
+        bytesIn: p.bytesIn ?? 0,
       })),
     [rep],
   );
@@ -118,7 +124,8 @@ export default function Analytics() {
             <Kpi label="Anfragen" value={fmtNum(tot?.requests)} />
             <Kpi label="Fehlerquote" value={tot && tot.requests > 0 ? `${errRate.toFixed(1)} %` : "–"} tone={errRate > 5 ? "err" : undefined} />
             <Kpi label="Geblockt" value={fmtNum(tot?.blocked)} tone={(tot?.blocked ?? 0) > 0 ? "warn" : undefined} />
-            <Kpi label="Datenmenge" value={fmtBytes(tot?.bytes)} />
+            <Kpi label="Traffic raus" value={fmtBytes(tot?.bytes)} />
+            <Kpi label="Traffic rein" value={fmtBytes(tot?.bytesIn)} />
             <Kpi label="Ø Antwortzeit" value={fmtMs(tot?.avgMs)} />
             <Kpi label="p95" value={fmtMs(tot?.p95Ms)} />
           </div>
@@ -149,6 +156,16 @@ export default function Analytics() {
                   <Chart rows={rows} series={BLOCK_SERIES} fmtTime={fmtTime} height={170} />
                 </div>
               </div>
+              <div className="grid grid-2">
+                <div className="card">
+                  <h2>Traffic über Caddy</h2>
+                  <Chart rows={rows} series={TRAFFIC_SERIES} stacked fmtTime={fmtTime} fmt={(v) => fmtBytes(v)} height={170} />
+                </div>
+                <div className="card">
+                  <h2>Traffic pro Site</h2>
+                  <TrafficTable rows={rep.traffic ?? []} />
+                </div>
+              </div>
               <div className="grid grid-3">
                 <TopList title="Pfade" entries={top.paths ?? []} mono />
                 <TopList title="IPs" entries={top.ips ?? []} mono />
@@ -156,6 +173,7 @@ export default function Analytics() {
                 <TopList title="User-Agents" entries={top.agents ?? []} />
                 <TopList title="Referer" entries={top.referers ?? []} />
                 <TopList title="Hosts" entries={rep.hosts ?? []} />
+                <TopList title="Markierungen" entries={top.tags ?? []} />
               </div>
             </>
           )}
@@ -226,5 +244,31 @@ function Kpi({ label, value, tone }: { label: string; value: string; tone?: "war
         {value}
       </div>
     </div>
+  );
+}
+
+function TrafficTable({ rows }: { rows: { host: string; requests: number; bytesOut: number; bytesIn: number }[] }) {
+  if (rows.length === 0) return <div className="small muted">Kein Traffic.</div>;
+  const max = Math.max(...rows.map((r) => r.bytesOut + r.bytesIn), 1);
+  return (
+    <ul className="list-plain traffic-list">
+      {rows.slice(0, 12).map((r) => (
+        <li key={r.host}>
+          <div className="row" style={{ gap: 8 }}>
+            <span className="small" style={{ fontWeight: 600, overflowWrap: "anywhere" }}>
+              {r.host}
+            </span>
+            <span className="spacer" />
+            <span className="small muted nowrap">
+              ↓ {fmtBytes(r.bytesOut)} · ↑ {fmtBytes(r.bytesIn)} · {fmtNum(r.requests)} Anfr.
+            </span>
+          </div>
+          <div className="traffic-bar">
+            <span style={{ width: `${(r.bytesOut / max) * 100}%`, background: "var(--c-3xx)" }} />
+            <span style={{ width: `${(r.bytesIn / max) * 100}%`, background: "var(--c-2xx)" }} />
+          </div>
+        </li>
+      ))}
+    </ul>
   );
 }

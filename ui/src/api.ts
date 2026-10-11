@@ -458,6 +458,7 @@ export interface AnalyticsPoint {
   s5xx: number;
   blocked: number;
   bytes: number;
+  bytesIn?: number;
   durSum: number;
   durMax: number;
   lat?: number[] | null;
@@ -477,6 +478,7 @@ export interface AnalyticsReport {
   series: AnalyticsPoint[] | null;
   totals: AnalyticsPoint;
   hosts: TopEntry[] | null;
+  traffic?: { host: string; requests: number; bytesOut: number; bytesIn: number }[] | null;
   top: Record<string, TopEntry[] | null> | null;
 }
 

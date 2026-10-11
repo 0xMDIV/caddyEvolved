@@ -21,7 +21,8 @@ bestehender Seiten: **[INSTALLATION.md](INSTALLATION.md)**.
 | **Plugins per Klick** | Caddy-Plugins werden einkompiliert – caddyEvolved baut die Binary direkt auf dem Server, mit Live-Log, Prüfung und automatischem Rollback. Caddy-Version ebenso wählbar. |
 | **Access Lists** | IPs erlauben/sperren, Länder (GeoIP), Benutzer mit Passwort – pro Site. |
 | **Schutz** | WAF (Coraza + OWASP Core Rule Set), Bot- und KI-Crawler-Abwehr, Rate Limit. |
-| **Analytics** | Graphen für Anfragen, Fehler, Geblockte und Antwortzeiten; Top-Pfade, IPs, User-Agents; Live-Liste. |
+| **Analytics** | Graphen für Anfragen, Fehler, Geblockte und Antwortzeiten; Traffic rein und raus über Caddy, gesamt und pro Site; Top-Pfade, IPs, User-Agents, Markierungen; Live-Liste. |
+| **System** | Wie stark Caddy und caddyEvolved den Server belasten: CPU, RAM, Platte und Netzwerk im Verhältnis zum ganzen System, letzte Stunde. |
 | **Logs** | Zugriffe aller Sites mit Filtern (Zeitraum, Site, Status, IP, Pfad, User-Agent, Dauer, Freitext) und Markierungen für Torrent, KI-Crawler, Bots, Scanner, Geblockte und Fehler; liest auch rotierte, komprimierte Dateien. Rotation und gzip-Kompression einstellbar. |
 | **Audit Log** | Wer hat wann was geändert – per Login, API-Token oder KI. |
 | **Backup** | Sites, Access Lists, Einstellungen, Zugangsdaten und optional Zertifikate sichern – verschlüsselt mit Passwort, täglich automatisch, Wiederherstellung mit Vorschau und automatischem Rollback. |

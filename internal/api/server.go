@@ -24,6 +24,7 @@ import (
 	"caddyevolved/internal/events"
 	"caddyevolved/internal/sites"
 	"caddyevolved/internal/supervisor"
+	"caddyevolved/internal/sysstat"
 	"caddyevolved/internal/systemd"
 	"caddyevolved/internal/webui"
 )
@@ -41,9 +42,11 @@ type Server struct {
 	Sites   *sites.Manager
 	// Analytics is nil when request statistics are off (tests).
 	Analytics *analytics.Store
-	Bind      string
-	Port      int
-	Insecure  bool
+	// Sys samples host and process load; nil disables the system page.
+	Sys      *sysstat.Sampler
+	Bind     string
+	Port     int
+	Insecure bool
 
 	runs     *runs
 	versions versionCache
@@ -88,6 +91,9 @@ func New(s *Server) *Server {
 			fmt.Fprintf(os.Stderr, "caddyevolved: Builder nicht verfügbar: %v\n", err)
 		}
 		s.Builder = b
+	}
+	if s.Sys == nil {
+		s.Sys = sysstat.New(720, nil) // one hour at 5 s
 	}
 	if s.runs == nil {
 		s.runs = newRuns()
@@ -162,6 +168,7 @@ func (s *Server) routes() *http.ServeMux {
 	m.HandleFunc("GET /api/logs", s.auth(s.handleLogs))
 	m.HandleFunc("GET /api/logs/access", s.auth(s.handleAccessLog))
 	m.HandleFunc("GET /api/logging", s.auth(s.handleLoggingGet))
+	m.HandleFunc("GET /api/system", s.auth(s.handleSystem))
 	m.HandleFunc("PUT /api/logging", s.auth(s.handleLoggingSave))
 
 	m.HandleFunc("POST /api/service/{action}", s.auth(s.handleService))
