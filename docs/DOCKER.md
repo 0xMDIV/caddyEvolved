@@ -63,11 +63,18 @@ Unraid installiert Dienste als Docker-Container über Vorlagen, dafür gibt es
 3. Pfad *Daten* bleibt `/mnt/user/appdata/caddyevolved`; E-Mail und Passwort sind optional.
 4. **Apply.** Das Passwort steht – falls keins gesetzt – im Log des Containers (Symbol → Logs).
 
-**Ports auf Unraid:** Die Unraid-Oberfläche belegt selbst 80 und 443. Die Vorlage nimmt
-deshalb **1880** (HTTP) und **18443** (HTTPS) auf dem Unraid-Server; im Router
-Port 80 → Unraid:1880 und 443 → Unraid:18443 weiterleiten. Wer dem Container lieber eine
-eigene IP gibt: Netzwerk **br0** und eine freie IP eintragen – dann gelten 80/443 direkt
-auf dieser IP.
+**Ports auf Unraid:** Die Unraid-Oberfläche belegt selbst 80 und 443. Im Formular legst du
+deshalb fest, auf welchen Ports des Unraid-Servers caddyEvolved erreichbar ist – die
+Felder *HTTP-Port*, *HTTPS-Port* und *WebUI-Port auf dem Unraid-Server*. Vorgeschlagen sind
+1880, 18443 und 8484; jeder freie Port geht. Im Router dann extern 80 → Unraid:&lt;HTTP-Port&gt;
+und 443 → Unraid:&lt;HTTPS-Port&gt; weiterleiten. Ändern lassen sich die Ports jederzeit über
+„Edit“ am Container, Daten bleiben erhalten.
+
+| Netzwerk in der Vorlage | Ports |
+|---|---|
+| **Bridge** (Vorgabe) | frei wählbar über die drei Felder |
+| **br0** (eigene IP im LAN) | 80, 443 und 8484 direkt auf der Container-IP; die Felder spielen keine Rolle |
+| Host | nicht verwenden – kollidiert mit der Unraid-Oberfläche auf 80/443 |
 
 Update: auf der Docker-Seite „apply update“ am Container; alles unter
 `/mnt/user/appdata/caddyevolved` bleibt.
