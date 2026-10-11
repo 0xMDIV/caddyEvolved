@@ -4,7 +4,7 @@
 
 ## Wo wir stehen
 
-Letztes Release: **v0.15.0** (läuft auf dem Test-LXC 192.168.10.27). Release-Weg:
+Letztes Release: **v0.16.0** (läuft auf dem Test-LXC 192.168.10.27). Release-Weg:
 `git tag vX.Y.Z && git push origin vX.Y.Z` → GitHub Actions baut amd64/arm64 →
 auf dem Server `sudo caddyevolved update` oder Knopf unter Einstellungen → Updates.
 
@@ -25,6 +25,7 @@ Erledigt aus der Wunschliste:
 | v0.13.0 | Sensible Dateien immer gesperrt (`internal/sites/guard.go`, Karte unter Access Lists), Log-Rotation wird jetzt wirklich in die Sites geschrieben (war seit v0.9.0 wirkungslos) |
 | v0.14.0 | Docker-Image (`Dockerfile`, `docker/compose.yml`, `install_docker.sh`, `caddyevolved container`, Image auf ghcr.io), Unraid-Vorlage (`unraid/`), Doku `docs/DOCKER.md`; Fix: Absturz nach Build mit Auto-Aktivierung (doppelt geschlossener Kanal), Installation hängt nicht mehr an der GitHub-API, wenn Caddy schon da ist |
 | v0.15.0 | Globale Optionen (`sites/global.go`, `/etc/caddy/caddyevolved-global.caddy`, import im globalen Block): echte Client-IPs (Cloudflare statisch oder Plugin), DynDNS, CrowdSec (+AppSec), Tailscale, Souin-Cache; Brotli automatisch, WebDAV-Site-Art, Coraza Paranoia/Schwellwert/Ausnahmen; Kategorie „Sicherheit“ im Katalog; 7 neue Plugins |
+| v0.16.0 | 16 neue DNS-Anbieter (HE, dynv6, Dynu, ClouDNS, Linode, Vultr, Njalla, Infomaniak, Netlify, TransIP, Loopia, Mail-in-a-Box, do.de, regfish, easyDNS, LuaDNS); entfernt, weil mit Caddy 2.11/libdns v1 nicht baubar: Vercel, hosttech, NameSilo, DNSPod, Google Domains. Jetzt 41 Anbieter. |
 
 ## Toolbox (v0.11.0)
 
@@ -38,8 +39,10 @@ Erledigt aus der Wunschliste:
 
 ## Danach offen
 
-- **Als Nächstes (zugesagt): weitere DNS-Anbieter** – je README prüfen (Optionsnamen, positional?), Katalog
-  `env` mit `opt`, live gegen `caddy adapt` testen.
+- **Neue DNS-Anbieter prüfen so:** innere `libdns/<x>`-Bibliothek muss libdns v1 nutzen (über proxy.golang.org
+  nachsehen), Optionsnamen im `UnmarshalCaddyfile` des Plugins lesen (READMEs irren, z. B. regfish `api_key`,
+  Dynu `own_domain` ist Pflicht), dann Build + `caddy adapt` mit Dummy-Werten.
+- **Offen:** Bau-Test für caddy-waf, Docker-Proxy, caddy-security, Redis/Postgres-Storage, tls-rate-limit.
 - **Plugin-Einstellungen Rest** (Wunsch: *jedes* Plugin über die UI steuerbar): für Redis-/Postgres-Storage
   fehlt der globale `storage`-Block (Env-Werte allein wirken nicht!), Cache (souin/otter), caddy-l4,
   tls-rate-limit, docker-proxy haben noch keine Oberfläche. Dafür muss caddyEvolved den globalen

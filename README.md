@@ -22,7 +22,7 @@ Container: im Log). Router, DNS und Übernahme bestehender Seiten:
 | | |
 |---|---|
 | **Sites** | Reverse Proxy, Weiterleitung, statische Dateien oder eigene Konfiguration. Mehrere Upstreams mit Lastverteilung und Health-Check, Upstreams mit HTTPS. Jede Änderung prüft Caddy, bevor sie live geht – sonst bleibt der alte Stand. Ein Klick testet eine Site wie ein Besucher (DNS, Cloudflare-Proxy, Zertifikat, Weg zum Ziel). |
-| **Automatisches HTTPS** | Zertifikat pro Domain über Let's Encrypt/ZeroSSL, DNS-Challenge (auch Wildcards, auch hinter dem Cloudflare-Proxy), interne CA fürs LAN. Domains, die noch auf ein Zertifikat warten, zeigen den Grund aus dem Caddy-Log und den passenden Knopf zur Lösung. |
+| **Automatisches HTTPS** | Zertifikat pro Domain über Let's Encrypt/ZeroSSL, DNS-Challenge mit 41 DNS-Anbietern (auch Wildcards, auch hinter dem Cloudflare-Proxy), interne CA fürs LAN. Domains, die noch auf ein Zertifikat warten, zeigen den Grund aus dem Caddy-Log und den passenden Knopf zur Lösung. |
 | **Plugins per Klick** | Caddy-Plugins werden einkompiliert – caddyEvolved baut die Binary direkt auf dem Server bzw. im Container, mit Live-Log, Prüfung, sofortiger Aktivierung und automatischem Rollback. Einstellungen aller eingebauten Plugins (z. B. API-Token für Cloudflare-DNS) an einer Stelle, nach Thema geordnet. |
 | **Sensible Dateien** | `.env`, `.git`, Schlüssel, Datenbank-Dumps, Backups, `docker-compose.yml` und Ähnliches sind bei jeder Site **immer gesperrt** (404), bevor die Anfrage den Dienst erreicht – nicht abschaltbar, eigene Muster ergänzbar. |
 | **Access Lists** | IPs erlauben/sperren, Länder (GeoIP), Benutzer mit Passwort – pro Site. |
@@ -163,7 +163,7 @@ unraid/               Unraid-Vorlage und Symbol
 - [x] Sensible Dateien immer gesperrt
 - [x] Docker-Image und Unraid-Vorlage
 - [x] Globale Optionen aus der WebUI: echte Client-IPs, DynDNS, CrowdSec, Tailscale, Cache, Brotli, WebDAV
-- [ ] Weitere DNS-Anbieter mit geprüfter Konfiguration
+- [x] 41 DNS-Anbieter, jeder gegen die aktuelle Caddy-Version gebaut und geprüft
 - [ ] Oberfläche für Storage (Redis/Postgres) und Layer 4
 - [ ] Anzeige „Update verfügbar“ für Plugins
 - [ ] Zugangsdaten verschlüsselt ablegen (`systemd-creds`)

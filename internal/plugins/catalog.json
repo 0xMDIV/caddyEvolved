@@ -713,39 +713,6 @@
       ]
     },
     {
-      "id": "dnspod",
-      "module": "github.com/caddy-dns/dnspod",
-      "name": "DNSPod (alt)",
-      "category": "dns",
-      "subcat": "dns01",
-      "registers": "dns.provider dnspod",
-      "standard": false,
-      "deprecated": true,
-      "license": "MIT",
-      "note": "Letzter Release v0.0.4 im Februar 2022 – bitte tencentcloud verwenden.",
-      "env": [
-        {
-          "name": "DNSPOD_TOKEN",
-          "label": "Token",
-          "required": true,
-          "secret": true,
-          "positional": true
-        }
-      ]
-    },
-    {
-      "id": "googledomains",
-      "module": "github.com/caddy-dns/google-domains",
-      "name": "Google Domains",
-      "category": "dns",
-      "subcat": "dns01",
-      "registers": "dns.provider googledomains",
-      "standard": false,
-      "deprecated": true,
-      "note": "Repo archiviert, v0.0.2 ist pre-semver und gegen Caddy 2.11 nicht baubar. Für Google-Zonen: rfc2136 oder Google-Cloud-DNS-Modul existiert nicht.",
-      "env": []
-    },
-    {
       "id": "caddy-security",
       "module": "github.com/greenpau/caddy-security",
       "name": "Caddy Security (OIDC/SAML/LDAP/JWT/MFA)",
@@ -1104,6 +1071,410 @@
       "docs": "https://github.com/mholt/caddy-webdav",
       "note": "Neue Site-Art „WebDAV“: ein Ordner auf dem Server als Netzlaufwerk (Windows, macOS, Handy). Mit einer Access List mit Benutzern absichern.",
       "env": []
+    },
+    {
+      "id": "he",
+      "module": "github.com/caddy-dns/he",
+      "name": "Hurricane Electric (dns.he.net)",
+      "category": "dns",
+      "subcat": "dns01",
+      "registers": "dns.provider he",
+      "standard": false,
+      "license": "MIT",
+      "docs": "https://github.com/caddy-dns/he",
+      "env": [
+        {
+          "name": "HE_DDNS_KEY",
+          "label": "DDNS-Key",
+          "required": true,
+          "secret": true,
+          "help": "dns.he.net → Eintrag → TXT-Record mit „Enable entry for dynamic dns“, dann Schlüssel erzeugen",
+          "opt": "api_key"
+        }
+      ],
+      "note": "Kostenloser DNS. Für jeden _acme-challenge-TXT-Eintrag einmal einen dynamischen Eintrag mit Schlüssel anlegen."
+    },
+    {
+      "id": "dynv6",
+      "module": "github.com/caddy-dns/dynv6",
+      "name": "dynv6",
+      "category": "dns",
+      "subcat": "dns01",
+      "registers": "dns.provider dynv6",
+      "standard": false,
+      "license": "",
+      "docs": "https://github.com/caddy-dns/dynv6",
+      "env": [
+        {
+          "name": "DYNV6_API_TOKEN",
+          "label": "HTTP-Token",
+          "required": true,
+          "secret": true,
+          "help": "dynv6.com → Keys → HTTP Tokens",
+          "positional": true
+        }
+      ],
+      "note": "Kostenloser DynDNS-Dienst mit eigenen Zonen.",
+      "licenseRisk": "Repository ohne Lizenzangabe – rechtlich unklar, für den Eigenbedarf meist unkritisch."
+    },
+    {
+      "id": "dynu",
+      "module": "github.com/caddy-dns/dynu",
+      "name": "Dynu",
+      "category": "dns",
+      "subcat": "dns01",
+      "registers": "dns.provider dynu",
+      "standard": false,
+      "license": "MIT",
+      "docs": "https://github.com/caddy-dns/dynu",
+      "env": [
+        {
+          "name": "DYNU_API_TOKEN",
+          "label": "API-Key",
+          "required": true,
+          "secret": true,
+          "help": "dynu.com → Control Panel → API Credentials",
+          "opt": "api_token"
+        },
+        {
+          "name": "DYNU_OWN_DOMAIN",
+          "label": "Domain",
+          "required": true,
+          "secret": false,
+          "help": "die Domain, für die Zertifikate geholt werden (bei Dynu verwaltet)",
+          "opt": "own_domain"
+        }
+      ],
+      "note": "Kostenloser DynDNS-Dienst."
+    },
+    {
+      "id": "cloudns",
+      "module": "github.com/caddy-dns/cloudns",
+      "name": "ClouDNS",
+      "category": "dns",
+      "subcat": "dns01",
+      "registers": "dns.provider cloudns",
+      "standard": false,
+      "license": "MIT",
+      "docs": "https://github.com/caddy-dns/cloudns",
+      "env": [
+        {
+          "name": "CLOUDNS_AUTH_ID",
+          "label": "Auth-ID",
+          "required": true,
+          "secret": false,
+          "help": "ClouDNS → API → API-Benutzer anlegen",
+          "opt": "auth_id"
+        },
+        {
+          "name": "CLOUDNS_AUTH_PASSWORD",
+          "label": "API-Passwort",
+          "required": true,
+          "secret": true,
+          "opt": "auth_password"
+        }
+      ]
+    },
+    {
+      "id": "linode",
+      "module": "github.com/caddy-dns/linode",
+      "name": "Linode / Akamai",
+      "category": "dns",
+      "subcat": "dns01",
+      "registers": "dns.provider linode",
+      "standard": false,
+      "license": "MIT",
+      "docs": "https://github.com/caddy-dns/linode",
+      "env": [
+        {
+          "name": "LINODE_TOKEN",
+          "label": "Personal Access Token",
+          "required": true,
+          "secret": true,
+          "help": "Linode Cloud → Profil → API Tokens, Recht „Domains: Read/Write“",
+          "positional": true
+        }
+      ]
+    },
+    {
+      "id": "vultr",
+      "module": "github.com/caddy-dns/vultr",
+      "name": "Vultr",
+      "category": "dns",
+      "subcat": "dns01",
+      "registers": "dns.provider vultr",
+      "standard": false,
+      "license": "",
+      "docs": "https://github.com/caddy-dns/vultr",
+      "env": [
+        {
+          "name": "VULTR_API_TOKEN",
+          "label": "API-Key",
+          "required": true,
+          "secret": true,
+          "help": "Vultr → Account → API",
+          "positional": true
+        }
+      ],
+      "licenseRisk": "Repository ohne Lizenzangabe – rechtlich unklar, für den Eigenbedarf meist unkritisch."
+    },
+    {
+      "id": "njalla",
+      "module": "github.com/caddy-dns/njalla",
+      "name": "Njalla",
+      "category": "dns",
+      "subcat": "dns01",
+      "registers": "dns.provider njalla",
+      "standard": false,
+      "license": "MIT",
+      "docs": "https://github.com/caddy-dns/njalla",
+      "env": [
+        {
+          "name": "NJALLA_API_TOKEN",
+          "label": "API-Token",
+          "required": true,
+          "secret": true,
+          "help": "njal.la → Settings → API",
+          "opt": "api_token"
+        }
+      ]
+    },
+    {
+      "id": "infomaniak",
+      "module": "github.com/caddy-dns/infomaniak",
+      "name": "Infomaniak",
+      "category": "dns",
+      "subcat": "dns01",
+      "registers": "dns.provider infomaniak",
+      "standard": false,
+      "license": "MIT",
+      "docs": "https://github.com/caddy-dns/infomaniak",
+      "env": [
+        {
+          "name": "INFOMANIAK_API_TOKEN",
+          "label": "API-Token",
+          "required": true,
+          "secret": true,
+          "help": "manager.infomaniak.com → Profil → API-Token, Bereich „domain:read dns:read dns:write“",
+          "positional": true
+        }
+      ],
+      "note": "Schweizer Hoster."
+    },
+    {
+      "id": "netlify",
+      "module": "github.com/caddy-dns/netlify",
+      "name": "Netlify",
+      "category": "dns",
+      "subcat": "dns01",
+      "registers": "dns.provider netlify",
+      "standard": false,
+      "license": "MIT",
+      "docs": "https://github.com/caddy-dns/netlify",
+      "env": [
+        {
+          "name": "NETLIFY_TOKEN",
+          "label": "Personal Access Token",
+          "required": true,
+          "secret": true,
+          "help": "app.netlify.com → User settings → Applications",
+          "positional": true
+        }
+      ]
+    },
+    {
+      "id": "transip",
+      "module": "github.com/caddy-dns/transip",
+      "name": "TransIP",
+      "category": "dns",
+      "subcat": "dns01",
+      "registers": "dns.provider transip",
+      "standard": false,
+      "license": "MIT",
+      "docs": "https://github.com/caddy-dns/transip",
+      "env": [
+        {
+          "name": "TRANSIP_LOGIN",
+          "label": "Benutzername",
+          "required": true,
+          "secret": false,
+          "positional": true
+        },
+        {
+          "name": "TRANSIP_KEY_FILE",
+          "label": "Pfad zum privaten Schlüssel",
+          "required": true,
+          "secret": false,
+          "help": "TransIP → Control Panel → API → Key Pair; Datei auf dem Server ablegen (lesbar für caddy)",
+          "positional": true
+        }
+      ],
+      "note": "Niederländischer Hoster."
+    },
+    {
+      "id": "loopia",
+      "module": "github.com/caddy-dns/loopia",
+      "name": "Loopia",
+      "category": "dns",
+      "subcat": "dns01",
+      "registers": "dns.provider loopia",
+      "standard": false,
+      "license": "MIT",
+      "docs": "https://github.com/caddy-dns/loopia",
+      "env": [
+        {
+          "name": "LOOPIA_USER",
+          "label": "API-Benutzer",
+          "required": true,
+          "secret": false,
+          "help": "customerzone.loopia.com → API-Benutzer (endet auf @loopiaapi)",
+          "opt": "username"
+        },
+        {
+          "name": "LOOPIA_PASSWORD",
+          "label": "API-Passwort",
+          "required": true,
+          "secret": true,
+          "opt": "password"
+        }
+      ],
+      "note": "Schwedischer Hoster. Loopia übernimmt Änderungen langsam – Zertifikate können ein paar Minuten dauern."
+    },
+    {
+      "id": "mailinabox",
+      "module": "github.com/caddy-dns/mailinabox",
+      "name": "Mail-in-a-Box",
+      "category": "dns",
+      "subcat": "dns01",
+      "registers": "dns.provider mailinabox",
+      "standard": false,
+      "license": "MIT",
+      "docs": "https://github.com/caddy-dns/mailinabox",
+      "env": [
+        {
+          "name": "MIAB_API_URL",
+          "label": "Admin-URL",
+          "required": true,
+          "secret": false,
+          "help": "z. B. https://box.example.com/admin",
+          "opt": "api_url"
+        },
+        {
+          "name": "MIAB_EMAIL",
+          "label": "Admin-E-Mail",
+          "required": true,
+          "secret": false,
+          "opt": "email_address"
+        },
+        {
+          "name": "MIAB_PASSWORD",
+          "label": "Admin-Passwort",
+          "required": true,
+          "secret": true,
+          "opt": "password"
+        }
+      ],
+      "note": "Eigener Mailserver mit eingebautem DNS."
+    },
+    {
+      "id": "dode",
+      "module": "github.com/caddy-dns/dode",
+      "name": "Domain-Offensive (do.de)",
+      "category": "dns",
+      "subcat": "dns01",
+      "registers": "dns.provider dode",
+      "standard": false,
+      "license": "MIT",
+      "docs": "https://github.com/caddy-dns/dode",
+      "env": [
+        {
+          "name": "DODE_API_TOKEN",
+          "label": "Let's-Encrypt-API-Token",
+          "required": true,
+          "secret": true,
+          "help": "do.de → Domains → Let's Encrypt API-Token",
+          "positional": true
+        }
+      ],
+      "note": "Deutscher Registrar."
+    },
+    {
+      "id": "regfish",
+      "module": "github.com/caddy-dns/regfish",
+      "name": "regfish",
+      "category": "dns",
+      "subcat": "dns01",
+      "registers": "dns.provider regfish",
+      "standard": false,
+      "license": "MIT",
+      "docs": "https://github.com/caddy-dns/regfish",
+      "env": [
+        {
+          "name": "REGFISH_API_KEY",
+          "label": "API-Key",
+          "required": true,
+          "secret": true,
+          "help": "regfish.de → Kundenbereich → API",
+          "positional": true
+        }
+      ],
+      "note": "Deutscher Registrar. Hinweis: die in der Plugin-README genannte Option api_key wirkt dort nicht – caddyEvolved übergibt den Schlüssel deshalb als Argument."
+    },
+    {
+      "id": "easydns",
+      "module": "github.com/caddy-dns/easydns",
+      "name": "easyDNS",
+      "category": "dns",
+      "subcat": "dns01",
+      "registers": "dns.provider easydns",
+      "standard": false,
+      "license": "MIT",
+      "docs": "https://github.com/caddy-dns/easydns",
+      "env": [
+        {
+          "name": "EASYDNS_API_TOKEN",
+          "label": "API-Token",
+          "required": true,
+          "secret": true,
+          "help": "cp.easydns.com → Account → API",
+          "opt": "api_token"
+        },
+        {
+          "name": "EASYDNS_API_KEY",
+          "label": "API-Key",
+          "required": true,
+          "secret": true,
+          "opt": "api_key"
+        }
+      ]
+    },
+    {
+      "id": "luadns",
+      "module": "github.com/caddy-dns/luadns",
+      "name": "LuaDNS",
+      "category": "dns",
+      "subcat": "dns01",
+      "registers": "dns.provider luadns",
+      "standard": false,
+      "license": "MIT",
+      "docs": "https://github.com/caddy-dns/luadns",
+      "env": [
+        {
+          "name": "LUADNS_EMAIL",
+          "label": "Konto-E-Mail",
+          "required": true,
+          "secret": false,
+          "opt": "email"
+        },
+        {
+          "name": "LUADNS_API_KEY",
+          "label": "API-Key",
+          "required": true,
+          "secret": true,
+          "help": "luadns.com → Account → API",
+          "opt": "api_key"
+        }
+      ]
     }
   ]
 }
