@@ -75,3 +75,30 @@ func TestACMEHint(t *testing.T) {
 		}
 	}
 }
+
+func TestParseACMEErrors(t *testing.T) {
+	// Shortened from a real run behind the Cloudflare proxy: the reason is the
+	// 403, the final errors only say "canceled" and "rate limited".
+	log := strings.Join([]string{
+		`{"level":"error","logger":"tls.obtain","msg":"challenge failed","identifier":"vault.example.de","challenge_type":"http-01","problem":{"type":"urn:ietf:params:acme:error:unauthorized","detail":"2606:4700:3032::ac43:c6dd: Invalid response from http://vault.example.de/.well-known/acme-challenge/x: 403"}}`,
+		`{"level":"error","logger":"tls.obtain","msg":"challenge failed","identifier":"vault.example.de","challenge_type":"tls-alpn-01","problem":{"detail":"Cannot negotiate ALPN protocol \"acme-tls/1\" for tls-alpn-01 challenge"}}`,
+		`{"level":"error","logger":"tls.obtain","msg":"could not get certificate from issuer","identifier":"vault.example.de","error":"HTTP 429 urn:ietf:params:acme:error:rateLimited - too many failed authorizations (5)"}`,
+		`{"level":"error","logger":"tls","msg":"job failed","identifier":"vault.example.de","error":"vault.example.de: obtaining certificate: context canceled"}`,
+		`Oct 11 02:00:00 host caddy[1]: {"level":"error","logger":"tls.obtain","msg":"could not get certificate from issuer","identifier":"ok.example.de","error":"timeout"}`,
+		`{"level":"info","logger":"tls.obtain","msg":"certificate obtained successfully","identifier":"ok.example.de"}`,
+	}, "\n")
+	got := parseACMEErrors([]byte(log))
+	msg := got["vault.example.de"]
+	if !strings.Contains(msg, "http-01") || !strings.Contains(msg, ": 403") {
+		t.Fatalf("challenge detail missing: %q", msg)
+	}
+	if !strings.Contains(msg, "rateLimited") {
+		t.Errorf("rate limit missing: %q", msg)
+	}
+	if _, ok := got["ok.example.de"]; ok {
+		t.Errorf("success should clear the domain: %v", got)
+	}
+	if h := ACMEHint(msg, true, ""); !strings.Contains(h, "Cloudflare blockt") || !strings.Contains(h, "DNS-Challenge") {
+		t.Errorf("hint = %q", h)
+	}
+}

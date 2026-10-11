@@ -37,43 +37,6 @@ func (a *Admin) Revisions(ctx context.Context) (json.RawMessage, error) {
 	return a.get(ctx, "/config/revisions")
 }
 
-// Certificates returns the managed TLS certificates as reported by the API.
-func (a *Admin) Certificates(ctx context.Context) ([]Certificate, error) {
-	raw, err := a.get(ctx, "/pki/certificates/local")
-	if err != nil {
-		return nil, err
-	}
-	var docs []struct {
-		SANs      []string  `json:"sans"`
-		IssuerKey string    `json:"issuer_key"`
-		NotBefore time.Time `json:"not_before"`
-		NotAfter  time.Time `json:"not_after"`
-	}
-	if err := json.Unmarshal(raw, &docs); err != nil {
-		return nil, fmt.Errorf("certificates: %w", err)
-	}
-	out := make([]Certificate, 0, len(docs))
-	for _, d := range docs {
-		out = append(out, Certificate{
-			SANs:          d.SANs,
-			Issuer:        d.IssuerKey,
-			NotBefore:     d.NotBefore,
-			NotAfter:      d.NotAfter,
-			ExpiresInDays: int(time.Until(d.NotAfter).Hours() / 24),
-		})
-	}
-	return out, nil
-}
-
-// Certificate is one TLS cert as the API exposes it.
-type Certificate struct {
-	SANs          []string  `json:"sans"`
-	Issuer        string    `json:"issuer"`
-	NotBefore     time.Time `json:"notBefore"`
-	NotAfter      time.Time `json:"notAfter"`
-	ExpiresInDays int       `json:"expiresInDays"`
-}
-
 // Restart triggers a graceful process restart through the API.
 func (a *Admin) Restart(ctx context.Context) error {
 	_, err := a.do(ctx, http.MethodPost, "/restart", nil)

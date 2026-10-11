@@ -165,37 +165,94 @@ func checkHostGet(ctx context.Context, u string, into any) error {
 
 // ---- ACME ------------------------------------------------------------------
 
-// RecentACMEErrors maps domains to the last certificate error caddy logged in
-// the past day.
+// RecentACMEErrors maps domains to the most telling certificate error caddy
+// logged in the past three days.
 func RecentACMEErrors(ctx context.Context) map[string]string {
-	out := map[string]string{}
 	c, cancel := context.WithTimeout(ctx, 8*time.Second)
 	defer cancel()
-	data, err := exec.CommandContext(c, "journalctl", "-u", "caddy", "--since", "-24h", "-o", "cat", "--no-pager").Output()
+	data, err := exec.CommandContext(c, "journalctl", "-u", "caddy", "--since", "-72h", "-o", "cat", "--no-pager").Output()
 	if err != nil {
-		return out
+		return map[string]string{}
 	}
+	return parseACMEErrors(data)
+}
+
+// parseACMEErrors reads caddy's JSON log lines. The last error of a failed
+// attempt is often just "context canceled" or a rate limit; the reason sits in
+// an earlier "challenge failed" line, so that one is kept next to it. A
+// tls-alpn-01 failure says little (it never works behind a proxy) and only
+// counts when nothing else is known. A later success clears the domain.
+func parseACMEErrors(data []byte) map[string]string {
+	type state struct{ last, challenge, alpn, limited string }
+	seen := map[string]*state{}
 	for _, line := range bytes.Split(data, []byte("\n")) {
-		if !bytes.Contains(line, []byte(`"error"`)) || !bytes.Contains(line, []byte(`"tls`)) {
+		if !bytes.Contains(line, []byte(`"identifier"`)) {
 			continue
+		}
+		if i := bytes.IndexByte(line, '{'); i > 0 {
+			line = line[i:]
 		}
 		var e struct {
 			Level      string `json:"level"`
 			Identifier string `json:"identifier"`
 			Msg        string `json:"msg"`
 			Error      string `json:"error"`
+			Challenge  string `json:"challenge_type"`
+			Problem    *struct {
+				Detail string `json:"detail"`
+			} `json:"problem"`
 		}
-		if json.Unmarshal(line, &e) != nil || e.Level != "error" || e.Identifier == "" {
+		if json.Unmarshal(line, &e) != nil || e.Identifier == "" {
 			continue
 		}
-		msg := e.Msg
-		if e.Error != "" {
-			msg = e.Error
+		st := seen[e.Identifier]
+		if st == nil {
+			st = &state{}
+			seen[e.Identifier] = st
 		}
-		if len(msg) > 240 {
-			msg = msg[:240] + "…"
+		switch {
+		case e.Msg == "certificate obtained successfully":
+			*st = state{}
+		case e.Msg == "challenge failed" && e.Problem != nil:
+			if e.Challenge == "tls-alpn-01" {
+				st.alpn = e.Challenge + ": " + e.Problem.Detail
+			} else {
+				st.challenge = e.Challenge + ": " + e.Problem.Detail
+			}
+		case e.Level == "error":
+			msg := e.Error
+			if msg == "" {
+				msg = e.Msg
+			}
+			if strings.Contains(strings.ToLower(msg), "ratelimited") {
+				st.limited = msg
+			} else {
+				st.last = msg
+			}
 		}
-		out[e.Identifier] = msg
+	}
+	out := map[string]string{}
+	for id, st := range seen {
+		var parts []string
+		if st.challenge != "" {
+			parts = append(parts, st.challenge)
+		} else if st.alpn != "" {
+			parts = append(parts, st.alpn)
+		}
+		if len(parts) == 0 && st.last != "" {
+			parts = append(parts, st.last)
+		}
+		if st.limited != "" {
+			parts = append(parts, st.limited)
+		}
+		if len(parts) == 0 {
+			continue
+		}
+		msg := strings.Join(parts, " · ")
+		if len(msg) > 400 {
+			msg = msg[:400] + "…"
+		}
+		out[id] = msg
 	}
 	return out
 }
@@ -204,7 +261,15 @@ func RecentACMEErrors(ctx context.Context) map[string]string {
 func ACMEHint(msg string, behindCF bool, lanIP string) string {
 	m := strings.ToLower(msg)
 	cf := "Mit Cloudflare-Proxy: HTTPS für Besucher auf „DNS-Challenge“ (Cloudflare-Plugin) stellen – das braucht keine offenen Ports. " +
-		"Alternativ in Cloudflare „Always Use HTTPS“ aus und SSL-Modus „Full (strict)“, bis das Zertifikat da ist."
+		"Alternativ in Cloudflare „Always Use HTTPS“ aus und unter Security → WAF eine Skip-Regel für den Pfad /.well-known/acme-challenge/ anlegen; " +
+		"SSL-Modus „Full (strict)“, sobald das Zertifikat da ist."
+	if behindCF && strings.Contains(m, ": 403") {
+		h := "Cloudflare blockt die Prüfanfrage von Let's Encrypt (403) – eine Firewall-, Länder- oder Bot-Regel in Cloudflare. " + cf
+		if strings.Contains(m, "ratelimited") {
+			h += " Nach den Fehlversuchen sperrt Let's Encrypt die Domain gerade für eine Stunde; mit der DNS-Challenge klappt es danach sofort."
+		}
+		return h
+	}
 	switch {
 	case strings.Contains(m, "ratelimited") && strings.Contains(m, "failed authorizations"):
 		h := "Zu viele Fehlversuche – Let's Encrypt sperrt diese Domain für eine Stunde. Erst die Ursache beheben, Caddy versucht es danach selbst erneut."
@@ -227,7 +292,7 @@ func ACMEHint(msg string, behindCF bool, lanIP string) string {
 	case strings.Contains(m, "unauthorized") || strings.Contains(m, "403"):
 		return "Die Challenge landete woanders: zeigt der A-Eintrag wirklich hierher, leitet der Router auf diesen Server?"
 	case strings.Contains(m, "dns") && (strings.Contains(m, "token") || strings.Contains(m, "auth") || strings.Contains(m, "credential")):
-		return "DNS-Plugin kann sich nicht anmelden – API-Token unter „Plugins & Build“ prüfen."
+		return "DNS-Plugin kann sich nicht anmelden – API-Token unter „Plugins & Build“ → Plugins prüfen (beim DNS-Anbieter: Recht „DNS bearbeiten“ für die Zone)."
 	}
 	return "Details: journalctl -u caddy -n 100"
 }

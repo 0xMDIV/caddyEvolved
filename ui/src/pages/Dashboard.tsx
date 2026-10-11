@@ -1,12 +1,16 @@
 import { useEffect } from "react";
-import { AnalyticsResponse, api, CertificatesResponse, CfEvent, expiryKind, fmtExpiry, fmtNum, fmtTime, StatusResponse } from "../api";
+import { AnalyticsResponse, api, BuildsResponse, CertificatesResponse, CfEvent, expiryKind, fmtExpiry, fmtNum, fmtTime, PluginsResponse, StatusResponse } from "../api";
 import { Sparkline } from "../components/charts";
 import { navigate } from "../router";
 import { Badge, ErrorBox, PageHead, Spinner, useAction, useLoad } from "../components/ui";
+import { pendingBuild, PendingBuildBanner } from "./PluginSettings";
 import { IconPlayerPlayFilled, IconPlayerStopFilled, IconRefresh } from "@tabler/icons-react";
 
 export default function Dashboard() {
   const status = useLoad(() => api.get<StatusResponse>("/api/status"));
+  const builds = useLoad(() => api.get<BuildsResponse>("/api/builds"));
+  const plugins = useLoad(() => api.get<PluginsResponse>("/api/plugins"));
+  const waitingBuild = plugins.data ? pendingBuild(builds.data, plugins.data.plugins) : null;
   const events = useLoad(() => api.get<{ events: CfEvent[] | null }>("/api/events?limit=200"));
   const { busy, run } = useAction();
 
@@ -37,6 +41,9 @@ export default function Dashboard() {
         </button>
       </PageHead>
       <ErrorBox error={status.error} />
+      {waitingBuild && plugins.data && (
+        <PendingBuildBanner build={waitingBuild} plugins={plugins.data.plugins} onActivated={() => (builds.reload(), plugins.reload(), status.reload())} />
+      )}
       {s && (
         <div className="stack">
           {s.warnings && s.warnings.length > 0 && (

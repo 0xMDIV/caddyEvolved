@@ -4,7 +4,7 @@
 
 ## Wo wir stehen
 
-Letztes Release: **v0.11.0** (läuft auf dem Test-LXC 192.168.10.27). Release-Weg:
+Letztes Release: **v0.12.0** (läuft auf dem Test-LXC 192.168.10.27). Release-Weg:
 `git tag vX.Y.Z && git push origin vX.Y.Z` → GitHub Actions baut amd64/arm64 →
 auf dem Server `sudo caddyevolved update` oder Knopf unter Einstellungen → Updates.
 
@@ -20,6 +20,7 @@ Erledigt aus der Wunschliste:
 | v0.9.0 | Logger: Zugriffs-Log mit Filtern + Markierungen (Torrent, KI-Crawler, Bot, Scanner, Geblockt, Fehler), Rotation/gzip einstellbar (`internal/accesslog`) |
 | v0.10.0 | Traffic rein/raus pro Site (Analytics), Seite System mit CPU/RAM/Netz von Caddy und caddyEvolved (`internal/sysstat`) |
 | v0.11.0 | Toolbox: CIDR-Rechner, Ping, Traceroute, Port-Scan, IP-Scan, mDNS, DNS (`internal/toolbox`) |
+| v0.12.0 | Plugin-Einstellungen gebündelt (Build-Seite → „Plugins & Einstellungen“, Speichern startet Caddy neu), Build optional sofort aktivieren, Hinweis auf nicht aktivierte Builds (auch Dashboard), Zertifikatsseite zeigt wartende Domains mit Grund + Cloudflare-Umstellung, Diagramme ohne verzerrte Schrift |
 
 ## Toolbox (v0.11.0)
 
@@ -33,6 +34,11 @@ Erledigt aus der Wunschliste:
 
 ## Danach offen
 
+- **Plugin-Einstellungen Phase 2** (Wunsch: *jedes* Plugin über die UI steuerbar): für Redis-/Postgres-Storage
+  fehlt der globale `storage`-Block (Env-Werte allein wirken nicht!), Cache (souin/otter), caddy-l4,
+  tls-rate-limit, docker-proxy haben noch keine Oberfläche. Dafür muss caddyEvolved den globalen
+  Optionsblock der Caddyfile verwalten (heute nur beim Install geschrieben, `internal/install/caddyfile.go`).
+
 - **Plugin-Updates:** Anzeige „Update verfügbar“ für eingebaute Plugins (Angebot steht noch aus).
 - **Zugangsdaten verschlüsseln** mit `systemd-creds` (TPM der VM) – nur angeboten, nicht beauftragt.
 - **Vaultwarden auf der VM 192.168.10.28** (vault.m0ses.de → 192.168.10.132:8006, HTTP – das Ziel
@@ -40,8 +46,6 @@ Erledigt aus der Wunschliste:
   → Cloudflare 525. HTTP-01 scheitert mit **403 von Cloudflare** (Firewall/Länder-/Bot-Regel blockt
   die Let's-Encrypt-Prüfer), TLS-ALPN geht hinter Cloudflare nie. Lösung: DNS-Challenge mit
   Cloudflare-Plugin oder Ausnahme für `/.well-known/acme-challenge/*` in Cloudflare.
-- caddyEvolved fragt alle 15 s `/pki/certificates/local` ab, obwohl keine interne CA aktiv ist →
-  404-Fehler im Caddy-Journal. Abfrage nur bei `tls internal` oder 404 still behandeln.
 - Ältere Punkte: Caddyfile-Revisionsverlauf, Zertifikat manuell erneuern/hochladen, Mehrbenutzer/2FA,
   `caddyevolved uninstall`, Bundle-Variante.
 

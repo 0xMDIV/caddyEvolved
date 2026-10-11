@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 // Small dependency-free SVG charts. Colors come from CSS variables so light
 // and dark themes follow automatically.
@@ -21,8 +21,23 @@ interface ChartProps {
   fmtTime: (t: number) => string;
 }
 
-const PAD = { l: 44, r: 8, t: 8, b: 22 };
-const W = 800; // viewBox width; the SVG scales to its container
+const PAD = { r: 8, t: 8, b: 22 };
+
+/** Width of an element in CSS pixels, following resizes. */
+function useWidth<T extends Element>(fallback: number) {
+  const ref = useRef<T>(null);
+  const [w, setW] = useState(fallback);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const update = () => setW(Math.max(120, Math.round(el.getBoundingClientRect().width)));
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  return [ref, w] as const;
+}
 
 function niceMax(v: number): number {
   if (v <= 0) return 1;
@@ -41,9 +56,9 @@ function shortNum(v: number): string {
 export function Chart({ rows, series, height = 200, stacked = false, kind = "bars", fmt = shortNum, fmtTime }: ChartProps) {
   const [hover, setHover] = useState<number | null>(null);
   const svgRef = useRef<SVGSVGElement>(null);
+  // Drawn 1:1 in CSS pixels – a stretched viewBox would distort the text.
+  const [boxRef, W] = useWidth<HTMLDivElement>(800);
   const H = height;
-  const innerW = W - PAD.l - PAD.r;
-  const innerH = H - PAD.t - PAD.b;
 
   const max = useMemo(() => {
     let m = 0;
@@ -54,30 +69,34 @@ export function Chart({ rows, series, height = 200, stacked = false, kind = "bar
     return niceMax(m);
   }, [rows, series, stacked]);
 
+  const ticks = [0, 0.25, 0.5, 0.75, 1].map((f) => f * max);
+  // Left margin fits the longest axis label (≈6.5 px per character at 11 px).
+  const padL = Math.max(32, Math.max(...ticks.map((t) => fmt(t).length)) * 6.5 + 10);
+  const innerW = W - padL - PAD.r;
+  const innerH = H - PAD.t - PAD.b;
   const n = rows.length;
   const slot = n > 0 ? innerW / n : innerW;
-  const x = (i: number) => PAD.l + i * slot;
+  const x = (i: number) => padL + i * slot;
   const y = (v: number) => PAD.t + innerH - (v / max) * innerH;
 
   function onMove(e: React.MouseEvent<SVGSVGElement>) {
     const svg = svgRef.current;
     if (!svg || n === 0) return;
     const rect = svg.getBoundingClientRect();
-    const px = ((e.clientX - rect.left) / rect.width) * W;
-    const i = Math.floor((px - PAD.l) / slot);
+    const px = e.clientX - rect.left;
+    const i = Math.floor((px - padL) / slot);
     setHover(i >= 0 && i < n ? i : null);
   }
 
-  const ticks = [0, 0.25, 0.5, 0.75, 1].map((f) => f * max);
-  const labelEvery = Math.max(1, Math.ceil(n / 6));
+  // One time label per ~90 px.
+  const labelEvery = Math.max(1, Math.ceil(n / Math.max(2, Math.floor(innerW / 90))));
   const h = hover !== null ? rows[hover] : null;
 
   return (
-    <div className="chart" style={{ position: "relative" }}>
+    <div className="chart" ref={boxRef} style={{ position: "relative" }}>
       <svg
         ref={svgRef}
         viewBox={`0 0 ${W} ${H}`}
-        preserveAspectRatio="none"
         width="100%"
         height={H}
         onMouseMove={onMove}
@@ -86,8 +105,8 @@ export function Chart({ rows, series, height = 200, stacked = false, kind = "bar
       >
         {ticks.map((t) => (
           <g key={t}>
-            <line x1={PAD.l} x2={W - PAD.r} y1={y(t)} y2={y(t)} className="chart-grid" />
-            <text x={PAD.l - 6} y={y(t) + 4} textAnchor="end" className="chart-axis">
+            <line x1={padL} x2={W - PAD.r} y1={y(t)} y2={y(t)} className="chart-grid" />
+            <text x={padL - 6} y={y(t) + 4} textAnchor="end" className="chart-axis">
               {fmt(t)}
             </text>
           </g>

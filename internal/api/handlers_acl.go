@@ -178,6 +178,7 @@ func (s *Server) handleCertificates(w http.ResponseWriter, r *http.Request) {
 	_, rootErr := certs.RootCA(s.Paths.CaddyStorage)
 	writeJSON(w, http.StatusOK, map[string]any{
 		"certificates": out, "storage": s.Paths.CaddyStorage, "internalCA": rootErr == nil,
+		"pending": pendingCerts(r.Context(), list, siteList),
 	})
 }
 

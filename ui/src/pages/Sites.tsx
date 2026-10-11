@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { AccessListsResponse, api, emptySite, Site, SiteMode, SitesResponse } from "../api";
+import { AccessListsResponse, api, emptySite, PluginsResponse, Site, SiteMode, SitesResponse } from "../api";
+import { CredentialFields } from "../components/plugins";
 import { DefenderFields, FEATURE_PLUGINS, RateLimitFields, useCompiledPlugins, WafFields } from "../components/features";
 import { Badge, ConfirmButton, ErrorBox, PageHead, Spinner, Switch, useAction, useLoad, useToast } from "../components/ui";
 import { formatTarget, FormSection, parseTarget, SiteHelp, Target, TargetEditor, TlsPicker, ToggleRow } from "../components/siteform";
@@ -32,6 +33,7 @@ export default function Sites() {
         initial={editing.site}
         isNew={editing.isNew}
         dnsProviders={list.data?.dnsProviders ?? []}
+        onProvidersChanged={list.reload}
         onDone={(saved) => {
           setEditing(null);
           if (saved) {
@@ -175,11 +177,13 @@ function SiteEditor({
   initial,
   isNew,
   dnsProviders,
+  onProvidersChanged,
   onDone,
 }: {
   initial: Site;
   isNew: boolean;
   dnsProviders: { id: string; name: string; ready: boolean }[];
+  onProvidersChanged: () => void;
   onDone: (saved: Site | null) => void;
 }) {
   // Old entries may still carry "https://" in the address; that becomes the
@@ -376,6 +380,9 @@ function SiteEditor({
                 {dnsProviders.length === 0 && <span className="hint">Kein DNS-Plugin im Binary – unter „Plugins & Build“ einbauen.</span>}
               </label>
             )}
+            {site.tls === "dns" && dnsProviders.some((p) => p.id === site.dnsProvider && !p.ready) && (
+              <ProviderSetup id={site.dnsProvider} onSaved={onProvidersChanged} />
+            )}
             {site.mode !== "raw" && (
               <ToggleRow checked={site.compress} onChange={(v) => set("compress", v)} label="Komprimierung (zstd/gzip)" hint="Spart Bandbreite bei Text, HTML und JSON." />
             )}
@@ -425,5 +432,22 @@ function SiteEditor({
         </div>
       </div>
     </>
+  );
+}
+
+/** Inline credentials for a DNS provider that has none yet. */
+function ProviderSetup({ id, onSaved }: { id: string; onSaved: () => void }) {
+  const plugins = useLoad(() => api.get<PluginsResponse>("/api/plugins"));
+  const p = plugins.data?.plugins.find((x) => x.id === id);
+  if (!p) return plugins.loading ? <Spinner /> : null;
+  return (
+    <div className="alert warn stack" style={{ gap: 10 }}>
+      <div>
+        <b>{p.name}</b> braucht Zugangsdaten, sonst bekommt die Site kein Zertifikat.
+      </div>
+      <div style={{ color: "var(--text)" }}>
+        <CredentialFields plugin={p} compact onSaved={() => (plugins.reload(), onSaved())} />
+      </div>
+    </div>
   );
 }

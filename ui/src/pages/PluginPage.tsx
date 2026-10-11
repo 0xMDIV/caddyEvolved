@@ -14,7 +14,7 @@ import {
 import { navigate } from "../router";
 import { DefenderFields, RateLimitFields, WafFields } from "../components/features";
 import { Badge, ErrorBox, PageHead, Spinner, useLoad, useToast } from "../components/ui";
-import { CredentialCard } from "./Build";
+import { CredentialCard } from "../components/plugins";
 
 function Link({ to, children }: { to: string; children: ReactNode }) {
   return (

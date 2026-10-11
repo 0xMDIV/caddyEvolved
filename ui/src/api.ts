@@ -197,7 +197,6 @@ export interface StatusResponse {
   };
   ports: PortState[] | null;
   enabledPlugins: PluginState[] | null;
-  certificates?: Certificate[];
   lastEvent?: CfEvent;
   updatedAt?: string;
   warnings?: string[];
@@ -328,10 +327,21 @@ export interface CertInfo {
   sites: string[] | null;
 }
 
+export interface PendingCert {
+  site: string;
+  domain: string;
+  tls: SiteTLS;
+  dnsProvider?: string;
+  cloudflare: boolean;
+  error?: string;
+  hint: string;
+}
+
 export interface CertificatesResponse {
   certificates: CertInfo[] | null;
   storage: string;
   internalCA: boolean;
+  pending: PendingCert[] | null;
 }
 
 export interface NavItem {

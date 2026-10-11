@@ -16,7 +16,7 @@
         {
           "name": "CF_API_TOKEN",
           "label": "API-Token",
-          "help": "Zone.DNS:Read reicht für DNS-01",
+          "help": "Cloudflare → Mein Profil → API-Token → „Zone-DNS bearbeiten“-Vorlage, Zone = deine Domain",
           "required": true,
           "secret": true,
           "opt": "api_token"

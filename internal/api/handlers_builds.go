@@ -82,6 +82,8 @@ func (s *Server) handleBuildList(w http.ResponseWriter, r *http.Request) {
 type buildRequest struct {
 	CaddyVersion string   `json:"caddyVersion"`
 	Plugins      []string `json:"plugins"`
+	// Activate swaps the binary in as soon as the build succeeded.
+	Activate bool `json:"activate"`
 }
 
 func (s *Server) handleBuildStart(w http.ResponseWriter, r *http.Request) {
@@ -139,13 +141,14 @@ func (s *Server) handleBuildStart(w http.ResponseWriter, r *http.Request) {
 		Summary: fmt.Sprintf("Build %s gestartet: caddy %s, %d Modul(e)", b.ID, version, len(res.Modules)),
 		Meta:    map[string]any{"build": b.ID, "modules": res.Modules},
 	})
-	go s.recordBuildOutcome(b.ID)
+	go s.recordBuildOutcome(b.ID, req.Activate)
 	writeJSON(w, http.StatusAccepted, map[string]any{"build": b, "notes": res.Notes})
 }
 
 // recordBuildOutcome writes one event when the build ends, so the dashboard
-// shows it without the build page being open.
-func (s *Server) recordBuildOutcome(id string) {
+// shows it without the build page being open. With activate it also swaps the
+// binary in – a finished build nobody activates is easy to miss.
+func (s *Server) recordBuildOutcome(id string, activate bool) {
 	_, ch, cancel, err := s.Builder.Subscribe(id)
 	if err != nil || ch == nil {
 		return
@@ -162,6 +165,11 @@ func (s *Server) recordBuildOutcome(id string) {
 			Error:   b.Error,
 			Meta:    map[string]any{"build": b.ID},
 		})
+		if activate && b.Status == builder.StatusSucceeded {
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+			defer cancel()
+			_, _, _ = s.activateBuild(ctx, id)
+		}
 		return
 	}
 }
@@ -292,20 +300,28 @@ func (s *Server) handleBuildActivate(w http.ResponseWriter, r *http.Request) {
 	// The swap must finish even if the browser goes away mid-restart.
 	ctx, cancel := context.WithTimeout(context.WithoutCancel(r.Context()), 2*time.Minute)
 	defer cancel()
-	id := r.PathValue("id")
+	b, version, err := s.activateBuild(ctx, r.PathValue("id"))
+	if err != nil {
+		var aerr *builder.ActivateError
+		writeJSON(w, http.StatusBadGateway, map[string]any{
+			"error": errText(err), "code": "activate_failed", "rolledBack": errors.As(err, &aerr) && aerr.RolledBack,
+		})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"build": b, "caddyVersion": version, "rolledBack": false})
+}
+
+// activateBuild swaps the build's binary in and records the outcome.
+func (s *Server) activateBuild(ctx context.Context, id string) (builder.Build, string, error) {
 	b, err := s.Builder.Activate(ctx, id, s.buildHooks())
 	if err != nil {
 		var aerr *builder.ActivateError
-		rolledBack := errors.As(err, &aerr) && aerr.RolledBack
 		s.Events.Record(events.Event{
 			Kind: events.KindPlugin, Step: "activate", OK: false,
 			Summary: "Build " + id + " nicht aktiviert", Error: errText(err),
-			Meta: map[string]any{"build": id, "rolledBack": rolledBack},
+			Meta: map[string]any{"build": id, "rolledBack": errors.As(err, &aerr) && aerr.RolledBack},
 		})
-		writeJSON(w, http.StatusBadGateway, map[string]any{
-			"error": errText(err), "code": "activate_failed", "rolledBack": rolledBack,
-		})
-		return
+		return b, "", err
 	}
 	version, _ := s.Caddy.Version(ctx)
 	s.recordBinaryState(ctx, version, b.Plugins)
@@ -314,7 +330,7 @@ func (s *Server) handleBuildActivate(w http.ResponseWriter, r *http.Request) {
 		Summary: fmt.Sprintf("Build %s aktiv: caddy %s mit %d Modul(en)", id, version, len(b.Modules)),
 		Meta:    map[string]any{"build": id, "sha256": b.SHA256},
 	})
-	writeJSON(w, http.StatusOK, map[string]any{"build": b, "caddyVersion": version, "rolledBack": false})
+	return b, version, nil
 }
 
 func (s *Server) handleBuildRollback(w http.ResponseWriter, r *http.Request) {

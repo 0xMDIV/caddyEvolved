@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { api, CertificatesResponse, CertInfo, downloadFile, errMsg, expiryKind, fmtExpiry, fmtTime } from "../api";
-import { Badge, ErrorBox, PageHead, Spinner, useLoad, useToast } from "../components/ui";
+import { api, CertificatesResponse, CertInfo, downloadFile, errMsg, expiryKind, fmtExpiry, fmtTime, PendingCert, SitesResponse } from "../api";
+import { Badge, ErrorBox, PageHead, Spinner, useAction, useLoad, useToast } from "../components/ui";
+import { navigate } from "../router";
 
 function SourceBadge({ c }: { c: CertInfo }) {
   if (c.staging) return <Badge kind="warn">Staging</Badge>;
@@ -45,6 +46,8 @@ export default function Certificates() {
       </PageHead>
       <ErrorBox error={list.error} />
 
+      {(list.data?.pending ?? []).length > 0 && <PendingCard pending={list.data!.pending!} onChange={list.reload} />}
+
       <div className="card">
         {list.loading && !list.data ? (
           <div className="empty">
@@ -52,8 +55,9 @@ export default function Certificates() {
           </div>
         ) : certs.length === 0 ? (
           <div className="empty">
-            Noch keine Zertifikate. Caddy holt sie beim ersten Aufruf einer Site mit automatischem TLS – dafür müssen Port 80/443 von außen
-            erreichbar sein und die Domain auf diesen Server zeigen.
+            {(list.data?.pending ?? []).length > 0
+              ? "Noch kein Zertifikat ausgestellt – den Grund zeigt die Karte oben."
+              : "Noch keine Zertifikate. Caddy holt sie, sobald eine Site mit HTTPS „Automatisch“ oder „DNS-Challenge“ angelegt ist."}
           </div>
         ) : (
           <div className="table-wrap">
@@ -117,5 +121,72 @@ export default function Certificates() {
         )}
       </div>
     </>
+  );
+}
+
+const TLS_LABEL: Record<string, string> = { auto: "Automatisch (HTTP-Challenge)", dns: "DNS-Challenge" };
+
+/** Domains of enabled sites that still have no certificate, with the reason. */
+function PendingCard({ pending, onChange }: { pending: PendingCert[]; onChange: () => void }) {
+  const sites = useLoad(() => api.get<SitesResponse>("/api/sites"));
+  const { busy, run } = useAction();
+  const cf = (sites.data?.dnsProviders ?? []).find((p) => p.id === "cloudflare");
+
+  const retry = async () => {
+    const r = await run("retry", () => api.post("/api/service/restart?unit=caddy.service"), "Caddy neu gestartet – versucht es jetzt erneut");
+    if (r) setTimeout(onChange, 8000);
+  };
+  const toDNS = async (p: PendingCert) => {
+    const site = sites.data?.sites?.find((s) => s.id === p.site);
+    if (!site) return;
+    const r = await run("dns-" + p.site, () => api.put(`/api/sites/${encodeURIComponent(site.id)}`, { ...site, tls: "dns", dnsProvider: "cloudflare" }), `${p.domain}: DNS-Challenge über Cloudflare aktiv`);
+    if (r) {
+      sites.reload();
+      setTimeout(onChange, 8000);
+    }
+  };
+
+  return (
+    <div className="card stack" style={{ marginBottom: 16, gap: 12 }}>
+      <div className="row">
+        <h2 style={{ margin: 0 }}>Warten auf ein Zertifikat</h2>
+        <Badge kind="warn">{pending.length}</Badge>
+        <span className="spacer" />
+        <button className="btn sm" onClick={retry} disabled={busy === "retry"} title="Caddy neu starten – danach versucht es sofort erneut">
+          {busy === "retry" && <Spinner />} Erneut versuchen
+        </button>
+      </div>
+      {pending.map((p) => (
+        <div key={p.site + p.domain} className="pending-cert">
+          <div className="row">
+            <span className="mono" style={{ fontWeight: 600 }}>
+              {p.domain}
+            </span>
+            <Badge>{p.tls === "dns" && p.dnsProvider ? `DNS · ${p.dnsProvider}` : TLS_LABEL[p.tls] ?? p.tls}</Badge>
+            {p.cloudflare && <Badge kind="info">Cloudflare-Proxy</Badge>}
+          </div>
+          <div className="small">{p.hint}</div>
+          {p.error && (
+            <details className="small">
+              <summary className="muted">Meldung von Caddy</summary>
+              <pre className="code wrap" style={{ marginTop: 6 }}>{p.error}</pre>
+            </details>
+          )}
+          {p.cloudflare && p.tls === "auto" && (
+            <div className="row">
+              {cf?.ready ? (
+                <button className="btn primary sm" disabled={busy === "dns-" + p.site} onClick={() => toDNS(p)}>
+                  {busy === "dns-" + p.site && <Spinner />} Auf DNS-Challenge (Cloudflare) umstellen
+                </button>
+              ) : (
+                <button className="btn primary sm" onClick={() => navigate("/build")}>
+                  {cf ? "Cloudflare-Token eintragen" : "Cloudflare-Plugin einrichten"}
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
   );
 }

@@ -15,7 +15,8 @@ import {
   Versions,
 } from "../api";
 import { Badge, ConfirmButton, ErrorBox, PageHead, Spinner, useAction, useLoad, useToast } from "../components/ui";
-import { IconArrowBackUp, IconExternalLink, IconX } from "@tabler/icons-react";
+import { IconArrowBackUp, IconX } from "@tabler/icons-react";
+import PluginSettings from "./PluginSettings";
 
 const CATEGORY_LABEL: Record<string, string> = {
   dns: "DNS-Anbieter (DNS-01-Zertifikate)",
@@ -30,7 +31,15 @@ const CATEGORY_LABEL: Record<string, string> = {
 const RUNNING: BuildT["status"][] = ["queued", "preparing", "building", "verifying"];
 
 export default function Build() {
-  const [tab, setTab] = useState<"build" | "history" | "credentials">("build");
+  type Tab = "plugins" | "build" | "history";
+  const [tab, setTabState] = useState<Tab>(() => {
+    const h = window.location.hash.slice(1);
+    return h === "build" || h === "history" ? h : "plugins";
+  });
+  const setTab = (t: Tab) => {
+    setTabState(t);
+    history.replaceState(null, "", t === "plugins" ? window.location.pathname : "#" + t);
+  };
   const plugins = useLoad(() => api.get<PluginsResponse>("/api/plugins"));
   const builds = useLoad(() => api.get<BuildsResponse>("/api/builds"));
   const toolchain = useLoad(() => api.get<Toolchain>("/api/build/toolchain"));
@@ -56,14 +65,14 @@ export default function Build() {
         <ToolchainBadge tc={toolchain.data} />
       </PageHead>
       <div className="tabs" role="tablist">
+        <button className={`tab ${tab === "plugins" ? "active" : ""}`} onClick={() => setTab("plugins")}>
+          Plugins & Einstellungen
+        </button>
         <button className={`tab ${tab === "build" ? "active" : ""}`} onClick={() => setTab("build")}>
           Neuer Build
         </button>
         <button className={`tab ${tab === "history" ? "active" : ""}`} onClick={() => setTab("history")}>
           Verlauf {builds.data?.builds?.length ? `(${builds.data.builds.length})` : ""}
-        </button>
-        <button className={`tab ${tab === "credentials" ? "active" : ""}`} onClick={() => setTab("credentials")}>
-          Zugangsdaten
         </button>
       </div>
       <ErrorBox error={plugins.error || builds.error} />
@@ -78,6 +87,9 @@ export default function Build() {
         />
       )}
 
+      {tab === "plugins" && plugins.data && (
+        <PluginSettings plugins={plugins.data} builds={builds.data} onChange={refreshAll} onNewBuild={() => setTab("build")} />
+      )}
       {tab === "build" && plugins.data && (
         <NewBuild
           plugins={plugins.data}
@@ -89,7 +101,6 @@ export default function Build() {
         />
       )}
       {tab === "history" && <History data={builds.data} onChange={refreshAll} onWatch={(id) => setWatchId(id)} />}
-      {tab === "credentials" && plugins.data && <Credentials plugins={plugins.data.plugins} onSaved={plugins.reload} />}
     </>
   );
 }
@@ -99,7 +110,7 @@ function ToolchainBadge({ tc }: { tc: Toolchain | null }) {
   return (
     <span className="row small">
       <Badge kind={tc.go.installed ? "ok" : undefined}>Go {tc.go.installed ? tc.go.version : "wird beim 1. Build geladen"}</Badge>
-      <Badge kind={tc.xcaddy.installed ? "ok" : undefined}>xcaddy {tc.xcaddy.installed ? tc.xcaddy.version || "" : "fehlt noch"}</Badge>
+      <Badge kind={tc.xcaddy.installed ? "ok" : undefined}>xcaddy {tc.xcaddy.installed ? (tc.xcaddy.version || "").split(" ")[0] : "fehlt noch"}</Badge>
       {tc.cacheBytes ? <Badge>Cache {fmtBytes(tc.cacheBytes)}</Badge> : null}
     </span>
   );
@@ -121,6 +132,7 @@ function NewBuild({ plugins, busy, onStarted }: { plugins: PluginsResponse; busy
   const [starting, setStarting] = useState(false);
   const [startErr, setStartErr] = useState<unknown>(null);
   const [filter, setFilter] = useState("");
+  const [activate, setActivate] = useState(true);
 
   const byId = useMemo(() => new Map(plugins.plugins.map((p) => [p.id, p])), [plugins.plugins]);
 
@@ -191,6 +203,7 @@ function NewBuild({ plugins, busy, onStarted }: { plugins: PluginsResponse; busy
       const r = await api.post<{ build: BuildT }>("/api/builds", {
         caddyVersion: version,
         plugins: [...Array.from(selected), ...custom],
+        activate,
       });
       toast("info", "Build gestartet");
       onStarted(r.build);
@@ -318,8 +331,14 @@ function NewBuild({ plugins, busy, onStarted }: { plugins: PluginsResponse; busy
         <button className="btn primary" onClick={start} disabled={starting || busy}>
           {starting && <Spinner />} {busy ? "Build läuft bereits" : "Build starten"}
         </button>
+        <label className="check small">
+          <input type="checkbox" checked={activate} onChange={(e) => setActivate(e.target.checked)} /> Nach erfolgreichem Build sofort aktivieren
+        </label>
         <p className="small muted" style={{ margin: 0 }}>
-          Der erste Build lädt Go und xcaddy und dauert einige Minuten. Die neue Binary wird erst nach „Aktivieren“ verwendet.
+          Der erste Build lädt Go und xcaddy und dauert einige Minuten.{" "}
+          {activate
+            ? "Danach tauscht caddyEvolved die Binary und startet Caddy neu – schlägt das fehl, bleibt die alte."
+            : "Die neue Binary wird erst nach „Aktivieren“ verwendet."}
         </p>
       </div>
     </div>
@@ -588,108 +607,6 @@ function History({ data, onChange, onWatch }: { data: BuildsResponse | null; onC
           </table>
         </div>
       )}
-    </div>
-  );
-}
-
-// ---------- Credentials ----------
-
-function Credentials({ plugins, onSaved }: { plugins: PluginState[]; onSaved: () => void }) {
-  const relevant = plugins.filter((p) => (p.env?.length ?? 0) > 0 && (p.detected || p.active));
-  const others = plugins.filter((p) => (p.env?.length ?? 0) > 0 && !(p.detected || p.active));
-  const [showAll, setShowAll] = useState(false);
-  const list = showAll ? [...relevant, ...others] : relevant;
-
-  return (
-    <div className="stack">
-      <div className="alert info">
-        Zugangsdaten landen in <code>/etc/caddyevolved/env</code> (Rechte 0600) und werden Caddy als Umgebungsvariablen übergeben. Gespeicherte
-        Werte werden nie wieder angezeigt.
-      </div>
-      {list.length === 0 && <div className="card empty">Keines der eingebauten Plugins braucht Zugangsdaten.</div>}
-      {list.map((p) => (
-        <CredentialCard key={p.id} plugin={p} onSaved={onSaved} />
-      ))}
-      {others.length > 0 && (
-        <button className="btn" onClick={() => setShowAll((v) => !v)} style={{ alignSelf: "flex-start" }}>
-          {showAll ? "Nur eingebaute Plugins zeigen" : `Alle ${others.length} weiteren Plugins anzeigen`}
-        </button>
-      )}
-    </div>
-  );
-}
-
-export function CredentialCard({ plugin, onSaved }: { plugin: PluginState; onSaved: () => void }) {
-  const [values, setValues] = useState<Record<string, string>>({});
-  const { busy, run } = useAction();
-
-  async function save() {
-    const set: Record<string, string> = {};
-    for (const [k, v] of Object.entries(values)) if (v.trim()) set[k] = v.trim();
-    const r = await run("save", () => api.post<{ changed: string[] | null; reloadRecommended: boolean }>("/api/plugins/credentials", { set }), "Zugangsdaten gespeichert");
-    if (r) {
-      setValues({});
-      onSaved();
-    }
-  }
-
-  async function unset(name: string) {
-    await run("unset-" + name, () => api.post("/api/plugins/credentials", { unset: [name] }), `${name} entfernt`);
-    onSaved();
-  }
-
-  return (
-    <div className="card">
-      <div className="row" style={{ marginBottom: 10 }}>
-        <h2 style={{ margin: 0 }}>{plugin.name}</h2>
-        {plugin.detected ? <Badge kind="ok">eingebaut</Badge> : <Badge>nicht eingebaut</Badge>}
-        {plugin.active && !plugin.complete && <Badge kind="warn">unvollständig</Badge>}
-        <span className="spacer" />
-        {plugin.docs && (
-          <a href={plugin.docs} target="_blank" rel="noreferrer" className="small">
-            Doku <IconExternalLink size={13} style={{ verticalAlign: "-2px" }} />
-          </a>
-        )}
-      </div>
-      {plugin.note && <p className="small muted" style={{ marginTop: 0 }}>{plugin.note}</p>}
-      <div className="form-grid">
-        {(plugin.env ?? []).map((v) => {
-          const state = plugin.credentialState?.[v.name];
-          return (
-            <label key={v.name} className="field">
-              <span className="row" style={{ gap: 6 }}>
-                {v.label || v.name}
-                {state === "set" ? <Badge kind="ok">gesetzt</Badge> : v.required ? <Badge kind="warn">fehlt</Badge> : <Badge>optional</Badge>}
-              </span>
-              <input
-                type={v.secret ? "password" : "text"}
-                autoComplete="off"
-                placeholder={state === "set" ? "•••••• (neu setzen)" : v.name}
-                value={values[v.name] ?? ""}
-                onChange={(e) => setValues((x) => ({ ...x, [v.name]: e.target.value }))}
-              />
-              <span className="hint row">
-                <span className="mono">{v.name}</span>
-                {v.help && <span>· {v.help}</span>}
-                {state === "set" && (
-                  <button className="btn ghost sm" style={{ padding: "0 4px", color: "var(--danger)" }} disabled={!!busy} onClick={(e) => (e.preventDefault(), unset(v.name))}>
-                    entfernen
-                  </button>
-                )}
-              </span>
-            </label>
-          );
-        })}
-      </div>
-      <div className="row" style={{ marginTop: 12 }}>
-        <span className="spacer" />
-        <button className="btn primary" onClick={save} disabled={busy === "save" || !Object.values(values).some((v) => v.trim())}>
-          {busy === "save" && <Spinner />} Speichern
-        </button>
-      </div>
-      <p className="small muted" style={{ marginBottom: 0 }}>
-        Nach dem Ändern Caddy neu starten (Dashboard → Neu starten), damit die Variablen greifen.
-      </p>
     </div>
   );
 }

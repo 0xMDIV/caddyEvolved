@@ -14,24 +14,23 @@ import (
 // request paints the dashboard, and a partially unavailable subsystem shows up
 // in Warnings instead of turning the endpoint into a 500.
 type StatusResponse struct {
-	Installed     bool                   `json:"installed"`
-	CaddyVersion  string                 `json:"caddyVersion,omitempty"`
-	Variant       string                 `json:"variant,omitempty"`
-	AdminURL      string                 `json:"adminUrl,omitempty"`
-	AdminReach    bool                   `json:"adminReachable"`
-	AdminError    string                 `json:"adminError,omitempty"`
-	ServiceState  string                 `json:"serviceState,omitempty"`
-	ServiceActive bool                   `json:"serviceActive"`
-	MainPID       string                 `json:"mainPid,omitempty"`
-	Listening     bool                   `json:"listening"`
-	UI            UIStatus               `json:"ui"`
-	Host          HostStatus             `json:"host"`
-	Ports         []platform.PortState   `json:"ports"`
-	Enabled       []PluginState          `json:"enabledPlugins"`
-	Certificates  []caddyctl.Certificate `json:"certificates,omitempty"`
-	LastEvent     *events.Event          `json:"lastEvent,omitempty"`
-	UpdatedAt     string                 `json:"updatedAt,omitempty"`
-	Warnings      []string               `json:"warnings,omitempty"`
+	Installed     bool                 `json:"installed"`
+	CaddyVersion  string               `json:"caddyVersion,omitempty"`
+	Variant       string               `json:"variant,omitempty"`
+	AdminURL      string               `json:"adminUrl,omitempty"`
+	AdminReach    bool                 `json:"adminReachable"`
+	AdminError    string               `json:"adminError,omitempty"`
+	ServiceState  string               `json:"serviceState,omitempty"`
+	ServiceActive bool                 `json:"serviceActive"`
+	MainPID       string               `json:"mainPid,omitempty"`
+	Listening     bool                 `json:"listening"`
+	UI            UIStatus             `json:"ui"`
+	Host          HostStatus           `json:"host"`
+	Ports         []platform.PortState `json:"ports"`
+	Enabled       []PluginState        `json:"enabledPlugins"`
+	LastEvent     *events.Event        `json:"lastEvent,omitempty"`
+	UpdatedAt     string               `json:"updatedAt,omitempty"`
+	Warnings      []string             `json:"warnings,omitempty"`
 }
 
 // UIStatus describes how the operator reaches this daemon.
@@ -100,9 +99,6 @@ func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {
 	} else {
 		resp.AdminReach = true
 		resp.Listening = true
-		if certs, err := caddyctl.NewAdmin(resp.AdminURL).Certificates(ctx); err == nil {
-			resp.Certificates = certs
-		}
 	}
 
 	if v, err := s.Caddy.Version(ctx); err == nil {
