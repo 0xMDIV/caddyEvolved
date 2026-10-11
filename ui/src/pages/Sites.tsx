@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { AccessListsResponse, api, emptySite, PluginsResponse, Site, SiteMode, SitesResponse } from "../api";
 import { CredentialFields } from "../components/plugins";
+import { useGlobal } from "../components/globalcards";
 import { DefenderFields, FEATURE_PLUGINS, RateLimitFields, useCompiledPlugins, WafFields } from "../components/features";
 import { Badge, ConfirmButton, ErrorBox, PageHead, Spinner, Switch, useAction, useLoad, useToast } from "../components/ui";
 import { formatTarget, FormSection, parseTarget, SiteHelp, Target, TargetEditor, TlsPicker, ToggleRow } from "../components/siteform";
@@ -120,6 +121,8 @@ export default function Sites() {
                         {s.waf?.enabled && <Badge kind={s.waf.mode === "detect" ? "warn" : "ok"}>WAF{s.waf.mode === "detect" ? " · erkennen" : ""}</Badge>}
                         {s.defender?.enabled && <Badge kind="ok">Bot-Abwehr</Badge>}
                         {s.rateLimit?.enabled && <Badge kind="ok">{`${s.rateLimit.events}/${s.rateLimit.window}`}</Badge>}
+                        {s.cache && <Badge kind="info">Cache</Badge>}
+                        {s.tailnet && <Badge kind="info">Tailnet · {s.tailnet}</Badge>}
                       </div>
                     </td>
                     <td style={{ textAlign: "right", whiteSpace: "nowrap" }}>
@@ -168,6 +171,8 @@ function TargetText({ site }: { site: Site }) {
       return <span>→ {site.redirectTo}</span>;
     case "static":
       return <span className="mono">Dateien: {site.root}</span>;
+    case "webdav":
+      return <span className="mono">WebDAV: {site.root}</span>;
     default:
       return <span className="muted">eigene Konfiguration</span>;
   }
@@ -223,6 +228,9 @@ function SiteEditor({
   const [saving, setSaving] = useState(false);
   const toast = useToast();
   const compiled = useCompiledPlugins();
+  const global = useGlobal().data;
+  const caps = global?.caps;
+  const g = global?.global;
   const acls = useLoad(() => api.get<AccessListsResponse>("/api/access-lists"));
 
   // Disabled feature blocks are not sent: the server treats a missing block
@@ -291,6 +299,7 @@ function SiteEditor({
                   <option value="proxy">Reverse Proxy</option>
                   <option value="redirect">Weiterleitung (Redirect)</option>
                   <option value="static">Statische Dateien</option>
+                  {(caps?.webdav || site.mode === "webdav") && <option value="webdav">WebDAV (Netzlaufwerk)</option>}
                   <option value="raw">Eigene Konfiguration</option>
                 </select>
               </label>
@@ -374,6 +383,19 @@ function SiteEditor({
             </FormSection>
           )}
 
+          {site.mode === "webdav" && (
+            <FormSection title="WebDAV-Ordner">
+              <label className="field">
+                Ordner auf dem Server
+                <input value={site.root} placeholder="/srv/dateien" onChange={(e) => set("root", e.target.value)} />
+                <span className="hint">
+                  Als Netzlaufwerk einbinden: Windows „Netzlaufwerk verbinden“, macOS Finder → „Mit Server verbinden“. Unbedingt eine Access List mit Benutzern
+                  zuweisen – sonst kann jeder lesen und schreiben. Der Ordner muss für den Caddy-Benutzer beschreibbar sein.
+                </span>
+              </label>
+            </FormSection>
+          )}
+
           {site.mode === "raw" && (
             <FormSection title="Konfiguration">
               <label className="field">
@@ -429,7 +451,35 @@ function SiteEditor({
             {compiled[FEATURE_PLUGINS.waf] && <WafFields value={site.waf} onChange={(v) => set("waf", v)} />}
             {compiled[FEATURE_PLUGINS.defender] && <DefenderFields value={site.defender} onChange={(v) => set("defender", v)} />}
             {compiled[FEATURE_PLUGINS.rateLimit] && <RateLimitFields value={site.rateLimit} onChange={(v) => set("rateLimit", v)} />}
+            {caps?.crowdsec && g?.crowdsec.enabled && (
+              <ToggleRow
+                checked={!site.noCrowdsec}
+                onChange={(v) => set("noCrowdsec", !v)}
+                label="CrowdSec"
+                hint="Bekannte Angreifer sperren (gilt für alle Sites). Ausschalten nur für Dienste, die etwa von eigenen Servern in Blocklisten erreicht werden."
+              />
+            )}
           </FormSection>
+
+          {((caps?.cache && g?.cache.enabled && (site.mode === "proxy" || site.mode === "static")) || (caps?.tailscale && g?.tailscale.enabled)) && (
+            <FormSection title="Netzwerk & Cache">
+              {caps?.cache && g?.cache.enabled && (site.mode === "proxy" || site.mode === "static") && (
+                <ToggleRow
+                  checked={!!site.cache}
+                  onChange={(v) => set("cache", v)}
+                  label="Antworten zwischenspeichern"
+                  hint={`Souin-Cache, Haltezeit ${g.cache.ttl ?? "120s"}. Nur für öffentliche Inhalte – was der Dienst als privat markiert, wird nicht gespeichert.`}
+                />
+              )}
+              {caps?.tailscale && g?.tailscale.enabled && (
+                <label className="field">
+                  Nur im Tailnet anbieten als
+                  <input className="mono" value={site.tailnet ?? ""} placeholder="z. B. nas (leer = normal im Internet/LAN)" onChange={(e) => set("tailnet", e.target.value)} />
+                  <span className="hint">Die Site lauscht dann nur im Tailnet. Als Domain name.dein-tailnet.ts.net eintragen – das Zertifikat kommt von Tailscale.</span>
+                </label>
+              )}
+            </FormSection>
+          )}
 
           {site.mode !== "raw" && (
             <label className="field">

@@ -26,6 +26,7 @@ func (s *Site) Normalize() {
 	s.Root = strings.TrimSpace(s.Root)
 	s.DNSProvider = strings.TrimSpace(s.DNSProvider)
 	s.AccessList = strings.TrimSpace(s.AccessList)
+	s.Tailnet = strings.ToLower(strings.TrimSpace(s.Tailnet))
 	s.normalizeUpstreams()
 	s.normalizeSecurity()
 	s.Extra = normText(s.Extra)
@@ -40,6 +41,7 @@ var (
 	reID       = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{0,62}$`)
 	reDomain   = regexp.MustCompile(`^((\*\.)?[A-Za-z0-9]([A-Za-z0-9.-]*[A-Za-z0-9])?)?(:[0-9]{1,5})?$`)
 	reUpstream = regexp.MustCompile(`^(https?://|h2c://)?[A-Za-z0-9._\-\[\]:]+$`)
+	reNode     = regexp.MustCompile(`^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$`)
 	reLB       = regexp.MustCompile(`^(random|round_robin|least_conn|first|ip_hash|uri_hash|client_ip_hash|header [A-Za-z0-9-]+|cookie [A-Za-z0-9_-]+)?$`)
 	rePath     = regexp.MustCompile(`^/[A-Za-z0-9._~/%-]*$`)
 )
@@ -95,7 +97,7 @@ func (s Site) Validate() error {
 		if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" || strings.ContainsAny(s.RedirectTo, " \t\n{}\"") {
 			problems = append(problems, "Weiterleitungsziel muss eine URL wie https://neu.example.com sein")
 		}
-	case ModeStatic:
+	case ModeStatic, ModeWebDAV:
 		if !strings.HasPrefix(s.Root, "/") || strings.ContainsAny(s.Root, " \t\n{}\"") || strings.Contains(s.Root, "..") {
 			problems = append(problems, "Verzeichnis muss ein absoluter Pfad ohne Leerzeichen sein")
 		}
@@ -104,7 +106,10 @@ func (s Site) Validate() error {
 			problems = append(problems, "Raw-Modus braucht Inhalt")
 		}
 	default:
-		problems = append(problems, "Modus: proxy, redirect, static oder raw")
+		problems = append(problems, "Modus: proxy, redirect, static, webdav oder raw")
+	}
+	if s.Tailnet != "" && !reNode.MatchString(s.Tailnet) {
+		problems = append(problems, "Tailnet-Name: nur a-z, 0-9 und Bindestrich, z. B. nas")
 	}
 	problems = append(problems, s.validateSecurity()...)
 	if s.AccessList != "" && !reID.MatchString(s.AccessList) {
@@ -135,6 +140,12 @@ type Options struct {
 	// GuardExtra are the operator's own path patterns refused on every site,
 	// on top of the built-in rules (guard.go).
 	GuardExtra []string
+	// Global are the host-wide options (global.go); Caps says which optional
+	// modules the running caddy has, so nothing unknown gets rendered.
+	Global Global
+	Caps   Caps
+	// StateDir keeps plugin state such as the tailscale node keys.
+	StateDir string
 }
 
 // LogRoll configures caddy's file rotation. Field names follow the zero
@@ -196,6 +207,9 @@ func RenderWith(s Site, acl *AccessList, opt Options) string {
 		addrs = append(addrs, d)
 	}
 	fmt.Fprintf(&b, "%s {\n", strings.Join(addrs, ", "))
+	if s.Tailnet != "" && opt.tailscaleOn() {
+		fmt.Fprintf(&b, "\tbind tailscale/%s\n", s.Tailnet)
+	}
 
 	switch s.TLS {
 	case TLSInternal:
@@ -206,7 +220,11 @@ func RenderWith(s Site, acl *AccessList, opt Options) string {
 		}
 	}
 	if s.Compress && s.Mode != ModeRedirect {
-		b.WriteString("\tencode zstd gzip\n")
+		if opt.Caps.Brotli {
+			b.WriteString("\tencode zstd br gzip\n")
+		} else {
+			b.WriteString("\tencode zstd gzip\n")
+		}
 	}
 	if opt.AccessLog != "" && !s.NoLog {
 		// One file for all sites: caddy pools writers by filename, and the
@@ -215,14 +233,17 @@ func RenderWith(s Site, acl *AccessList, opt Options) string {
 	}
 
 	b.WriteString(renderGuard(opt.GuardExtra))
+	if s.Cache && opt.cacheOn() && (s.Mode == ModeProxy || s.Mode == ModeStatic) {
+		b.WriteString("\tcache\n")
+	}
 
 	body := renderBody(s)
-	if s.needsRoute(acl) {
+	if s.needsRoute(acl, opt) {
 		b.WriteString("\troute {\n")
 		if acl != nil {
 			b.WriteString(renderACL(*acl))
 		}
-		b.WriteString(renderSecurity(s))
+		b.WriteString(renderSecurity(s, opt))
 		b.WriteString(indent(strings.TrimRight(body, "\n")))
 		b.WriteString("\t}\n")
 	} else {
@@ -270,6 +291,9 @@ func renderBody(s Site) string {
 		fmt.Fprintf(&b, "\tredir %s{uri} permanent\n", strings.TrimRight(s.RedirectTo, "/"))
 	case ModeStatic:
 		fmt.Fprintf(&b, "\troot * %s\n\tfile_server\n", s.Root)
+	case ModeWebDAV:
+		// route keeps the third-party directive out of caddy's global order.
+		fmt.Fprintf(&b, "\troute {\n\t\twebdav {\n\t\t\troot %s\n\t\t}\n\t}\n", s.Root)
 	case ModeRaw:
 		b.WriteString(indent(s.Raw))
 	}

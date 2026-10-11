@@ -32,7 +32,7 @@ func (s *Server) handlePlugins(w http.ResponseWriter, r *http.Request) {
 		"variant":      st.Variant,
 		"binarySource": st.BinarySource,
 		"plugins":      s.pluginStates(ctx, st),
-		"categories":   []string{"dns", "auth", "storage", "infra", "observability", "unclassified"},
+		"categories":   []string{"security", "dns", "auth", "infra", "storage", "cert", "observability", "unclassified"},
 		"caddyVersion": st.CaddyVersion,
 	})
 }

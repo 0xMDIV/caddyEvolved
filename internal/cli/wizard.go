@@ -146,7 +146,8 @@ var pluginGroups = []struct {
 	cat   plugins.Category
 	label string
 }{
-	{plugins.CatAuth, "Sicherheit und Zugriff"},
+	{plugins.CatSecurity, "Sicherheit – WAF, Bots, CrowdSec, Geo, Rate Limit"},
+	{plugins.CatAuth, "Login und SSO"},
 	{plugins.CatDNS, "DNS-Provider – für Wildcard-Zertifikate"},
 	{plugins.CatInfra, "Infrastruktur"},
 	{plugins.CatStorage, "Zertifikatsspeicher (Cluster)"},

@@ -312,3 +312,17 @@ Dumps, Backups, `docker-compose.yml` …) mit 404, bevor ein anderer Handler lä
 | `GET /api/protect` | `{rules[], extra[]}` – eingebaute Regeln (Text) und eigene Muster |
 | `PUT /api/protect` `{extra:["/backup/*","*.xlsx"]}` | speichert, schreibt alle Sites neu (validate + reload); 400 `bad_pattern` |
 | `GET /api/protect/check?path=` | `{path, blocked}` – Pfad oder ganze URL |
+
+## Globale Optionen
+
+Gespeichert in `/etc/caddyevolved/global.json`, gerendert nach `/etc/caddy/caddyevolved-global.caddy`, das
+die Caddyfile im globalen Block importiert (wird bei Bedarf eingefügt). Nur Funktionen, deren Modul in der
+laufenden Binary steckt, werden gerendert (`caps`).
+
+| Route | Antwort |
+|---|---|
+| `GET /api/global` | `{global, caps, dnsProviders:[{id,name,ready}], file}` |
+| `PUT /api/global` `{realIp:{cloudflare, proxies[]}, dynDns:{enabled, provider, domains:[{zone, names[]}], interval, ipv6}, crowdsec:{enabled, apiUrl, appsecUrl}, tailscale:{enabled, ephemeral}, cache:{enabled, ttl}}` | validieren, Zugangsdaten prüfen, schreiben, reload; 422 mit `details` |
+
+Site-Felder dazu: `noCrowdsec`, `cache`, `tailnet`, Modus `webdav` (mit `root`), `waf.paranoia` (1–4),
+`waf.threshold`, `waf.exclude` (CRS-Regel-IDs).

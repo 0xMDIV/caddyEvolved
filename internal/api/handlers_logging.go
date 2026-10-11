@@ -57,9 +57,14 @@ func (ls logSettings) validate() error {
 	return nil
 }
 
-// siteOptions is the rendering configuration for every site snippet.
+// siteOptions is the rendering configuration for every site snippet. It asks
+// the running binary which optional modules it has, so features of a missing
+// plugin are left out instead of breaking the config.
 func (s *Server) siteOptions() sites.Options {
-	return sites.Options{AccessLog: s.Paths.AccessLog, Roll: s.loadLogSettings().roll(), GuardExtra: s.loadProtect().Extra}
+	return sites.Options{
+		AccessLog: s.Paths.AccessLog, Roll: s.loadLogSettings().roll(), GuardExtra: s.loadProtect().Extra,
+		Global: s.loadGlobal(), Caps: s.caps(), StateDir: s.Paths.CaddyData,
+	}
 }
 
 func (s *Server) handleLoggingGet(w http.ResponseWriter, r *http.Request) {

@@ -766,7 +766,7 @@
       "id": "caddy-waf",
       "module": "github.com/fabriziosalmi/caddy-waf",
       "name": "Caddy WAF",
-      "category": "auth",
+      "category": "security",
       "subcat": "security",
       "registers": "http.handlers.waf",
       "standard": false,
@@ -788,7 +788,7 @@
       "recommended": true,
       "module": "pkg.jsn.cam/caddy-defender",
       "name": "Caddy Defender (Bot-Filter)",
-      "category": "auth",
+      "category": "security",
       "subcat": "security",
       "registers": "http.handlers.defender",
       "standard": false,
@@ -879,7 +879,7 @@
     {
       "id": "souin-cache",
       "module": "github.com/darkweak/souin/plugins/caddy",
-      "name": "Suin HTTP Cache",
+      "name": "Souin HTTP-Cache",
       "category": "infra",
       "subcat": "cache",
       "registers": "http.handlers.cache",
@@ -888,19 +888,19 @@
       "requires": [
         "otter-cache"
       ],
-      "note": "Braucht für den Default-Storer ein zweites Modul – als Paar bauen, sonst Fehler zur Laufzeit.",
+      "note": "Speichert Antworten zwischen (RFC-7234-konform). Braucht den Otter-Speicher als zweites Modul – wird automatisch mitgebaut.",
       "env": []
     },
     {
       "id": "otter-cache",
       "module": "github.com/darkweak/storages/otter/caddy",
-      "name": "Suin Otter-Storer",
+      "name": "Souin Otter-Speicher",
       "category": "infra",
       "subcat": "cache",
       "registers": "http.cache.storer otter",
       "standard": false,
       "license": "MIT",
-      "note": "N zusammen mit souin-cache sinnvoll; in der UI nicht allein wählbar.",
+      "note": "Speicher für den Souin-Cache; allein nicht sinnvoll.",
       "env": []
     },
     {
@@ -908,7 +908,7 @@
       "recommended": true,
       "module": "github.com/mholt/caddy-ratelimit",
       "name": "Rate Limit (Sliding Window)",
-      "category": "infra",
+      "category": "security",
       "subcat": "ratelimit",
       "registers": "http.rate_limit",
       "standard": false,
@@ -925,7 +925,7 @@
       "id": "geoip2",
       "module": "github.com/zhangjiayin/caddy-geoip2",
       "name": "GeoIP2",
-      "category": "auth",
+      "category": "security",
       "subcat": "geo",
       "registers": "http.geoip2",
       "standard": false,
@@ -958,7 +958,7 @@
       "recommended": true,
       "module": "github.com/corazawaf/coraza-caddy/v2",
       "name": "Coraza WAF (OWASP CRS)",
-      "category": "auth",
+      "category": "security",
       "subcat": "security",
       "registers": "http.handlers.waf",
       "standard": false,
@@ -979,7 +979,7 @@
       "id": "maxmind-geolocation",
       "module": "github.com/porech/caddy-maxmind-geolocation",
       "name": "Geo-Blocking (MaxMind)",
-      "category": "auth",
+      "category": "security",
       "subcat": "geo",
       "registers": "http.matchers.maxmind_geolocation",
       "standard": false,
@@ -991,6 +991,118 @@
         "label": "Geo-Blocking",
         "icon": "globe"
       },
+      "env": []
+    },
+    {
+      "id": "cloudflare-ip",
+      "module": "github.com/WeidiDeng/caddy-cloudflare-ip",
+      "name": "Cloudflare-IP-Liste (automatisch)",
+      "category": "infra",
+      "subcat": "network",
+      "registers": "http.ip_sources.cloudflare",
+      "standard": false,
+      "license": "Apache-2.0",
+      "docs": "https://github.com/WeidiDeng/caddy-cloudflare-ip",
+      "note": "Hält die Adressen der Cloudflare-Proxys aktuell, damit Caddy hinter Cloudflare die echte Besucher-IP sieht. Ohne dieses Plugin nutzt caddyEvolved eine eingebaute Liste.",
+      "env": []
+    },
+    {
+      "id": "dynamic-dns",
+      "module": "github.com/mholt/caddy-dynamicdns",
+      "name": "Dynamisches DNS (DynDNS)",
+      "category": "infra",
+      "subcat": "ddns",
+      "registers": "dynamic_dns",
+      "standard": false,
+      "recommended": true,
+      "license": "Apache-2.0",
+      "docs": "https://github.com/mholt/caddy-dynamicdns",
+      "note": "Hält DNS-Einträge auf der aktuellen öffentlichen IP – für Anschlüsse ohne feste IP. Nutzt ein DNS-Anbieter-Plugin (z. B. Cloudflare) und dessen Zugangsdaten.",
+      "env": []
+    },
+    {
+      "id": "crowdsec",
+      "module": "github.com/hslatman/caddy-crowdsec-bouncer/http",
+      "name": "CrowdSec-Bouncer",
+      "category": "security",
+      "subcat": "security",
+      "registers": "http.handlers.crowdsec",
+      "standard": false,
+      "recommended": true,
+      "license": "Apache-2.0",
+      "docs": "https://github.com/hslatman/caddy-crowdsec-bouncer",
+      "note": "Sperrt IPs, die CrowdSec als Angreifer erkannt hat – auch aus den Community-Blocklisten. Braucht eine laufende CrowdSec-Instanz (Local API) und deren Bouncer-Schlüssel (cscli bouncers add caddy).",
+      "env": [
+        {
+          "name": "CROWDSEC_API_KEY",
+          "label": "Bouncer-API-Key",
+          "help": "auf dem CrowdSec-Server: cscli bouncers add caddyevolved",
+          "required": true,
+          "secret": true
+        }
+      ]
+    },
+    {
+      "id": "crowdsec-appsec",
+      "module": "github.com/hslatman/caddy-crowdsec-bouncer/appsec",
+      "name": "CrowdSec AppSec",
+      "category": "security",
+      "subcat": "security",
+      "registers": "http.handlers.appsec",
+      "standard": false,
+      "license": "Apache-2.0",
+      "docs": "https://github.com/hslatman/caddy-crowdsec-bouncer",
+      "requires": [
+        "crowdsec"
+      ],
+      "note": "Prüft zusätzlich den Inhalt jeder Anfrage mit der AppSec-Komponente von CrowdSec (virtuelles Patching).",
+      "env": []
+    },
+    {
+      "id": "tailscale",
+      "module": "github.com/tailscale/caddy-tailscale",
+      "name": "Tailscale",
+      "category": "infra",
+      "subcat": "network",
+      "registers": "tailscale",
+      "standard": false,
+      "license": "Apache-2.0",
+      "docs": "https://github.com/tailscale/caddy-tailscale",
+      "note": "Caddy wird selbst Teil deines Tailnets: Sites lassen sich nur im Tailnet anbieten, mit Zertifikat für *.ts.net. Noch experimentell.",
+      "env": [
+        {
+          "name": "TS_AUTHKEY",
+          "label": "Auth-Key",
+          "help": "Tailscale-Admin → Settings → Keys → Generate auth key (wiederverwendbar)",
+          "required": true,
+          "secret": true
+        }
+      ]
+    },
+    {
+      "id": "brotli",
+      "module": "github.com/ueffel/caddy-brotli",
+      "name": "Brotli-Kompression",
+      "category": "infra",
+      "subcat": "encoding",
+      "registers": "http.encoders.br",
+      "standard": false,
+      "license": "MIT",
+      "docs": "https://github.com/ueffel/caddy-brotli",
+      "note": "Zusätzliches Kompressionsformat br für Browser, die es bevorzugen. Bei aktivierter Komprimierung einer Site automatisch genutzt.",
+      "env": []
+    },
+    {
+      "id": "webdav",
+      "module": "github.com/mholt/caddy-webdav",
+      "name": "WebDAV",
+      "category": "infra",
+      "subcat": "files",
+      "registers": "http.handlers.webdav",
+      "standard": false,
+      "license": "Apache-2.0",
+      "docs": "https://github.com/mholt/caddy-webdav",
+      "note": "Neue Site-Art „WebDAV“: ein Ordner auf dem Server als Netzlaufwerk (Windows, macOS, Handy). Mit einer Access List mit Benutzern absichern.",
       "env": []
     }
   ]

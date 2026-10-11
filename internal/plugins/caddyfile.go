@@ -32,6 +32,13 @@ func DNSProvider(ids []string) (Entry, bool) {
 // therefore produce a config that validates and then fails certificate issuance
 // minutes later, so every credential is interpolated explicitly here.
 func DNSTLSBlock(e Entry) string {
+	return "\ttls {\n\t\tissuer acme {\n\t\t\tdns " + DNSProviderSpec(e, "\t\t\t") + "\n\t\t}\n\t}\n"
+}
+
+// DNSProviderSpec is the provider name with its credentials, the part after
+// `dns` (certificates) or `provider` (dynamic DNS). A block form is indented
+// for a line that itself starts at indent.
+func DNSProviderSpec(e Entry, indent string) string {
 	name := DNSName(e)
 	var positional, named []EnvVar
 	for _, v := range e.Env {
@@ -43,22 +50,19 @@ func DNSTLSBlock(e Entry) string {
 	}
 
 	if len(named) == 0 && len(positional) > 0 {
-		if len(positional) == 1 {
-			return fmt.Sprintf("\ttls {\n\t\tissuer acme {\n\t\t\tdns %s {env.%s}\n\t\t}\n\t}\n", name, positional[0].Name)
-		}
 		args := make([]string, 0, len(positional))
 		for _, v := range positional {
 			args = append(args, "{env."+v.Name+"}")
 		}
-		return fmt.Sprintf("\ttls {\n\t\tissuer acme {\n\t\t\tdns %s %s\n\t\t}\n\t}\n", name, strings.Join(args, " "))
+		return name + " " + strings.Join(args, " ")
 	}
 
 	var b strings.Builder
-	fmt.Fprintf(&b, "\ttls {\n\t\tissuer acme {\n\t\t\tdns %s {\n", name)
+	fmt.Fprintf(&b, "%s {\n", name)
 	for _, v := range positional {
 		// Positional values cannot live inside the options block; they are
 		// emitted as arguments instead (see providerTokenVar ordering).
-		fmt.Fprintf(&b, "\t\t\t\t%s {env.%s}\n", v.OptName, v.Name)
+		fmt.Fprintf(&b, "%s\t%s {env.%s}\n", indent, v.OptName, v.Name)
 	}
 	for _, v := range named {
 		opt := v.OptName
@@ -66,12 +70,12 @@ func DNSTLSBlock(e Entry) string {
 			opt = strings.ToLower(strings.TrimSuffix(v.Name, "_TOKEN"))
 		}
 		if !v.Required {
-			fmt.Fprintf(&b, "\t\t\t\t# %s {env.%s}\n", opt, v.Name)
+			fmt.Fprintf(&b, "%s\t# %s {env.%s}\n", indent, opt, v.Name)
 			continue
 		}
-		fmt.Fprintf(&b, "\t\t\t\t%s {env.%s}\n", opt, v.Name)
+		fmt.Fprintf(&b, "%s\t%s {env.%s}\n", indent, opt, v.Name)
 	}
-	b.WriteString("\t\t\t}\n\t\t}\n\t}\n")
+	b.WriteString(indent + "}")
 	return b.String()
 }
 

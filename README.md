@@ -26,7 +26,8 @@ Container: im Log). Router, DNS und Übernahme bestehender Seiten:
 | **Plugins per Klick** | Caddy-Plugins werden einkompiliert – caddyEvolved baut die Binary direkt auf dem Server bzw. im Container, mit Live-Log, Prüfung, sofortiger Aktivierung und automatischem Rollback. Einstellungen aller eingebauten Plugins (z. B. API-Token für Cloudflare-DNS) an einer Stelle, nach Thema geordnet. |
 | **Sensible Dateien** | `.env`, `.git`, Schlüssel, Datenbank-Dumps, Backups, `docker-compose.yml` und Ähnliches sind bei jeder Site **immer gesperrt** (404), bevor die Anfrage den Dienst erreicht – nicht abschaltbar, eigene Muster ergänzbar. |
 | **Access Lists** | IPs erlauben/sperren, Länder (GeoIP), Benutzer mit Passwort – pro Site. |
-| **Schutz** | WAF (Coraza + OWASP Core Rule Set), Bot- und KI-Crawler-Abwehr, Geo-Blocking, Rate Limit. |
+| **Schutz** | WAF (Coraza + OWASP Core Rule Set, mit Paranoia-Level, Schwellwert und Regel-Ausnahmen pro Site), CrowdSec-Bouncer mit AppSec, Bot- und KI-Crawler-Abwehr, Geo-Blocking, Rate Limit. |
+| **Netzwerk** | Echte Besucher-IPs hinter Cloudflare oder anderen Proxys, DynDNS für Anschlüsse ohne feste IP, Sites nur im Tailnet (Tailscale), Brotli, HTTP-Cache (Souin), WebDAV als Site-Art. |
 | **Analytics** | Anfragen, Fehler, Geblockte und Antwortzeiten; Traffic rein und raus, gesamt und pro Site; Top-Pfade, IPs, User-Agents, Markierungen; Live-Liste. |
 | **System** | Wie stark Caddy und caddyEvolved den Server belasten: CPU, RAM, Platte und Netzwerk im Verhältnis zum ganzen System, letzte Stunde. |
 | **Toolbox** | Netzwerk-Werkzeuge vom Server aus: CIDR-Rechner und IP-Bereich → CIDR, Ping, Traceroute, Port-Scan, IP-Scan des LANs (Name, MAC), mDNS-Browser, DNS-Abfrage. |
@@ -128,7 +129,7 @@ internal/selfupdate/  Selbst-Update aus den Releases
 internal/plugins/     kuratierter Modul-Katalog + Go-Proxy-Validierung freier Pfade
 internal/secrets/     EnvironmentFile-Verwaltung (Plugin-Zugangsdaten)
 internal/builder/     lokaler xcaddy-Build: Go-Toolchain, Jobs, Live-Log, Aktivierung + Rollback
-internal/sites/       Sites, Access Lists, Schutz-Rendering, Sperre sensibler Dateien, transaktional
+internal/sites/       Sites, Access Lists, Schutz-Rendering, Sperre sensibler Dateien, globale Optionen, transaktional
 internal/certs/       Zertifikate aus Caddys Speicher lesen
 internal/probe/       Site-Test, Cloudflare-Erkennung, ACME-Fehler mit Lösungshinweis
 internal/analytics/   Access-Log-Follower und Aggregation (Minute/Stunde, Top-Listen)
@@ -161,7 +162,9 @@ unraid/               Unraid-Vorlage und Symbol
 - [x] Plugin-Einstellungen an einer Stelle, Diagnose wartender Zertifikate
 - [x] Sensible Dateien immer gesperrt
 - [x] Docker-Image und Unraid-Vorlage
-- [ ] Einstellungen für alle Plugins in der WebUI (Storage, Cache, L4 …)
+- [x] Globale Optionen aus der WebUI: echte Client-IPs, DynDNS, CrowdSec, Tailscale, Cache, Brotli, WebDAV
+- [ ] Weitere DNS-Anbieter mit geprüfter Konfiguration
+- [ ] Oberfläche für Storage (Redis/Postgres) und Layer 4
 - [ ] Anzeige „Update verfügbar“ für Plugins
 - [ ] Zugangsdaten verschlüsselt ablegen (`systemd-creds`)
 - [ ] Caddyfile-Revisionsverlauf

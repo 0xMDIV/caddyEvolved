@@ -20,9 +20,10 @@ import PluginSettings from "./PluginSettings";
 
 const CATEGORY_LABEL: Record<string, string> = {
   dns: "DNS-Anbieter (DNS-01-Zertifikate)",
-  auth: "Authentifizierung & SSO",
+  security: "Sicherheit – WAF, Bots, CrowdSec, Geo, Rate Limit",
+  auth: "Login & SSO",
   storage: "Zertifikatsspeicher",
-  infra: "Infrastruktur & Proxy",
+  infra: "Netzwerk, Kompression, Cache & mehr",
   cert: "Zertifikate",
   observability: "Monitoring",
   unclassified: "Sonstiges",

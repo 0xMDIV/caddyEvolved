@@ -244,7 +244,7 @@ export interface Versions {
   recent: string[] | null;
 }
 
-export type SiteMode = "proxy" | "redirect" | "static" | "raw";
+export type SiteMode = "proxy" | "redirect" | "static" | "webdav" | "raw";
 export type SiteTLS = "auto" | "internal" | "dns" | "off";
 
 export interface Site {
@@ -267,6 +267,12 @@ export interface Site {
   waf?: SiteWaf;
   defender?: SiteDefender;
   rateLimit?: SiteRateLimit;
+  /** Exempt from the CrowdSec bouncer. */
+  noCrowdsec?: boolean;
+  /** Store responses in the Souin cache. */
+  cache?: boolean;
+  /** Serve on the tailnet only, as this node name. */
+  tailnet?: string;
   enabled: boolean;
   updatedAt?: string;
 }
@@ -274,6 +280,12 @@ export interface Site {
 export interface SiteWaf {
   enabled: boolean;
   mode: "block" | "detect";
+  /** CRS paranoia level 1–4 (0/undefined = 1). */
+  paranoia?: number;
+  /** Inbound anomaly score that blocks (0/undefined = 5). */
+  threshold?: number;
+  /** CRS rule IDs switched off for this site. */
+  exclude?: number[];
 }
 export interface SiteDefender {
   enabled: boolean;
@@ -605,4 +617,33 @@ export interface BackupsResponse {
   settings: BackupSettings;
   dir: string;
   lastAuto: string;
+}
+
+// ---------- Global options (sites/global.go) ----------
+
+export interface GlobalOptions {
+  realIp: { cloudflare: boolean; proxies?: string[] | null };
+  dynDns: { enabled: boolean; provider?: string; domains?: { zone: string; names: string[] }[] | null; interval?: string; ipv6: boolean };
+  crowdsec: { enabled: boolean; apiUrl?: string; appsecUrl?: string };
+  tailscale: { enabled: boolean; ephemeral: boolean };
+  cache: { enabled: boolean; ttl?: string };
+}
+
+export interface Caps {
+  cloudflareIp: boolean;
+  dynDns: boolean;
+  crowdsec: boolean;
+  appsec: boolean;
+  tailscale: boolean;
+  cache: boolean;
+  brotli: boolean;
+  webdav: boolean;
+  dns: Record<string, boolean> | null;
+}
+
+export interface GlobalResponse {
+  global: GlobalOptions;
+  caps: Caps;
+  dnsProviders: { id: string; name: string; ready: boolean }[];
+  file: string;
 }

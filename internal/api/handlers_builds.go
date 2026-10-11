@@ -370,4 +370,5 @@ func (s *Server) recordBinaryState(ctx context.Context, version string, pluginID
 	}
 	st.UpdatedAt = time.Now().UTC().Format(time.RFC3339)
 	config.SaveState(s.Paths.StateFile, st)
+	s.resyncSites(ctx, "Neue Binary – Sites und globale Optionen neu geschrieben")
 }

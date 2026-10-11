@@ -455,3 +455,7 @@ table.compact th, table.compact td { padding: 6px 8px; }
 .site-name .link-btn:hover { color: var(--accent-strong); text-decoration: underline; }
 .site-open { color: var(--muted); display: inline-flex; flex: none; }
 .site-open:hover { color: var(--accent-strong); }
+
+/* WAF fine tuning */
+.waf-tuning { margin-top: 8px; }
+.waf-tuning summary { cursor: pointer; color: var(--muted); }

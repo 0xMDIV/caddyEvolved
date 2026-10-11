@@ -26,6 +26,7 @@ const (
 	ModeRedirect = "redirect"
 	ModeStatic   = "static"
 	ModeRaw      = "raw"
+	ModeWebDAV   = "webdav"
 )
 
 // TLS settings.
@@ -58,8 +59,15 @@ type Site struct {
 	WAF              *WAF       `json:"waf,omitempty"`
 	Defender         *Defender  `json:"defender,omitempty"`
 	RateLimit        *RateLimit `json:"rateLimit,omitempty"`
-	Enabled          bool       `json:"enabled"`
-	UpdatedAt        time.Time  `json:"updatedAt,omitzero"`
+	// NoCrowdSec exempts the site from the CrowdSec bouncer, which otherwise
+	// runs on every site once it is set up.
+	NoCrowdSec bool `json:"noCrowdsec,omitempty"`
+	// Cache stores responses in the Souin cache.
+	Cache bool `json:"cache,omitempty"`
+	// Tailnet serves the site on the tailnet only, as this node name.
+	Tailnet   string    `json:"tailnet,omitempty"`
+	Enabled   bool      `json:"enabled"`
+	UpdatedAt time.Time `json:"updatedAt,omitzero"`
 }
 
 // Commit validates and activates the files on disk. It returns caddy's output
@@ -113,6 +121,14 @@ func (m *Manager) NeedsSync() bool {
 	doc, err := m.loadDoc()
 	if err != nil {
 		return false
+	}
+	if g, err := os.ReadFile(m.GlobalFile()); err != nil || string(g) != RenderGlobal(m.opt) {
+		return true
+	}
+	if main, err := os.ReadFile(m.caddyfile); err == nil {
+		if _, missing := withGlobalImport(string(main), m.globalImportLine()); missing {
+			return true
+		}
 	}
 	for _, s := range doc.Sites {
 		if !s.Enabled {
@@ -309,11 +325,15 @@ func (m *Manager) applyDoc(ctx context.Context, prev, next document, commit Comm
 		return err
 	}
 	mainBefore, mainErr := os.ReadFile(m.caddyfile)
+	globalBefore, globalErr := os.ReadFile(m.GlobalFile())
 
 	restore := func() {
 		restoreDir(m.dir, backup)
 		if mainErr == nil {
 			writeAtomic(m.caddyfile, mainBefore, 0o644)
+		}
+		if globalErr == nil {
+			writeAtomic(m.GlobalFile(), globalBefore, 0o644)
 		}
 		m.saveDoc(prev)
 	}
@@ -323,6 +343,14 @@ func (m *Manager) applyDoc(ctx context.Context, prev, next document, commit Comm
 		return err
 	}
 	if err := m.ensureImport(); err != nil {
+		restore()
+		return err
+	}
+	if err := m.writeGlobal(); err != nil {
+		restore()
+		return err
+	}
+	if err := m.ensureGlobalImport(); err != nil {
 		restore()
 		return err
 	}

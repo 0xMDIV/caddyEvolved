@@ -60,6 +60,7 @@ export function WafFields({ value, onChange }: { value?: SiteWaf; onChange: (v: 
           <span className="hint">Neue Sites erst mit „Nur erkennen“ testen – CRS blockt sonst auch Fehlalarme.</span>
         </div>
       )}
+      {v.enabled && <WafTuning v={v} onChange={onChange} />}
     </div>
   );
 }
@@ -129,5 +130,46 @@ export function RateLimitFields({ value, onChange }: { value?: SiteRateLimit; on
         </div>
       )}
     </div>
+  );
+}
+
+/** Coraza fine tuning: paranoia level, block threshold, rule exceptions. */
+function WafTuning({ v, onChange }: { v: SiteWaf; onChange: (v: SiteWaf) => void }) {
+  const [ids, setIds] = useState((v.exclude ?? []).join(" "));
+  const parse = (t: string) =>
+    t
+      .split(/[\s,;]+/)
+      .map((x) => parseInt(x, 10))
+      .filter((n) => Number.isFinite(n) && n > 0);
+  return (
+    <details className="waf-tuning">
+      <summary className="small">Feineinstellung (Paranoia-Level, Schwellwert, Ausnahmen)</summary>
+      <div className="form-grid" style={{ marginTop: 8 }}>
+        <label className="field">
+          Paranoia-Level
+          <select value={v.paranoia || 1} onChange={(e) => onChange({ ...v, paranoia: Number(e.target.value) })}>
+            <option value={1}>1 – Standard, kaum Fehlalarme</option>
+            <option value={2}>2 – strenger</option>
+            <option value={3}>3 – sehr streng</option>
+            <option value={4}>4 – maximal, viele Fehlalarme</option>
+          </select>
+        </label>
+        <label className="field">
+          Blockieren ab Punktzahl
+          <input type="number" min={1} max={1000} value={v.threshold || 5} onChange={(e) => onChange({ ...v, threshold: Number(e.target.value) })} />
+          <span className="hint">Standard 5. Höher (z. B. 10) hilft zuerst gegen Fehlalarme.</span>
+        </label>
+        <label className="field full">
+          Regeln ausschalten (IDs)
+          <input
+            className="mono"
+            value={ids}
+            placeholder="z. B. 942100 920350"
+            onChange={(e) => (setIds(e.target.value), onChange({ ...v, exclude: parse(e.target.value) }))}
+          />
+          <span className="hint">Die ID einer störenden Regel steht unter Logs bei der geblockten Anfrage bzw. im Caddy-Log („id“).</span>
+        </label>
+      </div>
+    </details>
   );
 }

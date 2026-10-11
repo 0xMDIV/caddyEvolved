@@ -13,6 +13,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"caddyevolved/internal/sites"
 )
 
 // PublicIP asks a few well-known echo services for this host's IPv4.
@@ -302,13 +304,7 @@ func ACMEHint(msg string, behindCF bool, lanIP string) string {
 // cloudflareNets are Cloudflare's published proxy ranges (cloudflare.com/ips).
 var cloudflareNets = func() []*net.IPNet {
 	var out []*net.IPNet
-	for _, c := range []string{
-		"173.245.48.0/20", "103.21.244.0/22", "103.22.200.0/22", "103.31.4.0/22", "141.101.64.0/18",
-		"108.162.192.0/18", "190.93.240.0/20", "188.114.96.0/20", "197.234.240.0/22", "198.41.128.0/17",
-		"162.158.0.0/15", "104.16.0.0/13", "104.24.0.0/14", "172.64.0.0/13", "131.0.72.0/22",
-		"2400:cb00::/32", "2606:4700::/32", "2803:f800::/32", "2405:b500::/32", "2405:8100::/32",
-		"2a06:98c0::/29", "2c0f:f248::/32",
-	} {
+	for _, c := range sites.CloudflareRanges {
 		_, n, _ := net.ParseCIDR(c)
 		out = append(out, n)
 	}

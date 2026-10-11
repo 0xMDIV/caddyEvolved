@@ -1,6 +1,7 @@
 import { ReactNode } from "react";
-import { api, Build as BuildT, BuildsResponse, PluginsResponse, PluginState, Site, SitesResponse } from "../api";
+import { api, Build as BuildT, BuildsResponse, GlobalResponse, PluginsResponse, PluginState, Site, SitesResponse } from "../api";
 import { CredentialFields } from "../components/plugins";
+import { GlobalPluginSettings, RealIPCard, useGlobal } from "../components/globalcards";
 import { Badge, Spinner, useAction, useLoad } from "../components/ui";
 import { navigate } from "../router";
 import { IconAlertTriangle, IconArrowRight, IconExternalLink, IconPlus } from "@tabler/icons-react";
@@ -18,16 +19,16 @@ const GROUPS: Group[] = [
   {
     title: "Zertifikate & DNS",
     desc: "Wie Caddy an HTTPS-Zertifikate kommt und wo es sie ablegt. Ein DNS-Anbieter wird pro Site unter „HTTPS für Besucher → DNS-Challenge“ gewählt.",
-    match: (p) => ["dns", "cert", "storage"].includes(p.category),
+    match: (p) => ["dns", "cert", "storage"].includes(p.category) || p.subcat === "ddns",
   },
   {
     title: "Schutz & Zugriff",
     desc: "Filter vor deinen Diensten. Ein- und ausgeschaltet wird pro Site, die Regeln stehen auf der jeweiligen Seite.",
-    match: (p) => p.category === "auth" || p.subcat === "ratelimit",
+    match: (p) => p.category === "security" || p.category === "auth",
   },
   {
-    title: "Infrastruktur",
-    desc: "Erweiterungen für Caddy selbst.",
+    title: "Netzwerk & Dienste",
+    desc: "Tailnet, Kompression, Cache, WebDAV und mehr.",
     match: () => true,
   },
 ];
@@ -79,6 +80,7 @@ export default function PluginSettings({
   onNewBuild: () => void;
 }) {
   const sites = useLoad(() => api.get<SitesResponse>("/api/sites"));
+  const global = useGlobal();
   const pending = pendingBuild(builds, plugins.plugins);
   const waiting = new Set((pending?.plugins ?? []).filter((id) => !plugins.plugins.find((p) => p.id === id)?.detected));
   const shown = plugins.plugins.filter((p) => p.detected || waiting.has(p.id));
@@ -93,6 +95,7 @@ export default function PluginSettings({
   const reload = () => {
     onChange();
     sites.reload();
+    global.reload();
   };
 
   return (
@@ -106,6 +109,15 @@ export default function PluginSettings({
           </button>
         </div>
       )}
+      {global.data && (
+        <section className="stack" style={{ gap: 10 }}>
+          <div>
+            <h2 style={{ margin: "8px 0 2px" }}>Netzwerk</h2>
+            <div className="small muted">Gilt für alle Sites, unabhängig von Plugins.</div>
+          </div>
+          <RealIPCard data={global.data} onSaved={reload} />
+        </section>
+      )}
       {groups.map((g) => (
         <section key={g.title} className="stack" style={{ gap: 10 }}>
           <div>
@@ -113,7 +125,7 @@ export default function PluginSettings({
             <div className="small muted">{g.desc}</div>
           </div>
           {g.items.map((p) => (
-            <PluginCard key={p.id} p={p} waiting={waiting.has(p.id)} sites={sites.data?.sites ?? []} onChange={reload} />
+            <PluginCard key={p.id} p={p} waiting={waiting.has(p.id)} sites={sites.data?.sites ?? []} global={global.data} onChange={reload} />
           ))}
         </section>
       ))}
@@ -126,7 +138,8 @@ export default function PluginSettings({
   );
 }
 
-function PluginCard({ p, waiting, sites, onChange }: { p: PluginState; waiting: boolean; sites: Site[]; onChange: () => void }) {
+function PluginCard({ p, waiting, sites, global, onChange }: { p: PluginState; waiting: boolean; sites: Site[]; global: GlobalResponse | null; onChange: () => void }) {
+  const extra = global ? GlobalPluginSettings({ id: p.id, data: global, onSaved: onChange }) : null;
   const hasEnv = (p.env?.length ?? 0) > 0;
   const missing = hasEnv && Object.values(p.credentialState ?? {}).includes("missing");
   let body: ReactNode;
@@ -136,6 +149,7 @@ function PluginCard({ p, waiting, sites, onChange }: { p: PluginState; waiting: 
     body = (
       <>
         {hasEnv && <CredentialFields plugin={p} onSaved={onChange} />}
+        {extra}
         {p.category === "dns" && <DNSUsage p={p} sites={sites} ready={!missing} onChange={onChange} />}
         {p.ui && (
           <div>
@@ -144,7 +158,7 @@ function PluginCard({ p, waiting, sites, onChange }: { p: PluginState; waiting: 
             </button>
           </div>
         )}
-        {!hasEnv && !p.ui && p.category !== "dns" && (
+        {!hasEnv && !p.ui && p.category !== "dns" && !extra && (
           <div className="small muted">
             {p.category === "cert" || p.subcat === "cache" || p.subcat === "proxy"
               ? "Für dieses Plugin gibt es noch keine Oberfläche – Einstellungen bisher über den Caddyfile-Editor."

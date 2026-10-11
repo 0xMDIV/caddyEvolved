@@ -22,6 +22,7 @@ type Category string
 const (
 	CatDNS          Category = "dns"
 	CatAuth         Category = "auth"
+	CatSecurity     Category = "security"
 	CatStorage      Category = "storage"
 	CatInfra        Category = "infra"
 	CatCert         Category = "cert"
