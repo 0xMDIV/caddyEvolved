@@ -35,8 +35,13 @@ Erledigt aus der Wunschliste:
 
 - **Plugin-Updates:** Anzeige „Update verfügbar“ für eingebaute Plugins (Angebot steht noch aus).
 - **Zugangsdaten verschlüsseln** mit `systemd-creds` (TPM der VM) – nur angeboten, nicht beauftragt.
-- Hinweis des Nutzers (Vaultwarden hinter Cloudflare): Lösung war DNS-Challenge mit Cloudflare-Plugin
-  oder Full (strict) + „Always Use HTTPS“ aus; Ziel war fälschlich Port 8006 (Proxmox).
+- **Vaultwarden auf der VM 192.168.10.28** (vault.m0ses.de → 192.168.10.132:8006, HTTP – das Ziel
+  stimmt, 8006 ist dort Vaultwarden, nicht Proxmox): Cloudflare-Proxy an, Caddy hat kein Zertifikat
+  → Cloudflare 525. HTTP-01 scheitert mit **403 von Cloudflare** (Firewall/Länder-/Bot-Regel blockt
+  die Let's-Encrypt-Prüfer), TLS-ALPN geht hinter Cloudflare nie. Lösung: DNS-Challenge mit
+  Cloudflare-Plugin oder Ausnahme für `/.well-known/acme-challenge/*` in Cloudflare.
+- caddyEvolved fragt alle 15 s `/pki/certificates/local` ab, obwohl keine interne CA aktiv ist →
+  404-Fehler im Caddy-Journal. Abfrage nur bei `tls internal` oder 404 still behandeln.
 - Ältere Punkte: Caddyfile-Revisionsverlauf, Zertifikat manuell erneuern/hochladen, Mehrbenutzer/2FA,
   `caddyevolved uninstall`, Bundle-Variante.
 
