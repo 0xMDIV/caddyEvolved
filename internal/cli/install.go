@@ -140,7 +140,13 @@ func cmdInstall(ctx context.Context, args []string, stdout, stderr io.Writer) er
 	} else {
 		fmt.Fprintln(stdout)
 		plan.Report(stdout)
-		if pw := plan.GeneratedPassword(); pw != "" && !f.dryRun {
+		pw := plan.GeneratedPassword()
+		switch {
+		case f.dryRun:
+		case runErr == nil:
+			printLogin(stdout, answers, pw, f.uiPassword != "")
+		case pw != "":
+			// Failed later on, but the password is set already – it must not be lost.
 			fmt.Fprintf(stdout, "\nUI-Passwort (einmalig, nicht wiederholbar): %s\n", pw)
 		}
 	}
@@ -197,6 +203,29 @@ func (f *installFlags) collectAnswers(ctx context.Context, l *layout, stdout io.
 		return a, false, errDeclined
 	}
 	return a, true, nil
+}
+
+// printLogin ends a successful install with where and how to log in.
+func printLogin(w io.Writer, a install.Answers, generated string, given bool) {
+	rows := []tui.Row{{Label: "WebUI", Value: install.UIURL(a)}}
+	notes := []string{}
+	switch {
+	case generated != "":
+		rows = append(rows, tui.Row{Label: "Passwort", Value: generated})
+		notes = append(notes, "Das Passwort wird nur dieses eine Mal angezeigt – jetzt notieren.",
+			"Ändern: in der WebUI unter Einstellungen oder mit „caddyevolved passwd“.")
+	case given:
+		rows = append(rows, tui.Row{Label: "Passwort", Value: "das mit --ui-password gesetzte"})
+	default:
+		rows = append(rows, tui.Row{Label: "Passwort", Value: "unverändert (bestehende Installation)"})
+		notes = append(notes, "Vergessen? „caddyevolved passwd --generate“ setzt ein neues.")
+	}
+	if a.UIBehindProxy {
+		rows[0].Value = "https://" + a.SiteDomain + "/caddyevolved"
+	} else {
+		notes = append(notes, "Der Browser warnt einmal vor dem selbstsignierten Zertifikat – bestätigen.")
+	}
+	tui.Done(w, "caddyEvolved ist installiert – melde dich jetzt an", rows, notes...)
 }
 
 // openUI uses the arrow-key interface on a terminal and numbered prompts

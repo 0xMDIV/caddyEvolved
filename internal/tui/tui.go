@@ -9,6 +9,7 @@ package tui
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"os"
 	"strings"
@@ -77,6 +78,41 @@ func New(ctx context.Context, in *os.File, out *os.File) UI {
 		}
 	}
 	return NewPlain(ctx, in, out)
+}
+
+// Row is one "label  value" line of Done; the value is highlighted.
+type Row struct{ Label, Value string }
+
+// Done prints the closing box of a successful run: a green headline, the
+// highlighted rows and plain notes. Colour only when w is a terminal.
+func Done(w io.Writer, title string, rows []Row, notes ...string) {
+	st := style{}
+	if f, ok := w.(*os.File); ok && term.IsTerminal(int(f.Fd())) && colorWanted() && os.Getenv("TERM") != "dumb" {
+		st.on = true
+	}
+	labelW := 0
+	for _, r := range rows {
+		labelW = max(labelW, utf8.RuneCountInString(r.Label))
+	}
+	width := utf8.RuneCountInString(title) + 6
+	for _, r := range rows {
+		width = max(width, labelW+utf8.RuneCountInString(r.Value)+6)
+	}
+	for _, n := range notes {
+		width = max(width, utf8.RuneCountInString(n)+4)
+	}
+	rule := st.green(strings.Repeat("─", width))
+	fmt.Fprintf(w, "\n%s\n  %s\n\n", rule, st.bold(st.green("✔ "+title)))
+	for _, r := range rows {
+		fmt.Fprintf(w, "  %s%s  %s\n", r.Label, strings.Repeat(" ", labelW-utf8.RuneCountInString(r.Label)), st.bold(st.cyan(r.Value)))
+	}
+	if len(notes) > 0 {
+		fmt.Fprintln(w)
+	}
+	for _, n := range notes {
+		fmt.Fprintf(w, "  %s\n", st.dim(n))
+	}
+	fmt.Fprintln(w, rule)
 }
 
 // ---- styling -------------------------------------------------------------

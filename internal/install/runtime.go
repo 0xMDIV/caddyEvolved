@@ -3,6 +3,8 @@ package install
 import (
 	"context"
 	"fmt"
+	"net"
+	"strconv"
 	"strings"
 	"time"
 
@@ -111,7 +113,7 @@ func (p *Plan) stepReport(ctx context.Context, s *Step) error {
 	fmt.Fprintf(&b, "Caddyfile: %s\n", p.paths.Caddyfile)
 	fmt.Fprintf(&b, "Admin-API: %s\n", caddyctl.AdminURL(p.adminListen()))
 	if !a.UIBehindProxy {
-		fmt.Fprintf(&b, "WebUI: http://%s:%d  (Login: caddyevolved token)\n", displayHost(a.UIBind), a.UIPort)
+		fmt.Fprintf(&b, "WebUI: %s\n", UIURL(a))
 	} else {
 		fmt.Fprintf(&b, "WebUI: hinter caddy auf https://%s/caddyevolved\n", a.SiteDomain)
 	}
@@ -130,13 +132,32 @@ func (p *Plan) adminListen() string {
 	return fmt.Sprintf("localhost:%d", p.opts.Answers.AdminPort)
 }
 
+// UIURL is the address to open the WebUI at. A wildcard bind is replaced by
+// the host's LAN address; the scheme follows the daemon, which serves TLS on
+// every bind that is not loopback.
+func UIURL(a Answers) string {
+	host := displayHost(a.UIBind)
+	scheme := "https"
+	if ip := net.ParseIP(host); (ip != nil && ip.IsLoopback()) || strings.EqualFold(host, "localhost") {
+		scheme = "http"
+	}
+	port := a.UIPort
+	if port == 0 {
+		port = 8484
+	}
+	return fmt.Sprintf("%s://%s", scheme, net.JoinHostPort(host, strconv.Itoa(port)))
+}
+
 // displayHost keeps 0.0.0.0 from appearing as a clickable URL.
 func displayHost(bind string) string {
 	switch bind {
-	case "", "0.0.0.0", "::":
-		return "<host-ip>"
+	case "", "0.0.0.0", "::", "[::]":
+		if ip := platform.PrimaryIP(); ip != "" {
+			return ip
+		}
+		return "<server-ip>"
 	default:
-		return bind
+		return strings.Trim(bind, "[]")
 	}
 }
 

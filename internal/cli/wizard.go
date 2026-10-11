@@ -429,7 +429,7 @@ func (w *wizard) summary(a install.Answers) (bool, error) {
 		lines = append(lines, "Zertifikate  interne CA")
 	}
 	lines = append(lines, fmt.Sprintf("Ports        HTTP %d · HTTPS %d · Admin %d", a.HTTPPort, a.HTTPSPort, a.AdminPort))
-	lines = append(lines, fmt.Sprintf("WebUI        https://<server-ip>:%d", a.UIPort))
+	lines = append(lines, "WebUI        "+install.UIURL(a))
 	if a.SiteDomain != "" {
 		lines = append(lines, "Erste Site   "+a.SiteDomain+" → "+a.SiteTarget)
 	}

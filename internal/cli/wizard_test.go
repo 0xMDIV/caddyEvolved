@@ -1,8 +1,10 @@
 package cli
 
 import (
+	"strings"
 	"testing"
 
+	"caddyevolved/internal/install"
 	"caddyevolved/internal/plugins"
 )
 
@@ -53,4 +55,16 @@ func TestValidEmail(t *testing.T) {
 			t.Errorf("validEmail(%q) ok=%v, want %v", v, got, ok)
 		}
 	}
+}
+
+func TestPrintLoginShowsURLAndPassword(t *testing.T) {
+	var b strings.Builder
+	printLogin(&b, install.Answers{UIBind: "192.168.10.50", UIPort: 8484}, "Geheim-123", false)
+	out := b.String()
+	for _, want := range []string{"https://192.168.10.50:8484", "Geheim-123", "melde dich jetzt an"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("missing %q in:\n%s", want, out)
+		}
+	}
+	t.Log("\n" + out)
 }

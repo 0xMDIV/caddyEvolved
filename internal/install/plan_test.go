@@ -186,3 +186,23 @@ func render(t *testing.T, a Answers) string {
 	}
 	return got
 }
+
+func TestUIURL(t *testing.T) {
+	cases := []struct {
+		a    Answers
+		want string
+	}{
+		{Answers{UIBind: "192.168.10.50", UIPort: 8484}, "https://192.168.10.50:8484"},
+		{Answers{UIBind: "127.0.0.1", UIPort: 9000}, "http://127.0.0.1:9000"},
+		{Answers{UIBind: "::1", UIPort: 8484}, "http://[::1]:8484"},
+	}
+	for _, c := range cases {
+		if got := UIURL(c.a); got != c.want {
+			t.Errorf("UIURL(%+v) = %q, want %q", c.a, got, c.want)
+		}
+	}
+	// A wildcard bind never shows up as 0.0.0.0.
+	if got := UIURL(Answers{UIBind: "0.0.0.0", UIPort: 8484}); strings.Contains(got, "0.0.0.0") || !strings.HasPrefix(got, "https://") {
+		t.Errorf("wildcard bind rendered as %q", got)
+	}
+}
