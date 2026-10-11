@@ -2,6 +2,7 @@ import { useState } from "react";
 import { AccessList, AccessListsResponse, api } from "../api";
 import { navigate } from "../router";
 import { Badge, ConfirmButton, ErrorBox, PageHead, Spinner, useLoad, useToast } from "../components/ui";
+import { ProtectCard } from "../components/protect";
 
 const lines = (s: string) =>
   s
@@ -61,6 +62,7 @@ export default function AccessLists() {
       </PageHead>
       <ErrorBox error={list.error} />
       <ErrorBox error={delErr} />
+      <ProtectCard />
       <div className="card">
         {list.loading && !list.data ? (
           <div className="empty">

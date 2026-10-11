@@ -4,7 +4,7 @@
 
 ## Wo wir stehen
 
-Letztes Release: **v0.12.0** (läuft auf dem Test-LXC 192.168.10.27). Release-Weg:
+Letztes Release: **v0.13.0** (läuft auf dem Test-LXC 192.168.10.27). Release-Weg:
 `git tag vX.Y.Z && git push origin vX.Y.Z` → GitHub Actions baut amd64/arm64 →
 auf dem Server `sudo caddyevolved update` oder Knopf unter Einstellungen → Updates.
 
@@ -21,6 +21,8 @@ Erledigt aus der Wunschliste:
 | v0.10.0 | Traffic rein/raus pro Site (Analytics), Seite System mit CPU/RAM/Netz von Caddy und caddyEvolved (`internal/sysstat`) |
 | v0.11.0 | Toolbox: CIDR-Rechner, Ping, Traceroute, Port-Scan, IP-Scan, mDNS, DNS (`internal/toolbox`) |
 | v0.12.0 | Plugin-Einstellungen gebündelt (Build-Seite → „Plugins & Einstellungen“, Speichern startet Caddy neu), Build optional sofort aktivieren, Hinweis auf nicht aktivierte Builds (auch Dashboard), Zertifikatsseite zeigt wartende Domains mit Grund + Cloudflare-Umstellung, Diagramme ohne verzerrte Schrift |
+| v0.12.1 | Sites: Name öffnet Bearbeiten, Symbol ruft die Seite auf |
+| v0.13.0 | Sensible Dateien immer gesperrt (`internal/sites/guard.go`, Karte unter Access Lists), Log-Rotation wird jetzt wirklich in die Sites geschrieben (war seit v0.9.0 wirkungslos) |
 
 ## Toolbox (v0.11.0)
 

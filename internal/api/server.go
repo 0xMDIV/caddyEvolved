@@ -179,6 +179,9 @@ func (s *Server) routes() *http.ServeMux {
 	m.HandleFunc("POST /api/tools/hosts", s.auth(s.handleToolHosts))
 	m.HandleFunc("POST /api/tools/mdns", s.auth(s.handleToolMDNS))
 	m.HandleFunc("PUT /api/logging", s.auth(s.handleLoggingSave))
+	m.HandleFunc("GET /api/protect", s.auth(s.handleProtectGet))
+	m.HandleFunc("GET /api/protect/check", s.auth(s.handleProtectCheck))
+	m.HandleFunc("PUT /api/protect", s.auth(s.handleProtectSave))
 
 	m.HandleFunc("POST /api/service/{action}", s.auth(s.handleService))
 

@@ -59,7 +59,7 @@ func (ls logSettings) validate() error {
 
 // siteOptions is the rendering configuration for every site snippet.
 func (s *Server) siteOptions() sites.Options {
-	return sites.Options{AccessLog: s.Paths.AccessLog, Roll: s.loadLogSettings().roll()}
+	return sites.Options{AccessLog: s.Paths.AccessLog, Roll: s.loadLogSettings().roll(), GuardExtra: s.loadProtect().Extra}
 }
 
 func (s *Server) handleLoggingGet(w http.ResponseWriter, r *http.Request) {

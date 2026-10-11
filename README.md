@@ -20,6 +20,7 @@ bestehender Seiten: **[INSTALLATION.md](INSTALLATION.md)**.
 | **Automatisches HTTPS** | Zertifikat pro Domain über Let's Encrypt/ZeroSSL, DNS-Challenge für Wildcards, interne CA fürs LAN. Zertifikatsübersicht mit Ablaufdaten. |
 | **Plugins per Klick** | Caddy-Plugins werden einkompiliert – caddyEvolved baut die Binary direkt auf dem Server, mit Live-Log, Prüfung und automatischem Rollback. Caddy-Version ebenso wählbar. |
 | **Access Lists** | IPs erlauben/sperren, Länder (GeoIP), Benutzer mit Passwort – pro Site. |
+| **Sensible Dateien** | `.env`, `.git`, Schlüssel, Datenbank-Dumps, Backups und Ähnliches sind bei jeder Site immer gesperrt (404), bevor die Anfrage den Dienst erreicht – nicht abschaltbar, eigene Muster ergänzbar. |
 | **Schutz** | WAF (Coraza + OWASP Core Rule Set), Bot- und KI-Crawler-Abwehr, Rate Limit. |
 | **Analytics** | Graphen für Anfragen, Fehler, Geblockte und Antwortzeiten; Traffic rein und raus über Caddy, gesamt und pro Site; Top-Pfade, IPs, User-Agents, Markierungen; Live-Liste. |
 | **System** | Wie stark Caddy und caddyEvolved den Server belasten: CPU, RAM, Platte und Netzwerk im Verhältnis zum ganzen System, letzte Stunde. |

@@ -145,7 +145,7 @@ func (s *Server) StartBackground(ctx context.Context) {
 		err := s.Sites.Sync(ctx, s.siteCommit(&reloaded))
 		s.Events.Record(events.Event{
 			Kind: events.KindConfig, Step: "sites-sync", OK: err == nil,
-			Summary: "Sites mit Request-Log neu geschrieben", Error: errText(err),
+			Summary: "Sites neu geschrieben (Log, Schutzregeln)", Error: errText(err),
 		})
 	}
 	go s.autoBackupLoop(ctx)

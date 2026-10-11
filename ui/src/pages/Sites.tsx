@@ -410,6 +410,9 @@ function SiteEditor({
           </FormSection>
 
           <FormSection title="Zugriff und Schutz">
+            <span className="hint">
+              Dateien wie .env, .git, Schlüssel und Datenbank-Dumps sind bei jeder Site immer gesperrt – Liste und eigene Muster unter Access Lists.
+            </span>
             <label className="field">
               Access List
               <select value={site.accessList ?? ""} onChange={(e) => set("accessList", e.target.value)}>

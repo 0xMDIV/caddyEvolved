@@ -132,6 +132,9 @@ type Options struct {
 	// Roll is the rotation of that file; the zero value is caddy's default
 	// behaviour as caddyEvolved always shipped it (50 MiB, keep 5, gzip).
 	Roll LogRoll
+	// GuardExtra are the operator's own path patterns refused on every site,
+	// on top of the built-in rules (guard.go).
+	GuardExtra []string
 }
 
 // LogRoll configures caddy's file rotation. Field names follow the zero
@@ -208,8 +211,10 @@ func RenderWith(s Site, acl *AccessList, opt Options) string {
 	if opt.AccessLog != "" && !s.NoLog {
 		// One file for all sites: caddy pools writers by filename, and the
 		// analytics follower then reads a single log.
-		fmt.Fprintf(&b, "\tlog {\n\t\toutput file %s {\n\t\t\troll_size 50MiB\n\t\t\troll_keep 5\n\t\t}\n\t\tformat json\n\t}\n", opt.AccessLog)
+		b.WriteString(renderLog(opt.AccessLog, opt.Roll))
 	}
+
+	b.WriteString(renderGuard(opt.GuardExtra))
 
 	body := renderBody(s)
 	if s.needsRoute(acl) {

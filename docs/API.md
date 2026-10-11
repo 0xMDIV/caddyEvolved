@@ -301,3 +301,14 @@ kann bei einem Teilergebnis gesetzt sein.
 | `POST /api/tools/ports` `{host, ports:"22,80,8000-8100"}` | `{addr, scanned, open:[{port, service, rttMs, banner}]}`; leere `ports` = häufige Ports |
 | `POST /api/tools/hosts` `{cidr}` | `{hosts:[{ip, rttMs, via:"icmp"\|"tcp", name, mac, self, openOn[]}]}` – höchstens /22 |
 | `POST /api/tools/mdns` `{seconds}` | `{services:[{instance, type, host, port, addrs[], txt[], from}]}` |
+
+## Sensible Dateien
+
+Jede Site beantwortet Pfade mit Zugangsdaten (Punkt-Dateien außer `/.well-known`, `*.env`, Schlüssel,
+Dumps, Backups, `docker-compose.yml` …) mit 404, bevor ein anderer Handler läuft. Nicht abschaltbar.
+
+| Route | Antwort |
+|---|---|
+| `GET /api/protect` | `{rules[], extra[]}` – eingebaute Regeln (Text) und eigene Muster |
+| `PUT /api/protect` `{extra:["/backup/*","*.xlsx"]}` | speichert, schreibt alle Sites neu (validate + reload); 400 `bad_pattern` |
+| `GET /api/protect/check?path=` | `{path, blocked}` – Pfad oder ganze URL |
