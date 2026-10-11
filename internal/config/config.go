@@ -69,6 +69,11 @@ func NewPaths(root string) Paths {
 			AccessLog:     join(root, "/var/log/caddy/access.log"),
 			AnalyticsFile: join(root, "/var/lib/caddyevolved/analytics.json"),
 		}
+		// The container image keeps caddy in the data volume, so a binary
+		// built with plugins survives a new image (see Dockerfile).
+		if bin := os.Getenv("CADDYEVOLVED_CADDY_BIN"); root == "" && filepath.IsAbs(bin) {
+			p.CaddyBin = bin
+		}
 		return p
 	}
 	// Relative prefixes are honoured as given; callers resolve them once.

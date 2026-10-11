@@ -32,7 +32,7 @@ func (p *Plan) stepPreflight(ctx context.Context, s *Step) error {
 	if p.host.GOOS != "linux" && !p.paths.IsPrefixed() {
 		problems = append(problems, fmt.Sprintf("Zielsystem ist %s, unterstützt ist linux", p.host.GOOS))
 	}
-	if p.host.Init != platform.InitSystemd && !p.paths.IsPrefixed() {
+	if p.host.Init != platform.InitSystemd && !p.paths.IsPrefixed() && !p.host.Container {
 		problems = append(problems, "systemd nicht erreichbar – im LXC Start-Modus \"systemd\" (init=/sbin/boot) prüfen")
 	}
 

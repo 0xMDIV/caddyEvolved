@@ -1,0 +1,9 @@
+# Nur Go-Quellen und das eingecheckte Frontend gehören in den Build-Kontext.
+.git
+ui/node_modules
+ui/dist
+dist
+caddyforge
+docs
+*.md
+!go.mod

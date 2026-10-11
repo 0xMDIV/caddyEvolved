@@ -48,6 +48,7 @@ func (m *Manager) Start(ctx context.Context) (int, error) {
 	if err := os.MkdirAll(filepath.Dir(m.logPath), 0o755); err != nil {
 		return 0, err
 	}
+	os.Remove(m.stoppedMarker())
 	logFile, err := os.OpenFile(m.logPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o640)
 	if err != nil {
 		return 0, err
@@ -114,8 +115,10 @@ func (m *Manager) PID() (int, bool) {
 	return pid, true
 }
 
-// Stop terminates the supervised process, escalating to SIGKILL.
+// Stop terminates the supervised process, escalating to SIGKILL. It leaves a
+// marker so Watch does not bring caddy straight back.
 func (m *Manager) Stop(ctx context.Context) error {
+	_ = os.WriteFile(m.stoppedMarker(), []byte(time.Now().UTC().Format(time.RFC3339)+"\n"), 0o644)
 	pid, running := m.PID()
 	if !running {
 		os.Remove(m.pidFile)
@@ -145,3 +148,34 @@ func (m *Manager) Stop(ctx context.Context) error {
 
 // Running reports the supervised pid and liveness for the dashboard.
 func (m *Manager) Running() (pid int, running bool) { return m.PID() }
+
+// stoppedMarker records a deliberate stop.
+func (m *Manager) stoppedMarker() string { return m.pidFile + ".stopped" }
+
+// Watch restarts caddy when it exits on its own – the job systemd does on a
+// normal host. A stop through Stop (UI, CLI) is respected. logf may be nil.
+func (m *Manager) Watch(ctx context.Context, every time.Duration, logf func(string, ...any)) {
+	t := time.NewTicker(every)
+	defer t.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-t.C:
+		}
+		if _, running := m.PID(); running {
+			continue
+		}
+		if _, err := os.Stat(m.stoppedMarker()); err == nil {
+			continue
+		}
+		pid, err := m.Start(ctx)
+		if logf != nil {
+			if err != nil {
+				logf("caddy lief nicht mehr, Neustart fehlgeschlagen: %v", err)
+			} else {
+				logf("caddy lief nicht mehr – neu gestartet (pid %d)", pid)
+			}
+		}
+	}
+}

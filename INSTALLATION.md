@@ -32,6 +32,9 @@ caddyEvolved auf einer **zweiten Maschine** daneben laufen: erst alles übernehm
 
 ## 2. Installieren
 
+> Lieber als Docker-Container oder auf Unraid? → [docs/DOCKER.md](docs/DOCKER.md). Der Rest
+> dieser Anleitung (Router, DNS, Plugins, Fehlersuche) gilt dort genauso.
+
 ```bash
 curl -fsSL https://raw.githubusercontent.com/0xMDIV/caddyEvolved/main/install.sh | sudo sh
 ```

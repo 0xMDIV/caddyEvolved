@@ -377,14 +377,21 @@ func (m *Manager) run(ctx context.Context, id string) {
 		os.Remove(m.binaryPath(id))
 	}
 
+	// Take the subscribers out under the lock: a subscriber's cancel func
+	// closes its channel only while it is still listed, so each channel is
+	// closed exactly once.
 	m.mu.Lock()
 	j := m.running
 	m.running = nil
+	var subs map[chan Msg]struct{}
+	if j != nil {
+		subs, j.subs = j.subs, map[chan Msg]struct{}{}
+	}
 	m.mu.Unlock()
 	if j != nil {
 		j.cancel()
 		j.logf.Close()
-		for c := range j.subs {
+		for c := range subs {
 			c <- Msg{Kind: "done", Build: final}
 			close(c)
 		}

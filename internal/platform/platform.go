@@ -44,7 +44,15 @@ type Info struct {
 	User      string
 	CanBind   bool // ports below 1024 usable by the current user
 	Hostname  string
+	// Container is the official Docker image: no systemd, caddyEvolved
+	// supervises caddy itself and updates come as a new image.
+	Container bool
 }
+
+// InContainer reports the official image, which sets CADDYEVOLVED_CONTAINER=1.
+// Other containers are not detected on purpose: an LXC with systemd is a
+// normal host.
+func InContainer() bool { return os.Getenv("CADDYEVOLVED_CONTAINER") == "1" }
 
 // Detect probes the host. Missing files are treated as "unknown" rather than
 // errors, so the same binary answers sensibly on Windows, WSL and a real LXC.
@@ -52,6 +60,7 @@ func Detect(ctx context.Context) Info {
 	info := Info{GOOS: goos(), GOARCH: goarch()}
 	info.Distro, info.DistroVer = osRelease()
 	info.Init = detectInit()
+	info.Container = InContainer()
 	info.Virt = detectVirt(ctx)
 	info.UID = os.Geteuid()
 	info.IsRoot = info.UID == 0

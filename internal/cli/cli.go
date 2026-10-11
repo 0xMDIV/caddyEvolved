@@ -32,6 +32,7 @@ func version() string { return buildinfo.String() }
 func commandTable() map[string]command {
 	return map[string]command{
 		"install":   {run: cmdInstall, usage: "caddyevolved install [--unattended answers.json] [--prefix DIR] [--root DIR] [--dry-run] [--force] [--yes] [--plugin ID ...] [--env KEY=VALUE ...] [--variant official|bundle|custom] [--caddy-version V] [--email ADDR] [--http-port N --https-port N --admin-port N] [--ui-port N --ui-bind ADDR --ui-behind-proxy] [--managed] [--domain D --target URL] [--ui-password PW] [--password-file F] [--json]", summary: "Caddy + WebUI einrichten (interaktiv oder unbeaufsichtigt)"},
+		"container": {run: cmdContainer, usage: "caddyevolved container", summary: "Einstiegspunkt des Docker-Images: einrichten, caddy überwachen, WebUI starten"},
 		"serve":     {run: cmdServe, usage: "caddyevolved serve [--bind 0.0.0.0] [--port 8484] [--insecure-dev] [--root DIR]", summary: "WebUI und Verwaltungsdaemon starten (systemd-Dienst)"},
 		"status":    {run: cmdStatus, usage: "caddyevolved status [--json] [--ports=false] [--root DIR]", summary: "Installations-, Dienst- und Modulstatus anzeigen"},
 		"start":     {run: cmdStart, usage: "caddyevolved start [--root DIR] [--force]", summary: "caddy starten"},

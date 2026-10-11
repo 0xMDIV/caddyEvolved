@@ -9,6 +9,7 @@ import (
 
 	"caddyevolved/internal/buildinfo"
 	"caddyevolved/internal/events"
+	"caddyevolved/internal/platform"
 	"caddyevolved/internal/selfupdate"
 )
 
@@ -39,7 +40,7 @@ func (s *Server) handleUpdateCheck(w http.ResponseWriter, r *http.Request) {
 	}
 	info, errText := u.info, u.err
 	u.mu.Unlock()
-	writeJSON(w, http.StatusOK, map[string]any{"update": info, "error": errText})
+	writeJSON(w, http.StatusOK, map[string]any{"update": info, "error": errText, "container": platform.InContainer()})
 }
 
 // handleUpdateApply installs a release and restarts the daemon. The answer goes
@@ -48,6 +49,10 @@ func (s *Server) handleUpdateApply(w http.ResponseWriter, r *http.Request) {
 	// Replacing the program is an admin act, like managing tokens: a leaked
 	// API token must not be able to swap the binary.
 	if !tokenAdmin(w, r) {
+		return
+	}
+	if platform.InContainer() {
+		writeErr(w, http.StatusConflict, "container", "Im Docker-Container kommt ein Update als neues Image: docker compose pull && docker compose up -d (Unraid: „Update“ am Container)")
 		return
 	}
 	var req struct {

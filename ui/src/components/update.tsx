@@ -84,7 +84,12 @@ export function UpdateCard() {
               </>
             )}
           </div>
-          {u.available ? (
+          {u.available && check.data?.container ? (
+            <div className="alert info small">
+              Läuft im Docker-Container: Update über ein neues Image – <span className="mono">docker compose pull && docker compose up -d</span>, auf
+              Unraid „Update“ am Container. Sites, Einstellungen und selbst gebaute Plugins liegen im Daten-Volume und bleiben.
+            </div>
+          ) : u.available ? (
             <div className="row" style={{ gap: 10, flexWrap: "wrap" }}>
               <ConfirmButton
                 className="btn primary"

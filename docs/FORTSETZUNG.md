@@ -4,7 +4,7 @@
 
 ## Wo wir stehen
 
-Letztes Release: **v0.13.0** (läuft auf dem Test-LXC 192.168.10.27). Release-Weg:
+Letztes Release: **v0.14.0** (läuft auf dem Test-LXC 192.168.10.27). Release-Weg:
 `git tag vX.Y.Z && git push origin vX.Y.Z` → GitHub Actions baut amd64/arm64 →
 auf dem Server `sudo caddyevolved update` oder Knopf unter Einstellungen → Updates.
 
@@ -23,6 +23,7 @@ Erledigt aus der Wunschliste:
 | v0.12.0 | Plugin-Einstellungen gebündelt (Build-Seite → „Plugins & Einstellungen“, Speichern startet Caddy neu), Build optional sofort aktivieren, Hinweis auf nicht aktivierte Builds (auch Dashboard), Zertifikatsseite zeigt wartende Domains mit Grund + Cloudflare-Umstellung, Diagramme ohne verzerrte Schrift |
 | v0.12.1 | Sites: Name öffnet Bearbeiten, Symbol ruft die Seite auf |
 | v0.13.0 | Sensible Dateien immer gesperrt (`internal/sites/guard.go`, Karte unter Access Lists), Log-Rotation wird jetzt wirklich in die Sites geschrieben (war seit v0.9.0 wirkungslos) |
+| v0.14.0 | Docker-Image (`Dockerfile`, `docker/compose.yml`, `install_docker.sh`, `caddyevolved container`, Image auf ghcr.io), Unraid-Vorlage (`unraid/`), Doku `docs/DOCKER.md`; Fix: Absturz nach Build mit Auto-Aktivierung (doppelt geschlossener Kanal), Installation hängt nicht mehr an der GitHub-API, wenn Caddy schon da ist |
 
 ## Toolbox (v0.11.0)
 
@@ -52,6 +53,9 @@ Erledigt aus der Wunschliste:
   `caddyevolved uninstall`, Bundle-Variante.
 
 ## Arbeitsweise (bewährt)
+
+- Docker-Test lokal: Docker Desktop starten, `docker build -t caddyevolved:test .`, Container mit
+  `-p 18080:80 -p 18443:443 -p 18484:8484 -v cev-test-data:/data`, API über https://localhost:18484.
 
 - Go baut in WSL Ubuntu-24.04 (`~/.local/go/bin`), Node 24 unter Windows (`cd ui && npm run build`
   schreibt nach `internal/webui/dist`, wird eingecheckt).

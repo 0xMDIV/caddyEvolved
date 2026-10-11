@@ -9,6 +9,7 @@ import (
 	"os"
 
 	"caddyevolved/internal/buildinfo"
+	"caddyevolved/internal/platform"
 	"caddyevolved/internal/selfupdate"
 	"caddyevolved/internal/tui"
 )
@@ -40,6 +41,9 @@ func cmdUpdate(ctx context.Context, args []string, stdout, stderr io.Writer) err
 		fmt.Fprintln(stdout, p.Yellow("Update verfügbar: ")+"sudo caddyevolved update")
 		fmt.Fprintln(stdout, p.Dim("Änderungen: "+info.NotesURL))
 		return nil
+	}
+	if platform.InContainer() {
+		return errors.New("im Docker-Container kommt ein Update als neues Image: docker compose pull && docker compose up -d")
 	}
 	if os.Geteuid() != 0 && !l.paths.IsPrefixed() {
 		return errors.New("Update braucht root: sudo caddyevolved update")

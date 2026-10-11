@@ -1,0 +1,27 @@
+<?xml version="1.0"?>
+<Container version="2">
+  <Name>caddyEvolved</Name>
+  <Repository>ghcr.io/0xmdiv/caddyevolved:latest</Repository>
+  <Registry>https://github.com/0xMDIV/caddyEvolved/pkgs/container/caddyevolved</Registry>
+  <Network>bridge</Network>
+  <MyIP/>
+  <Shell>bash</Shell>
+  <Privileged>false</Privileged>
+  <Support>https://github.com/0xMDIV/caddyEvolved/issues</Support>
+  <Project>https://github.com/0xMDIV/caddyEvolved</Project>
+  <Overview>Caddy als Reverse Proxy mit WebUI: Sites per Klick, automatisches HTTPS (Let's Encrypt, DNS-Challenge, interne CA), Plugins wie Cloudflare-DNS, WAF und Geo-Blocking direkt im Container bauen, Access Lists, Analytics, Logs, Backup und Netzwerk-Toolbox. Dateien wie .env, .git oder Schlüssel sind bei jeder Site immer gesperrt.[br][br]Unraid selbst belegt die Ports 80 und 443. Deshalb lauscht caddyEvolved hier auf 1880 (HTTP) und 18443 (HTTPS): im Router 80 auf 1880 und 443 auf 18443 dieses Servers weiterleiten. Alternativ Netzwerk "br0" mit eigener IP wählen, dann gelten 80/443 direkt.[br][br]Das WebUI-Passwort steht nach dem ersten Start im Log des Containers, wenn unten keins gesetzt ist.</Overview>
+  <Category>Network:Proxy Network:Web Security:</Category>
+  <WebUI>https://[IP]:[PORT:8484]/</WebUI>
+  <TemplateURL>https://raw.githubusercontent.com/0xMDIV/caddyEvolved/main/unraid/caddyevolved.xml</TemplateURL>
+  <Icon>https://raw.githubusercontent.com/0xMDIV/caddyEvolved/main/unraid/icon.png</Icon>
+  <ExtraParams/>
+  <PostArgs/>
+  <Config Name="HTTP" Target="80" Default="1880" Mode="tcp" Description="Im Router Port 80 hierher weiterleiten (Zertifikate und Weiterleitung auf HTTPS)." Type="Port" Display="always" Required="true" Mask="false">1880</Config>
+  <Config Name="HTTPS" Target="443" Default="18443" Mode="tcp" Description="Im Router Port 443 hierher weiterleiten." Type="Port" Display="always" Required="true" Mask="false">18443</Config>
+  <Config Name="HTTPS (HTTP/3)" Target="443" Default="18443" Mode="udp" Description="Optional: HTTP/3 über UDP, gleicher Port wie HTTPS." Type="Port" Display="advanced" Required="false" Mask="false">18443</Config>
+  <Config Name="WebUI" Target="8484" Default="8484" Mode="tcp" Description="Verwaltungsoberfläche (HTTPS, selbstsigniertes Zertifikat)." Type="Port" Display="always" Required="true" Mask="false">8484</Config>
+  <Config Name="Daten" Target="/data" Default="/mnt/user/appdata/caddyevolved" Mode="rw" Description="Konfiguration, Sites, Zertifikate, Logs und selbst gebaute Plugins." Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/caddyevolved</Config>
+  <Config Name="E-Mail" Target="CADDYEVOLVED_EMAIL" Default="" Mode="" Description="Optional: E-Mail für Let's Encrypt (Ablaufwarnungen)." Type="Variable" Display="always" Required="false" Mask="false"/>
+  <Config Name="WebUI-Passwort" Target="CADDYEVOLVED_PASSWORD" Default="" Mode="" Description="Optional, nur beim ersten Start: leer = Passwort wird erzeugt und steht im Log." Type="Variable" Display="always" Required="false" Mask="true"/>
+  <Config Name="Zeitzone" Target="TZ" Default="Europe/Berlin" Mode="" Description="" Type="Variable" Display="advanced" Required="false" Mask="false">Europe/Berlin</Config>
+</Container>

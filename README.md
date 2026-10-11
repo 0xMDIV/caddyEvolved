@@ -12,6 +12,14 @@ curl -fsSL https://raw.githubusercontent.com/0xMDIV/caddyEvolved/main/install.sh
 Danach `https://<server-ip>:8484` öffnen. Ausführlich, inklusive Router, DNS und Übernahme
 bestehender Seiten: **[INSTALLATION.md](INSTALLATION.md)**.
 
+**Als Docker-Container** (auch für Synology, TrueNAS & Co.):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/0xMDIV/caddyEvolved/main/install_docker.sh | sudo sh
+```
+
+**Unraid:** Vorlage über die Template Repositories – siehe **[docs/DOCKER.md](docs/DOCKER.md#unraid)**.
+
 ## Funktionen
 
 | | |

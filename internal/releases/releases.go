@@ -35,9 +35,10 @@ var (
 	CustomBase  = "https://caddyserver.com/api/download"
 )
 
-// httpc avoids the per-request allocations of http.DefaultClient timeouts we
-// do want, so set one explicitly.
-var httpc = &http.Client{Timeout: 10 * time.Minute}
+// httpc serves the small API and checksum requests (downloads go through
+// internal/fetch). A hanging connection must fail fast instead of stalling an
+// install, hence the short timeout.
+var httpc = &http.Client{Timeout: time.Minute}
 
 // Release is the subset of a GitHub release we care about.
 type Release struct {

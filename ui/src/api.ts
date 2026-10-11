@@ -571,6 +571,8 @@ export interface UpdateInfo {
 export interface UpdateResponse {
   update: UpdateInfo;
   error: string;
+  /** Running in the Docker image: updates come as a new image. */
+  container?: boolean;
 }
 
 export interface BackupEntry {

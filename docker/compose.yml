@@ -1,0 +1,30 @@
+# caddyEvolved mit Docker Compose
+#
+#   docker compose up -d
+#   docker compose logs caddyevolved      # zeigt beim ersten Start das Passwort
+#
+# Danach: https://<IP dieses Servers>:8484 (selbstsigniertes Zertifikat einmal bestätigen).
+# Update: docker compose pull && docker compose up -d – alles in ./data bleibt.
+
+services:
+  caddyevolved:
+    image: ghcr.io/0xmdiv/caddyevolved:latest
+    container_name: caddyevolved
+    restart: unless-stopped
+    # host: Caddy sieht die echten Client-IPs (Access Lists, Logs), die Toolbox
+    # erreicht das LAN, und Ports müssen nicht einzeln weitergereicht werden.
+    # Ohne host-Netz: die beiden Zeilen tauschen und "ports" einkommentieren.
+    network_mode: host
+    # ports:
+    #   - "80:80"
+    #   - "443:443"
+    #   - "443:443/udp"
+    #   - "8484:8484"
+    volumes:
+      - ./data:/data
+    environment:
+      # Optional: E-Mail für Let's Encrypt (Ablaufwarnungen)
+      CADDYEVOLVED_EMAIL: ""
+      # Optional: festes WebUI-Passwort – leer = beim ersten Start erzeugt (steht im Log)
+      CADDYEVOLVED_PASSWORD: ""
+      TZ: Europe/Berlin

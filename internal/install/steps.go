@@ -169,6 +169,11 @@ func (p *Plan) stepCredentials(ctx context.Context, s *Step) error {
 
 // stepBinary installs caddy and the caddyevolved service binary.
 func (p *Plan) stepBinary(ctx context.Context, s *Step) error {
+	// A caddy that is already there needs no release lookup: the GitHub API
+	// is rate limited and may be unreachable (fresh container, air gap).
+	if p.resolved.foundBinary != "" && !p.opts.Force && !p.opts.DryRun && len(p.opts.Answers.Plugins) == 0 {
+		return skip(s, StatusSkipped, fmt.Sprintf("caddy %s bereits installiert: %s", p.resolved.caddyVersion, p.resolved.foundBinary))
+	}
 	if err := p.resolveBinary(ctx); err != nil {
 		return err
 	}
