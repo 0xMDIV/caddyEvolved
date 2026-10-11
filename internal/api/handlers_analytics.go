@@ -149,6 +149,10 @@ func (s *Server) StartBackground(ctx context.Context) {
 		})
 	}
 	go s.autoBackupLoop(ctx)
+	if s.Bans != nil {
+		s.Analytics.OnEntry = s.Bans.Observe
+		go s.autobanLoop(ctx)
+	}
 	go s.firewallLoop(ctx)
 	go s.Sys.Run(ctx, 5*time.Second)
 	s.Analytics.Follow(ctx, s.Paths.AccessLog)

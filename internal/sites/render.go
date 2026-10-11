@@ -156,6 +156,8 @@ type Options struct {
 	// WAFLog receives Coraza's rule matches, so the UI can name the rule
 	// behind a block; empty leaves them in caddy's own log.
 	WAFLog string
+	// AutoBanned are the addresses and /64 networks the auto-ban holds.
+	AutoBanned []string
 }
 
 // LogRoll configures caddy's file rotation. Field names follow the zero

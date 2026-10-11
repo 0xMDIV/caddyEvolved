@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"strings"
 
@@ -29,6 +30,65 @@ type Firewall struct {
 	BlockASN []int `json:"blockAsn,omitempty"`
 	// Drop closes the connection instead of answering 403.
 	Drop bool `json:"drop"`
+	// AutoBan blocks addresses by what they do, see AutoBan.
+	AutoBan AutoBan `json:"autoBan"`
+}
+
+// AutoBan blocks clients automatically: a request to a trap path (or to a
+// protected file like /.env) bans at once, repeated refusals or 404s within
+// a window ban too. caddyEvolved reads the access log, keeps the bans and
+// renders them into the firewall file; a ban expires after Hours (0 =
+// never), and with Escalate each repeat doubles it, the third is permanent.
+type AutoBan struct {
+	Enabled bool `json:"enabled"`
+	// Traps are path patterns (caddy's path matcher, * as wildcard) no real
+	// visitor requests. They answer 404 for everyone and ban the client.
+	Traps []string `json:"traps,omitempty"`
+	// Guarded counts requests for protected files (.env, .git, …) as traps.
+	Guarded bool `json:"guarded"`
+	// Strikes refused requests (WAF, rate limit, 403) within StrikeMinutes
+	// ban; 0 is off. NotFound does the same for 404s, the scanner pattern.
+	Strikes         int  `json:"strikes"`
+	StrikeMinutes   int  `json:"strikeMinutes"`
+	NotFound        int  `json:"notFound"`
+	NotFoundMinutes int  `json:"notFoundMinutes"`
+	Hours           int  `json:"hours"`
+	Escalate        bool `json:"escalate"`
+	// V6Net bans the whole /64 of an IPv6 client: one host owns it and can
+	// pick a new address from it at will.
+	V6Net bool `json:"v6Net"`
+}
+
+// AutoBanOn reports whether bans are collected and enforced.
+func (f Firewall) AutoBanOn() bool { return f.Enabled && f.AutoBan.Enabled }
+
+var reTrap = regexp.MustCompile(`^[/*][^\s{}"'\x60\\]{0,200}$`)
+
+func (a AutoBan) validate() []string {
+	var problems []string
+	if len(a.Traps) > 300 {
+		problems = append(problems, "Auto-Bann: höchstens 300 Fallen")
+	}
+	for _, t := range a.Traps {
+		if !reTrap.MatchString(t) {
+			problems = append(problems, fmt.Sprintf("Auto-Bann: Falle %q – Pfad mit / (oder * wie *.php) am Anfang, ohne Leerzeichen und Klammern", t))
+		}
+	}
+	check := func(v, lo, hi int, what string) {
+		if v < lo || v > hi {
+			problems = append(problems, fmt.Sprintf("Auto-Bann: %s zwischen %d und %d", what, lo, hi))
+		}
+	}
+	check(a.Strikes, 0, 10000, "Verstöße")
+	check(a.NotFound, 0, 10000, "404-Anzahl")
+	if a.Strikes > 0 {
+		check(a.StrikeMinutes, 1, 1440, "Zeitfenster (Minuten)")
+	}
+	if a.NotFound > 0 {
+		check(a.NotFoundMinutes, 1, 1440, "Zeitfenster (Minuten)")
+	}
+	check(a.Hours, 0, 24*365, "Sperrdauer (Stunden)")
+	return problems
 }
 
 // Normalize trims, upper-cases and sorts, so the rendered file stays stable.
@@ -46,6 +106,9 @@ func (f *Firewall) Normalize() {
 	f.AllowCountries = slices.Compact(f.AllowCountries)
 	slices.Sort(f.BlockASN)
 	f.BlockASN = slices.Compact(f.BlockASN)
+	f.AutoBan.Traps = cleanList(f.AutoBan.Traps)
+	slices.Sort(f.AutoBan.Traps)
+	f.AutoBan.Traps = slices.Compact(f.AutoBan.Traps)
 }
 
 func (f Firewall) validate() []string {
@@ -78,7 +141,7 @@ func (f Firewall) validate() []string {
 			problems = append(problems, fmt.Sprintf("Firewall: ASN %d ungültig", a))
 		}
 	}
-	return problems
+	return append(problems, f.AutoBan.validate()...)
 }
 
 // UsesGeo / UsesASN report which database the rules need.
@@ -134,6 +197,28 @@ func RenderFirewall(o Options) string {
 		}
 		if len(ranges) > 0 {
 			writeIPLines(&b, "\t\t\tnot client_ip", ranges)
+		}
+	}
+
+	if f.AutoBanOn() && len(o.AutoBanned) > 0 {
+		b.WriteString("\t\t@cev_fw_ban {\n")
+		writeIPLines(&b, "\t\t\tclient_ip", o.AutoBanned)
+		exempt(false)
+		b.WriteString("\t\t}\n")
+		deny("@cev_fw_ban", "autoban")
+	}
+	if f.AutoBanOn() && len(f.AutoBan.Traps) > 0 {
+		// A trap answers 404 for everyone, like a path that does not exist;
+		// the tag tells caddyEvolved to ban the client.
+		b.WriteString("\t\t@cev_fw_trap {\n")
+		for i := 0; i < len(f.AutoBan.Traps); i += 40 {
+			fmt.Fprintf(&b, "\t\t\tpath %s\n", strings.Join(f.AutoBan.Traps[i:min(i+40, len(f.AutoBan.Traps))], " "))
+		}
+		b.WriteString("\t\t}\n\t\tlog_append @cev_fw_trap cev_block falle\n")
+		if f.Drop {
+			b.WriteString("\t\tabort @cev_fw_trap\n")
+		} else {
+			b.WriteString("\t\trespond @cev_fw_trap 404\n")
 		}
 	}
 

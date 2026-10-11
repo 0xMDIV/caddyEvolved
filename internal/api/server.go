@@ -17,6 +17,7 @@ import (
 
 	"caddyevolved/internal/analytics"
 	"caddyevolved/internal/auth"
+	"caddyevolved/internal/autoban"
 	"caddyevolved/internal/builder"
 	"caddyevolved/internal/caddyctl"
 	"caddyevolved/internal/cmdx"
@@ -42,6 +43,8 @@ type Server struct {
 	Sites   *sites.Manager
 	// Analytics is nil when request statistics are off (tests).
 	Analytics *analytics.Store
+	// Bans is the auto-ban; nil (tests) disables it.
+	Bans *autoban.Store
 	// Sys samples host and process load; nil disables the system page.
 	Sys      *sysstat.Sampler
 	Bind     string
@@ -189,6 +192,7 @@ func (s *Server) routes() *http.ServeMux {
 	m.HandleFunc("POST /api/firewall/quick", s.auth(s.handleFirewallQuick))
 	m.HandleFunc("POST /api/firewall/refresh", s.auth(s.handleFirewallRefresh))
 	m.HandleFunc("GET /api/firewall/log", s.auth(s.handleFirewallLog))
+	m.HandleFunc("POST /api/firewall/bans/clear", s.auth(s.handleAutobanClear))
 
 	m.HandleFunc("POST /api/service/{action}", s.auth(s.handleService))
 

@@ -365,6 +365,29 @@ export interface Firewall {
   allowCountries?: string[];
   blockAsn?: number[];
   drop: boolean;
+  autoBan?: AutoBan;
+}
+export interface AutoBan {
+  enabled: boolean;
+  traps?: string[];
+  guarded: boolean;
+  strikes: number;
+  strikeMinutes: number;
+  notFound: number;
+  notFoundMinutes: number;
+  hours: number;
+  escalate: boolean;
+  v6Net: boolean;
+}
+export interface Ban {
+  ip: string;
+  reason: string;
+  detail?: string;
+  host?: string;
+  since: string;
+  until?: string;
+  times: number;
+  hits: number;
 }
 export interface FirewallList {
   id: string;
@@ -386,6 +409,7 @@ export interface FirewallResponse {
   caps: { geo: boolean; waf: boolean };
   file: string;
   yourIp?: string;
+  bans?: Ban[];
 }
 export interface BlockedRequest {
   ts: string;

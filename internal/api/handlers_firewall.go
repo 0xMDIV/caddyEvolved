@@ -76,6 +76,7 @@ func (s *Server) handleFirewallGet(w http.ResponseWriter, r *http.Request) {
 		"defenderRanges": sites.DefenderRanges,
 		"file":           s.Sites.FirewallFile(),
 		"yourIp":         clientIP(r),
+		"bans":           s.Bans.List(),
 	}
 	writeJSON(w, http.StatusOK, out)
 }
@@ -112,13 +113,27 @@ func (s *Server) handleFirewallSave(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleFirewallQuick(w http.ResponseWriter, r *http.Request) {
 	var in struct {
 		IP     string `json:"ip"`
-		Action string `json:"action"` // block | allow | unblock
+		Action string `json:"action"` // block | allow | unblock | unban
 	}
 	if err := decode(r, &in); err != nil {
 		writeErr(w, http.StatusBadRequest, "bad_request", errText(err))
 		return
 	}
 	in.IP = strings.TrimSpace(in.IP)
+	if in.Action == "unban" {
+		if !s.Bans.Unban(in.IP) {
+			writeErr(w, http.StatusNotFound, "not_found", in.IP+" ist nicht automatisch gesperrt")
+			return
+		}
+		s.Bans.TakeChanges()
+		s.resyncSites(r.Context(), "Auto-Bann: "+in.IP+" entsperrt")
+		writeJSON(w, http.StatusOK, map[string]any{"unbanned": in.IP})
+		return
+	}
+	// A manual decision replaces the automatic one.
+	if s.Bans.Unban(in.IP) {
+		s.Bans.TakeChanges()
+	}
 	g := s.loadGlobal()
 	f := &g.Firewall
 	without := func(l []string) []string {

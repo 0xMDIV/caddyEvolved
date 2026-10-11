@@ -194,6 +194,9 @@ type Store struct {
 	offset  int64 // read position in the log, persisted
 	inode   uint64
 	snap    string
+	// OnEntry sees every parsed entry, outside the lock (the auto-ban).
+	// Set it before Follow starts.
+	OnEntry func(accesslog.Entry)
 }
 
 // New loads a snapshot if one exists.
@@ -215,6 +218,9 @@ func (s *Store) Ingest(line []byte) {
 	e, ok := accesslog.Parse(line)
 	if !ok {
 		return
+	}
+	if s.OnEntry != nil {
+		s.OnEntry(e)
 	}
 	ts, host, ip, path, agent := e.TS, e.Host, e.IP, e.Path, e.Agent
 	if len(agent) > 200 {

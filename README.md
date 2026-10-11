@@ -25,7 +25,7 @@ Container: im Log). Router, DNS und Übernahme bestehender Seiten:
 | **Automatisches HTTPS** | Zertifikat pro Domain über Let's Encrypt/ZeroSSL, DNS-Challenge mit 41 DNS-Anbietern (auch Wildcards, auch hinter dem Cloudflare-Proxy), interne CA fürs LAN. Domains, die noch auf ein Zertifikat warten, zeigen den Grund aus dem Caddy-Log und den passenden Knopf zur Lösung. |
 | **Plugins per Klick** | Caddy-Plugins werden einkompiliert – caddyEvolved baut die Binary direkt auf dem Server bzw. im Container, mit Live-Log, Prüfung, sofortiger Aktivierung und automatischem Rollback. Einstellungen aller eingebauten Plugins (z. B. API-Token für Cloudflare-DNS) an einer Stelle, nach Thema geordnet. |
 | **Sensible Dateien** | `.env`, `.git`, Schlüssel, Datenbank-Dumps, Backups, `docker-compose.yml` und Ähnliches sind bei jeder Site **immer gesperrt** (404), bevor die Anfrage den Dienst erreicht – nicht abschaltbar, eigene Muster ergänzbar. |
-| **Firewall** | Für alle Sites: Whitelist und Blacklist (IPs und Bereiche), öffentliche Sperrlisten (Spamhaus DROP, FireHOL Level 1, Tor-Exits), Länder und Netzbetreiber (ASN) mit kostenlosen DB-IP-Geodaten ohne Account. Blockierte Anfragen mit Grund, WAF-Treffer mit Regel-ID – sperren, freigeben oder Regel ausschalten per Klick. |
+| **Firewall** | Für alle Sites: Whitelist und Blacklist (IPs und Bereiche), öffentliche Sperrlisten (Spamhaus DROP, FireHOL Level 1, Tor-Exits), Länder und Netzbetreiber (ASN) mit kostenlosen DB-IP-Geodaten ohne Account. Blockierte Anfragen mit Grund, WAF-Treffer mit Regel-ID – sperren, freigeben oder Regel ausschalten per Klick. **Auto-Bann:** Fallen-Pfade (z. B. `/phpmyadmin*`) und Zugriffe auf `.env` & Co. sperren sofort, zu viele Abweisungen oder 404-Scans ebenso; Sperrdauer mit Eskalation bis dauerhaft, IPv6 als /64. |
 | **Access Lists** | IPs erlauben/sperren, Länder, Benutzer mit Passwort – pro Site. |
 | **Schutz** | WAF (Coraza + OWASP Core Rule Set) mit allen CRS-Optionen: Paranoia-Level, Schwellwerte, erlaubte Methoden und Content-Types, Body-Limit, Regelgruppen, Ausnahmen pro Regel und Pfad, eigene SecLang-Regeln. CrowdSec-Bouncer mit AppSec, Bot-Abwehr mit allen Reaktionen und Netzen, Rate Limit mit eigenen Grenzen pro Pfad. |
 | **Netzwerk** | Echte Besucher-IPs hinter Cloudflare oder anderen Proxys, DynDNS für Anschlüsse ohne feste IP, Sites nur im Tailnet (Tailscale), Brotli, HTTP-Cache (Souin), WebDAV als Site-Art. |
@@ -156,6 +156,7 @@ unraid/               Unraid-Vorlage und Symbol
 - [x] Reverse-Proxy-Sites, Caddyfile-Editor mit Validate/Reload
 - [x] Access Lists, WAF/Bot-Abwehr/Geo-Blocking/Rate Limit, Plugin-Seiten in der Sidebar
 - [x] Firewall mit Sperrlisten, Länder- und ASN-Regeln, Block-Log und WAF-Treffern
+- [x] Auto-Bann: Fallen, Schwellwerte, wachsende Sperrliste
 - [x] Analytics, Audit Log, Import, API-Tokens, MCP
 - [x] Releases für amd64/arm64 mit Installationsskript, Pfeiltasten-Assistent
 - [x] `caddyevolved doctor`, Site-Test mit Zertifikatsansicht und Cloudflare-Erkennung

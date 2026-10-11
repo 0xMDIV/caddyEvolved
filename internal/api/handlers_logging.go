@@ -70,6 +70,7 @@ func (s *Server) siteOptions() sites.Options {
 		GeoDB:         blocklists.GeoPath(s.geoDir(), blocklists.GeoCountry),
 		ASNDB:         blocklists.GeoPath(s.geoDir(), blocklists.GeoASN),
 		WAFLog:        s.wafLog(),
+		AutoBanned:    s.autobanActive(g),
 	}
 }
 

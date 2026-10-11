@@ -174,3 +174,31 @@ func TestDefenderAndRateLimitOptions(t *testing.T) {
 		t.Error("Anführungszeichen im Antworttext hätte abgelehnt werden müssen")
 	}
 }
+
+func TestRenderAutoBan(t *testing.T) {
+	o := fwOptions(Firewall{
+		Allow:   []string{"203.0.113.7"},
+		AutoBan: AutoBan{Enabled: true, Traps: []string{"/wp-login.php", "/phpmyadmin*"}},
+	})
+	o.AutoBanned = []string{"198.51.100.9", "2001:db8:1:2::/64"}
+	got := RenderFirewall(o)
+	for _, want := range []string{
+		"client_ip 198.51.100.9 2001:db8:1:2::/64",
+		"log_append @cev_fw_ban cev_block autoban",
+		"path /phpmyadmin* /wp-login.php",
+		"log_append @cev_fw_trap cev_block falle",
+		"respond @cev_fw_trap 404",
+	} {
+		if !strings.Contains(got, want) {
+			t.Errorf("fehlt %q in\n%s", want, got)
+		}
+	}
+	o.Global.Firewall.AutoBan.Enabled = false
+	if got := RenderFirewall(o); strings.Contains(got, "cev_fw_ban") || strings.Contains(got, "cev_fw_trap") {
+		t.Errorf("Auto-Bann aus, trotzdem gerendert:\n%s", got)
+	}
+	bad := Firewall{AutoBan: AutoBan{Traps: []string{"wp-login.php", "/a b", "/x{y}"}, Strikes: 5}}
+	if p := bad.validate(); len(p) != 4 {
+		t.Errorf("validate = %v", p)
+	}
+}

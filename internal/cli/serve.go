@@ -7,11 +7,13 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"path/filepath"
 	"time"
 
 	"caddyevolved/internal/analytics"
 	"caddyevolved/internal/api"
 	"caddyevolved/internal/auth"
+	"caddyevolved/internal/autoban"
 	"caddyevolved/internal/caddyctl"
 	"caddyevolved/internal/config"
 	"caddyevolved/internal/events"
@@ -54,6 +56,7 @@ func cmdServe(ctx context.Context, args []string, stdout, stderr io.Writer) erro
 		Events:    ev,
 		Caddy:     caddyctl.New(l.paths.CaddyBin, l.runner),
 		Analytics: analytics.New(l.paths.AnalyticsFile),
+		Bans:      autoban.Open(filepath.Join(l.paths.StateDir, "firewall", "autoban.json")),
 		Bind:      bindAddr,
 		Port:      listenPort,
 		Insecure:  *insecure,

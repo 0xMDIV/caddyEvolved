@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { api, FirewallLogResponse, FirewallResponse, Site, SitesResponse, WafEvent } from "../api";
 import { FirewallRules } from "../components/firewall";
+import { AutoBanPanel } from "../components/autoban";
 import { Badge, ErrorBox, PageHead, Spinner, useAction, useLoad } from "../components/ui";
 
 /** Labels for the reasons the access log carries (cev_block). */
@@ -12,6 +13,8 @@ export const BLOCK_REASON: Record<string, string> = {
   "acl-land": "Access List: Land",
   geschuetzt: "Geschützte Datei",
   ratelimit: "Rate Limit",
+  falle: "Auto-Bann: Falle",
+  autoban: "Auto-Bann: gesperrt",
   "403": "403 (WAF, CrowdSec, Bot-Abwehr oder App)",
 };
 
@@ -32,7 +35,7 @@ function siteForHost(sites: Site[], host: string): Site | undefined {
 }
 
 export default function FirewallPage() {
-  const [tab, setTab] = useState<"rules" | "blocked" | "waf">("rules");
+  const [tab, setTab] = useState<"rules" | "autoban" | "blocked" | "waf">("rules");
   const fw = useLoad(() => api.get<FirewallResponse>("/api/firewall"));
   const log = useLoad(() => api.get<FirewallLogResponse>("/api/firewall/log"));
   const sites = useLoad(() => api.get<SitesResponse>("/api/sites"));
@@ -67,6 +70,9 @@ export default function FirewallPage() {
         <button className={`tab ${tab === "rules" ? "active" : ""}`} onClick={() => setTab("rules")}>
           Regeln
         </button>
+        <button className={`tab ${tab === "autoban" ? "active" : ""}`} onClick={() => setTab("autoban")}>
+          Auto-Bann {fw.data?.bans?.length ? `(${fw.data.bans.length})` : ""}
+        </button>
         <button className={`tab ${tab === "blocked" ? "active" : ""}`} onClick={() => setTab("blocked")}>
           Blockiert {blocked.length ? `(${blocked.length})` : ""}
         </button>
@@ -77,6 +83,7 @@ export default function FirewallPage() {
       <ErrorBox error={fw.error || log.error} />
 
       {tab === "rules" && (fw.data ? <FirewallRules data={fw.data} onSaved={() => fw.reload()} /> : <Spinner />)}
+      {tab === "autoban" && (fw.data ? <AutoBanPanel data={fw.data} onSaved={() => fw.reload()} /> : <Spinner />)}
 
       {tab === "blocked" && (
         <div className="stack" style={{ gap: 16 }}>
