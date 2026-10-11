@@ -23,6 +23,7 @@ bestehender Seiten: **[INSTALLATION.md](INSTALLATION.md)**.
 | **Schutz** | WAF (Coraza + OWASP Core Rule Set), Bot- und KI-Crawler-Abwehr, Rate Limit. |
 | **Analytics** | Graphen für Anfragen, Fehler, Geblockte und Antwortzeiten; Top-Pfade, IPs, User-Agents; Live-Liste. |
 | **Audit Log** | Wer hat wann was geändert – per Login, API-Token oder KI. |
+| **Backup** | Sites, Access Lists, Einstellungen, Zugangsdaten und optional Zertifikate sichern – verschlüsselt mit Passwort, täglich automatisch, Wiederherstellung mit Vorschau und automatischem Rollback. |
 | **Import** | aus Caddyfile, Zoraxy, Traefik (inkl. docker-compose-Labels) und Nginx Proxy Manager, mit Vorschau. |
 | **API und KI** | REST-API mit Tokens (lesen/schreiben) und eingebauter **MCP-Server**: Claude & Co. können Sites anlegen, Logs lesen und Builds starten. |
 

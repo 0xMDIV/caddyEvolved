@@ -409,3 +409,5 @@ table.compact th, table.compact td { padding: 6px 8px; }
   .cert-dl { grid-template-columns: minmax(0, 1fr); }
   .cert-dl dt { margin-top: 6px; }
 }
+.restore-preview { display: flex; flex-direction: column; gap: 10px; padding: 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface-2); }
+.restore-preview .btn { align-self: flex-start; }

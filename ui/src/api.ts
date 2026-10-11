@@ -25,17 +25,18 @@ export function onUnauthenticated(fn: Listener): () => void {
   return () => unauthListeners.delete(fn);
 }
 
-async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
-  const headers: Record<string, string> = { Accept: "application/json" };
+async function request<T>(method: string, path: string, body?: unknown, raw?: { data: BodyInit; headers?: Record<string, string> }): Promise<T> {
+  const headers: Record<string, string> = { Accept: "application/json", ...(raw?.headers ?? {}) };
   if (method !== "GET") headers["X-CaddyEvolved"] = "1";
-  if (body !== undefined) headers["Content-Type"] = "application/json";
+  if (body !== undefined && !raw) headers["Content-Type"] = "application/json";
+  if (raw) headers["Content-Type"] = "application/octet-stream";
   let resp: Response;
   try {
     resp = await fetch(path, {
       method,
       headers,
       credentials: "same-origin",
-      body: body === undefined ? undefined : JSON.stringify(body),
+      body: raw ? raw.data : body === undefined ? undefined : JSON.stringify(body),
     });
   } catch (e) {
     throw new ApiError(0, "Server nicht erreichbar: " + (e as Error).message, "network");
@@ -71,6 +72,8 @@ export const api = {
   post: <T>(p: string, b?: unknown) => request<T>("POST", p, b ?? {}),
   put: <T>(p: string, b?: unknown) => request<T>("PUT", p, b ?? {}),
   del: <T>(p: string) => request<T>("DELETE", p),
+  /** POSTs a file as the raw request body. */
+  upload: <T>(p: string, data: BodyInit, headers?: Record<string, string>) => request<T>("POST", p, undefined, { data, headers }),
 };
 
 export function errMsg(e: unknown): string {
@@ -556,4 +559,36 @@ export interface UpdateInfo {
 export interface UpdateResponse {
   update: UpdateInfo;
   error: string;
+}
+
+export interface BackupEntry {
+  name: string;
+  size: number;
+  createdAt: string;
+  kind: "auto" | "manual" | "pre-restore";
+  encrypted: boolean;
+}
+export interface BackupSettings {
+  daily: boolean;
+  keep: number;
+  certs: boolean;
+}
+export interface BackupManifest {
+  format: number;
+  version: string;
+  createdAt: string;
+  host: string;
+  sites: number;
+  files: number;
+  bytes: number;
+  secrets: boolean;
+  certs: boolean;
+  encrypted: boolean;
+  reason?: string;
+}
+export interface BackupsResponse {
+  backups: BackupEntry[];
+  settings: BackupSettings;
+  dir: string;
+  lastAuto: string;
 }

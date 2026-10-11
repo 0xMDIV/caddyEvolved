@@ -220,6 +220,14 @@ func (s *Server) routes() *http.ServeMux {
 	m.HandleFunc("GET /api/update", s.auth(s.handleUpdateCheck))
 	m.HandleFunc("POST /api/update", s.auth(s.handleUpdateApply))
 
+	m.HandleFunc("GET /api/backups", s.auth(s.handleBackupList))
+	m.HandleFunc("POST /api/backups", s.auth(s.handleBackupCreate))
+	m.HandleFunc("PUT /api/backups/settings", s.auth(s.handleBackupSettings))
+	m.HandleFunc("GET /api/backups/{name}", s.auth(s.handleBackupDownload))
+	m.HandleFunc("DELETE /api/backups/{name}", s.auth(s.handleBackupDelete))
+	m.HandleFunc("POST /api/restore/preview", s.auth(s.handleRestorePreview))
+	m.HandleFunc("POST /api/restore", s.auth(s.handleRestore))
+
 	// MCP authenticates itself (bearer only) and answers JSON-RPC.
 	m.HandleFunc("/mcp", s.handleMCP)
 

@@ -149,6 +149,7 @@ func (s *Server) StartBackground(ctx context.Context) {
 			Summary: "Sites mit Request-Log neu geschrieben", Error: errText(err),
 		})
 	}
+	go s.autoBackupLoop(ctx)
 	s.Analytics.Follow(ctx, s.Paths.AccessLog)
 }
 

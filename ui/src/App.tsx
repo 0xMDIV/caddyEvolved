@@ -16,12 +16,14 @@ import Analytics from "./pages/Analytics";
 import Audit from "./pages/Audit";
 import Import from "./pages/Import";
 import Mcp from "./pages/Mcp";
+import Backup from "./pages/Backup";
 import { useUpdateCheck } from "./components/update";
 import {
   Icon,
   IconArrowUpCircle,
   IconArrowsExchange,
   IconCertificate,
+  IconDatabaseExport,
   IconChartLine,
   IconFileImport,
   IconFileText,
@@ -52,6 +54,7 @@ const NAV: { path: string; label: string; icon: Icon }[] = [
   { path: "/logs", label: "Logs", icon: IconList },
   { path: "/audit", label: "Audit Log", icon: IconHistory },
   { path: "/mcp", label: "KI / MCP", icon: IconSparkles },
+  { path: "/backup", label: "Backup", icon: IconDatabaseExport },
   { path: "/settings", label: "Einstellungen", icon: IconSettings },
 ];
 
@@ -194,6 +197,9 @@ export default function App() {
       break;
     case "/mcp":
       page = <Mcp />;
+      break;
+    case "/backup":
+      page = <Backup />;
       break;
     case "/settings":
       page = <Settings onLogout={() => setAuthed(false)} />;

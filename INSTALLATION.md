@@ -263,6 +263,16 @@ Installationen unter dem alten Namen **caddyforge** zieht dasselbe Kommando auto
 um (`/etc/caddyforge` → `/etc/caddyevolved`, Dienst `caddyforge` → `caddyevolved`).
 Danach einmal neu anmelden; vorhandene API-Tokens müssen neu erstellt werden.
 
+**Backup und Umzug:** WebUI → **Backup** oder auf dem Server:
+
+```bash
+sudo caddyevolved backup --encrypt --certs --out /root/cev.cevbak   # Passwort wird abgefragt
+sudo caddyevolved restore --certs /root/cev.cevbak                # auf dem neuen Server
+```
+
+Vor jeder Wiederherstellung wird der aktuelle Stand gesichert; lehnt Caddy die Konfiguration ab,
+kommt er automatisch zurück. Damit lässt sich auch ein Server auf einen anderen umziehen.
+
 **Caddy-Version wechseln:** WebUI → **Plugins & Build** → Version wählen → Build →
 Aktivieren.
 
