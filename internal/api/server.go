@@ -169,6 +169,15 @@ func (s *Server) routes() *http.ServeMux {
 	m.HandleFunc("GET /api/logs/access", s.auth(s.handleAccessLog))
 	m.HandleFunc("GET /api/logging", s.auth(s.handleLoggingGet))
 	m.HandleFunc("GET /api/system", s.auth(s.handleSystem))
+
+	m.HandleFunc("GET /api/tools", s.auth(s.handleToolsInfo))
+	m.HandleFunc("GET /api/tools/cidr", s.auth(s.handleToolCIDR))
+	m.HandleFunc("GET /api/tools/dns", s.auth(s.handleToolDNS))
+	m.HandleFunc("POST /api/tools/ping", s.auth(s.handleToolPing))
+	m.HandleFunc("POST /api/tools/traceroute", s.auth(s.handleToolTraceroute))
+	m.HandleFunc("POST /api/tools/ports", s.auth(s.handleToolPorts))
+	m.HandleFunc("POST /api/tools/hosts", s.auth(s.handleToolHosts))
+	m.HandleFunc("POST /api/tools/mdns", s.auth(s.handleToolMDNS))
 	m.HandleFunc("PUT /api/logging", s.auth(s.handleLoggingSave))
 
 	m.HandleFunc("POST /api/service/{action}", s.auth(s.handleService))
