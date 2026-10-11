@@ -168,15 +168,27 @@ bcrypt-Hash. Fehlende Passwörter danach unter **Access Lists** neu setzen.
 
 ### Weg B: Von Hand
 
-WebUI → **Sites** → **Neue Site**:
+WebUI → **Sites** → **Neue Site**. Oben im Formular klappt **„Hilfe: Was trage ich wo ein?“**
+eine Legende mit Beispiel auf.
 
-1. **ID** leer lassen – wird aus der Domain gebildet.
-2. **Art:** *Reverse Proxy*.
-3. **Domains:** eine pro Zeile, z. B. `cloud.example.com`.
-4. **Upstreams:** Adresse des Dienstes im LAN, z. B. `192.168.10.40:80`. Mehrere Zeilen
-   verteilen die Last.
-5. **TLS:** *Automatisch* für öffentliche Domains.
-6. **Speichern.**
+1. **Art:** *Reverse Proxy*. Die **ID** leer lassen – sie wird aus der Domain gebildet.
+2. **Aufgerufen unter → Domains:** eine pro Zeile, ohne `https://`, z. B. `pve.deinedomain.de`.
+3. **Weiterleiten an:**
+   - **Ziel spricht HTTP / HTTPS** – so, wie du den Dienst im LAN aufrufst.
+   - **Host** und **Port** in die zwei Felder, z. B. `192.168.10.132` und `8006`. Eine
+     komplette URL wie `https://192.168.10.132:8006/` einfügen geht auch – sie wird
+     zerlegt und der Schalter gesetzt.
+   - **Zertifikat des Ziels nicht prüfen** – an, wenn das Ziel ein selbstsigniertes
+     Zertifikat hat.
+   - **Schnellwahl** setzt Port und Protokoll für bekannte Dienste (Proxmox, Home Assistant,
+     UniFi, …).
+   - *+ weiteres Ziel* verteilt die Last auf mehrere Server.
+4. **HTTPS für Besucher:** *Automatisch* für öffentliche Domains, *Intern* fürs LAN.
+5. **Speichern & anwenden.**
+
+**Beispiel Proxmox** (`pve.deinedomain.de` → `https://192.168.10.132:8006`): Domain
+`pve.deinedomain.de`, Schnellwahl *Proxmox VE* (setzt HTTPS, Port 8006, Zertifikat nicht
+prüfen), Host `192.168.10.132`, HTTPS für Besucher *Automatisch*.
 
 Beim Speichern prüft Caddy die Konfiguration. Ist sie fehlerhaft, bleibt der alte Stand
 aktiv und die Fehlermeldung erscheint. Die **Vorschau** zeigt den erzeugten
@@ -186,14 +198,14 @@ Caddyfile-Block.
 
 | Dienst / Ziel | Einstellung |
 |---|---|
-| normaler Webdienst (Nextcloud, Jellyfin, Vaultwarden, Home Assistant, …) | Upstream `ip:port`, TLS *Automatisch*. WebSockets funktionieren ohne Zusatz. |
-| Dienst spricht selbst HTTPS mit eigenem Zertifikat (Proxmox `:8006`, UniFi `:8443`, TrueNAS) | Upstream `192.168.10.5:8006`, Haken **Upstream spricht HTTPS** und **Zertifikat des Upstreams nicht prüfen** |
+| normaler Webdienst (Nextcloud, Jellyfin, Vaultwarden, Home Assistant, …) | Ziel spricht **HTTP**, Host und Port des Dienstes, HTTPS für Besucher *Automatisch*. WebSockets funktionieren ohne Zusatz. |
+| Dienst spricht selbst HTTPS mit eigenem Zertifikat (Proxmox `:8006`, UniFi `:8443`, TrueNAS) | Ziel spricht **HTTPS**, Host `192.168.10.132`, Port `8006`, Schalter **Zertifikat des Ziels nicht prüfen** – oder einfach die Schnellwahl *Proxmox VE* |
 | nur im LAN, ohne öffentliche Domain | Domain z. B. `nas.lan`, TLS **Intern**. Die Root-CA unter **Zertifikate** herunterladen und auf den Geräten als vertrauenswürdig importieren. |
 | Wildcard-Zertifikat oder Server nicht aus dem Internet erreichbar | TLS **DNS-Challenge** – braucht ein DNS-Plugin (Schritt 6) und dessen API-Token |
-| alte Domain umziehen | Art **Weiterleitung**, Ziel `https://neu.example.com{uri}` |
+| alte Domain umziehen | Art **Weiterleitung**, Ziel-URL `https://neu.example.com` – der Pfad wird automatisch angehängt |
 | nur bestimmte IPs, Länder oder mit Login | erst unter **Access Lists** anlegen, dann in der Site auswählen |
 | Schutz vor Angriffen und Bots | Schalter **WAF**, **Bot-Abwehr**, **Rate Limit** – erscheinen, sobald das Plugin eingebaut ist |
-| caddyEvolved-WebUI selbst von außen | Upstream `127.0.0.1:8484` mit HTTPS und ohne Zertifikatsprüfung, **unbedingt** mit Access List |
+| caddyEvolved-WebUI selbst von außen | Ziel `127.0.0.1` : `8484`, Ziel spricht HTTPS, Zertifikat nicht prüfen, **unbedingt** mit Access List |
 | Sonderfall, den das Formular nicht abdeckt | Art **Eigene Konfiguration** oder Feld *Zusätzliche Direktiven* – roher Caddyfile-Inhalt |
 
 ## 6. Plugins einbauen
@@ -220,13 +232,16 @@ in der Sidebar unter *Plugins*.
 - **Logs:** Hier steht, warum Caddy kein Zertifikat bekommt oder ein Upstream nicht
   antwortet.
 - **Analytics:** zeigt, ob Anfragen ankommen.
-- Auf dem Server: `caddyevolved status` fasst alles zusammen.
+- Auf dem Server: **`sudo caddyevolved doctor`** prüft Dienste, Ports, Firewall, Portweiterleitung,
+  DNS und Zertifikate und sagt bei jedem Problem, was zu tun ist. Mit `--extern` testet es
+  die Ports 80/443 zusätzlich von außen (über check-host.net, übermittelt nur IP und Port).
+- `caddyevolved status` zeigt den Zustand der Installation kompakt.
 
 | Symptom | Ursache und Lösung |
 |---|---|
 | Zertifikat kommt nicht, Log zeigt `timeout` oder `connection refused` | Port 80/443 nicht weitergeleitet oder DNS zeigt woandershin |
-| `502 Bad Gateway` | Upstream falsch, Dienst aus, oder er lauscht nur auf `127.0.0.1` |
-| Endlos-Weiterleitung | Der Dienst erzwingt selbst HTTPS → *Upstream spricht HTTPS* aktivieren oder im Dienst den Proxy als vertrauenswürdig eintragen |
+| `502 Bad Gateway` | Ziel (Host/Port oder HTTP/HTTPS) falsch, Dienst aus, oder er lauscht nur auf `127.0.0.1` |
+| Endlos-Weiterleitung | Der Dienst erzwingt selbst HTTPS → *Ziel spricht HTTPS* wählen oder im Dienst den Proxy als vertrauenswürdig eintragen |
 | Nextcloud, Vaultwarden u. Ä. melden eine falsche Adresse | im Dienst die öffentliche Domain als vertrauenswürdig eintragen (`trusted_domains`, `DOMAIN=`) |
 | WebUI nicht erreichbar | `systemctl status caddyevolved`, Firewall für Port 8484 prüfen |
 | Seite lädt, aber `403` | Access List, WAF oder Bot-Abwehr hat geblockt – unter **Analytics → Geblockt** nachsehen |

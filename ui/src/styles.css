@@ -340,3 +340,39 @@ table.compact th, table.compact td { padding: 6px 8px; }
 .import-msgs { margin: 6px 0 0; padding-left: 18px; font-size: 13px; white-space: pre-wrap; }
 .import-msgs.warn { color: var(--warn); }
 .import-msgs.err { color: var(--danger); }
+
+/* Site form */
+.form-section { display: flex; flex-direction: column; gap: 10px; padding-top: 14px; border-top: 1px solid var(--border); }
+.form-section:first-of-type { border-top: 0; padding-top: 0; }
+.form-section-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.form-section-head h3 { margin: 0; font-size: 13px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+.toggle-row { display: flex; align-items: flex-start; gap: 10px; cursor: pointer; }
+.toggle-row > span:last-child { display: flex; flex-direction: column; gap: 2px; }
+.toggle-label { font-weight: 550; }
+.target-scheme { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.target-row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto 90px auto; align-items: center; gap: 6px; }
+.target-prefix { color: var(--muted); font-size: 12.5px; }
+.target-port { text-align: right; }
+@media (max-width: 520px) {
+  .target-row { grid-template-columns: minmax(0, 1fr) auto 76px auto; }
+  .target-prefix { display: none; }
+}
+.presets { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.preset {
+  border: 1px solid var(--border); background: var(--surface); color: var(--text); border-radius: 999px;
+  padding: 3px 10px; font: inherit; font-size: 12px; cursor: pointer;
+}
+.preset:hover { border-color: var(--accent); color: var(--accent-strong); }
+.seg-wrap { flex-wrap: wrap; }
+.help-box { border: 1px solid var(--border); border-radius: 10px; background: var(--surface-2); padding: 8px 12px; }
+.help-box summary { cursor: pointer; font-weight: 600; color: var(--accent-strong); }
+.help-body { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
+.help-body p { margin: 0; }
+.help-table { border-collapse: collapse; width: 100%; font-size: 13px; }
+.help-table th { text-align: left; vertical-align: top; padding: 6px 12px 6px 0; white-space: nowrap; color: var(--muted); font-weight: 600; }
+.help-table td { padding: 6px 0; border-bottom: 1px solid var(--border); }
+.help-table tr:last-child td { border-bottom: 0; }
+@media (max-width: 520px) {
+  .help-table th { white-space: normal; }
+}
+.advanced summary { cursor: pointer; color: var(--muted); font-size: 13px; }

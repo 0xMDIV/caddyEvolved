@@ -26,6 +26,7 @@ func (s *Site) Normalize() {
 	s.Root = strings.TrimSpace(s.Root)
 	s.DNSProvider = strings.TrimSpace(s.DNSProvider)
 	s.AccessList = strings.TrimSpace(s.AccessList)
+	s.normalizeUpstreams()
 	s.normalizeSecurity()
 	s.Extra = normText(s.Extra)
 	s.Raw = normText(s.Raw)
@@ -76,7 +77,11 @@ func (s Site) Validate() error {
 		}
 		for _, u := range s.Upstreams {
 			if !reUpstream.MatchString(u) {
-				problems = append(problems, fmt.Sprintf("Ziel %q ungültig (host:port oder http(s)://host:port, ohne Pfad)", u))
+				if strings.Contains(u, "/") {
+					problems = append(problems, fmt.Sprintf("Ziel %q enthält einen Pfad – nur Host und Port angeben, z. B. 192.168.10.132:8006", u))
+				} else {
+					problems = append(problems, fmt.Sprintf("Ziel %q ungültig – Host und Port angeben, z. B. 192.168.10.132:8006", u))
+				}
 			}
 		}
 		if !reLB.MatchString(s.LBPolicy) {
@@ -135,7 +140,7 @@ func Render(s Site) string { return RenderWith(s, nil, Options{}) }
 // handler.
 func RenderWith(s Site, acl *AccessList, opt Options) string {
 	var b strings.Builder
-	fmt.Fprintf(&b, "# %s – verwaltet von caddyevolved. Änderungen über die WebUI, sonst überschrieben.\n", s.ID)
+	fmt.Fprintf(&b, "# %s – verwaltet von caddyEvolved. Änderungen über die WebUI, sonst überschrieben.\n", s.ID)
 	addrs := make([]string, 0, len(s.Domains))
 	for _, d := range s.Domains {
 		if s.TLS == TLSOff && !strings.HasPrefix(d, ":") {
@@ -327,4 +332,25 @@ func firstOr(v []string, def string) string {
 		}
 	}
 	return def
+}
+
+// normalizeUpstreams moves a scheme typed into an address onto the TLS switch,
+// so "https://192.168.10.5:8006/" and "192.168.10.5:8006" + "Ziel spricht
+// HTTPS" end up identical. Mixing the two forms otherwise makes caddy refuse
+// the config ("scheme is HTTP but transport is configured for TLS").
+func (s *Site) normalizeUpstreams() {
+	for i, u := range s.Upstreams {
+		lower := strings.ToLower(u)
+		switch {
+		case strings.HasPrefix(lower, "https://"):
+			s.UpstreamTLS = true
+			u = u[len("https://"):]
+		case strings.HasPrefix(lower, "http://"):
+			u = u[len("http://"):]
+		}
+		s.Upstreams[i] = strings.TrimRight(u, "/")
+	}
+	if s.UpstreamInsecure {
+		s.UpstreamTLS = true
+	}
 }

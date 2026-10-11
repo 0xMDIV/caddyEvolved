@@ -124,7 +124,8 @@ ui/                   React + Vite + TypeScript + Tabler Icons
 - [x] Reverse-Proxy-Sites, Caddyfile-Editor mit Validate/Reload
 - [x] Access Lists, WAF/Bot-Abwehr/Rate Limit, Plugin-Seiten in der Sidebar
 - [x] Analytics, Audit Log, Import, API-Tokens, MCP
-- [x] Releases für amd64/arm64 mit Installationsskript
+- [x] Releases für amd64/arm64 mit Installationsskript, Pfeiltasten-Assistent
+- [x] `caddyevolved doctor`: Ports, Firewall, Weiterleitung, DNS, Zertifikate
 - [ ] Caddyfile-Revisionsverlauf
 - [ ] Zertifikate manuell erneuern und hochladen
 - [ ] Mehrbenutzer, 2FA

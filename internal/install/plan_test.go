@@ -139,7 +139,7 @@ func TestRenderCaddyfileSiteBlockUsesDNS01WhenChosen(t *testing.T) {
 	if !strings.Contains(got, "dns hetzner {env.HETZNER_API_TOKEN}") {
 		t.Errorf("DNS-01-Block fehlt oder interpoliert nicht:\n%s", got)
 	}
-	if !strings.Contains(got, "reverse_proxy http://127.0.0.1:3000") {
+	if !strings.Contains(got, "reverse_proxy 127.0.0.1:3000") {
 		t.Errorf("Site-Block ohne reverse_proxy:\n%s", got)
 	}
 }

@@ -98,7 +98,7 @@ func TestZoraxy(t *testing.T) {
 	}
 	nas := find(t, r, "nas.example.com")
 	s := nas.Site
-	if len(s.Domains) != 2 || s.Upstreams[0] != "https://192.168.1.20:5001" || !s.UpstreamInsecure {
+	if len(s.Domains) != 2 || s.Upstreams[0] != "192.168.1.20:5001" || !s.UpstreamTLS || !s.UpstreamInsecure {
 		t.Errorf("nas: %+v", s)
 	}
 	if !strings.Contains(s.Extra, "handle_path /api/*") || s.AccessList != "heimnetz" {

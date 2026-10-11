@@ -143,3 +143,39 @@ func TestDuplicateDomainRefused(t *testing.T) {
 		t.Fatalf("doppelte Domain nicht abgelehnt: %v", err)
 	}
 }
+
+// TestUpstreamSchemeBecomesToggle: a pasted URL ends up as host:port plus the
+// TLS switch, which is what the UI shows and what caddy accepts.
+func TestUpstreamSchemeBecomesToggle(t *testing.T) {
+	s := Site{ID: "pve", Domains: []string{"pve.example.com"}, Upstreams: []string{"https://192.168.10.132:8006/"}}
+	s.Normalize()
+	if s.Upstreams[0] != "192.168.10.132:8006" || !s.UpstreamTLS {
+		t.Fatalf("got %v tls=%v", s.Upstreams, s.UpstreamTLS)
+	}
+	if err := s.Validate(); err != nil {
+		t.Fatal(err)
+	}
+	out := Render(s)
+	if !strings.Contains(out, "reverse_proxy 192.168.10.132:8006") || !strings.Contains(out, "tls\n") {
+		t.Fatalf("render:\n%s", out)
+	}
+
+	p := Site{Domains: []string{"a.example.com"}, Upstreams: []string{"http://10.0.0.5:8080"}}
+	p.Normalize()
+	if p.Upstreams[0] != "10.0.0.5:8080" || p.UpstreamTLS {
+		t.Fatalf("http: got %v tls=%v", p.Upstreams, p.UpstreamTLS)
+	}
+
+	// "skip verify" alone implies TLS, otherwise the option would be dead.
+	q := Site{Domains: []string{"b.example.com"}, Upstreams: []string{"10.0.0.6:8443"}, UpstreamInsecure: true}
+	q.Normalize()
+	if !q.UpstreamTLS {
+		t.Fatal("insecure without tls")
+	}
+
+	r := Site{ID: "c", Domains: []string{"c.example.com"}, Upstreams: []string{"10.0.0.7:80/app"}}
+	r.Normalize()
+	if err := r.Validate(); err == nil || !strings.Contains(err.Error(), "Pfad") {
+		t.Fatalf("path not explained: %v", err)
+	}
+}

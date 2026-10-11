@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
-import { AccessListsResponse, api, emptySite, Site, SiteMode, SitesResponse, SiteTLS } from "../api";
+import { AccessListsResponse, api, emptySite, Site, SiteMode, SitesResponse } from "../api";
 import { DefenderFields, FEATURE_PLUGINS, RateLimitFields, useCompiledPlugins, WafFields } from "../components/features";
 import { Badge, ConfirmButton, ErrorBox, PageHead, Spinner, Switch, useAction, useLoad, useToast } from "../components/ui";
+import { formatTarget, FormSection, parseTarget, SiteHelp, Target, TargetEditor, TlsPicker, ToggleRow } from "../components/siteform";
 
 export default function Sites() {
   const list = useLoad(() => api.get<SitesResponse>("/api/sites"));
@@ -123,7 +124,7 @@ export default function Sites() {
 function TargetText({ site }: { site: Site }) {
   switch (site.mode) {
     case "proxy":
-      return <span className="mono">{(site.upstreams ?? []).join(", ") || "–"}</span>;
+      return <span className="mono">{(site.upstreams ?? []).map((u) => (site.upstreamTls ? "https://" : "http://") + u).join(", ") || "–"}</span>;
     case "redirect":
       return <span>→ {site.redirectTo}</span>;
     case "static":
@@ -165,9 +166,16 @@ function SiteEditor({
   dnsProviders: { id: string; name: string; ready: boolean }[];
   onDone: (saved: boolean) => void;
 }) {
-  const [site, setSite] = useState<Site>(initial);
+  // Old entries may still carry "https://" in the address; that becomes the
+  // HTTPS switch, the same rule the server applies.
+  const parsed = (initial.upstreams ?? []).map(parseTarget);
+  const [site, setSite] = useState<Site>({
+    ...initial,
+    upstreamTls: initial.upstreamTls || initial.upstreamInsecure || parsed.some((p) => p.https),
+  });
   const [domainsText, setDomainsText] = useState((initial.domains ?? []).join("\n"));
-  const [upstreamsText, setUpstreamsText] = useState((initial.upstreams ?? []).join("\n"));
+  const [targets, setTargets] = useState<Target[]>(parsed.map((p) => p.target));
+  const [targetNote, setTargetNote] = useState<string>("");
   const [preview, setPreview] = useState<string>("");
   const [previewErr, setPreviewErr] = useState<unknown>(null);
   const [saveErr, setSaveErr] = useState<unknown>(null);
@@ -181,7 +189,7 @@ function SiteEditor({
   const full: Site = {
     ...site,
     domains: lines(domainsText),
-    upstreams: lines(upstreamsText),
+    upstreams: targets.map(formatTarget).filter(Boolean),
     waf: site.waf?.enabled ? site.waf : undefined,
     defender: site.defender?.enabled ? site.defender : undefined,
     rateLimit: site.rateLimit?.enabled ? site.rateLimit : undefined,
@@ -232,101 +240,111 @@ function SiteEditor({
       </PageHead>
       <div className="grid grid-2" style={{ alignItems: "start" }}>
         <div className="card stack">
-          <div className="form-grid">
-            <label className="field">
-              ID
-              <input
-                value={site.id}
-                disabled={!isNew}
-                placeholder="z. B. nextcloud (leer = aus Domain)"
-                onChange={(e) => set("id", e.target.value.toLowerCase().replace(/[^a-z0-9-_]/g, "-"))}
-              />
-              <span className="hint">Dateiname der Site, nachträglich nicht änderbar.</span>
-            </label>
-            <label className="field">
-              Art
-              <select value={site.mode} onChange={(e) => set("mode", e.target.value as SiteMode)}>
-                <option value="proxy">Reverse Proxy</option>
-                <option value="redirect">Weiterleitung</option>
-                <option value="static">Statische Dateien</option>
-                <option value="raw">Eigene Konfiguration</option>
-              </select>
-            </label>
-            <label className="field full">
-              Domains
-              <textarea rows={2} value={domainsText} placeholder={"cloud.example.com\nwww.cloud.example.com"} onChange={(e) => setDomainsText(e.target.value)} />
-              <span className="hint">Eine pro Zeile. Auch :8080 oder http://intern.lan möglich.</span>
-            </label>
-          </div>
+          <SiteHelp />
 
-          {site.mode === "proxy" && (
+          <FormSection title="Allgemein" aside={<ToggleRow checked={site.enabled} onChange={(v) => set("enabled", v)} label="Aktiv" />}>
             <div className="form-grid">
-              <label className="field full">
-                Upstreams
-                <textarea rows={2} value={upstreamsText} placeholder={"192.168.10.40:80"} onChange={(e) => setUpstreamsText(e.target.value)} />
-                <span className="hint">Ziel-Server, einer pro Zeile. Mehrere = Lastverteilung.</span>
-              </label>
               <label className="field">
-                Lastverteilung
-                <select value={site.lbPolicy} onChange={(e) => set("lbPolicy", e.target.value)}>
-                  <option value="">Standard (random)</option>
-                  <option value="round_robin">round_robin</option>
-                  <option value="least_conn">least_conn</option>
-                  <option value="first">first (Failover)</option>
-                  <option value="ip_hash">ip_hash</option>
+                Art
+                <select value={site.mode} onChange={(e) => set("mode", e.target.value as SiteMode)}>
+                  <option value="proxy">Reverse Proxy</option>
+                  <option value="redirect">Weiterleitung (Redirect)</option>
+                  <option value="static">Statische Dateien</option>
+                  <option value="raw">Eigene Konfiguration</option>
                 </select>
               </label>
               <label className="field">
-                Health-Check-Pfad
-                <input value={site.healthUri} placeholder="/health (optional)" onChange={(e) => set("healthUri", e.target.value)} />
-              </label>
-              <label className="check">
-                <input type="checkbox" checked={site.upstreamTls} onChange={(e) => set("upstreamTls", e.target.checked)} /> Upstream spricht HTTPS
-              </label>
-              <label className="check">
+                ID
                 <input
-                  type="checkbox"
-                  checked={site.upstreamInsecure}
-                  disabled={!site.upstreamTls}
-                  onChange={(e) => set("upstreamInsecure", e.target.checked)}
-                />{" "}
-                Zertifikat des Upstreams nicht prüfen
+                  value={site.id}
+                  disabled={!isNew}
+                  placeholder="leer = aus der Domain, z. B. pve"
+                  onChange={(e) => set("id", e.target.value.toLowerCase().replace(/[^a-z0-9-_]/g, "-"))}
+                />
+                <span className="hint">Interner Name, später nicht änderbar.</span>
               </label>
             </div>
+          </FormSection>
+
+          <FormSection title="Aufgerufen unter">
+            <label className="field">
+              Domains
+              <textarea rows={2} value={domainsText} placeholder={"pve.deinedomain.de\nproxmox.deinedomain.de"} onChange={(e) => setDomainsText(e.target.value)} />
+              <span className="hint">
+                Eine pro Zeile, ohne <span className="mono">https://</span>. Fürs LAN z. B. <span className="mono">pve.lan</span>, für einen Port{" "}
+                <span className="mono">:8080</span>.
+              </span>
+            </label>
+          </FormSection>
+
+          {site.mode === "proxy" && (
+            <FormSection title="Weiterleiten an">
+              <TargetEditor
+                targets={targets}
+                https={site.upstreamTls}
+                insecure={site.upstreamInsecure}
+                onChange={(v) => {
+                  setTargets(v.targets);
+                  setSite((s) => ({ ...s, upstreamTls: v.https, upstreamInsecure: v.https && v.insecure }));
+                  setTargetNote(v.note ?? "");
+                }}
+              />
+              {targetNote && <span className="hint">{targetNote}</span>}
+              <details className="advanced">
+                <summary>Erweitert: Lastverteilung und Health-Check</summary>
+                <div className="form-grid" style={{ marginTop: 10 }}>
+                  <label className="field">
+                    Lastverteilung
+                    <select value={site.lbPolicy} onChange={(e) => set("lbPolicy", e.target.value)}>
+                      <option value="">Zufällig (Standard)</option>
+                      <option value="round_robin">Reihum (round_robin)</option>
+                      <option value="least_conn">Wenigste Verbindungen (least_conn)</option>
+                      <option value="first">Erstes erreichbares – Failover (first)</option>
+                      <option value="ip_hash">Gleicher Besucher → gleiches Ziel (ip_hash)</option>
+                    </select>
+                    <span className="hint">Nur relevant bei mehreren Zielen.</span>
+                  </label>
+                  <label className="field">
+                    Health-Check-Pfad
+                    <input value={site.healthUri} placeholder="/health (optional)" onChange={(e) => set("healthUri", e.target.value)} />
+                    <span className="hint">Caddy fragt den Pfad regelmäßig ab und lässt Ziele aus, die nicht antworten.</span>
+                  </label>
+                </div>
+              </details>
+            </FormSection>
           )}
 
           {site.mode === "redirect" && (
-            <label className="field">
-              Ziel-URL
-              <input value={site.redirectTo} placeholder="https://example.com{uri}" onChange={(e) => set("redirectTo", e.target.value)} />
-            </label>
+            <FormSection title="Umleiten auf">
+              <label className="field">
+                Ziel-URL
+                <input value={site.redirectTo} placeholder="https://neue-domain.de" onChange={(e) => set("redirectTo", e.target.value)} />
+                <span className="hint">Der aufgerufene Pfad wird angehängt (dauerhafte Umleitung, 308).</span>
+              </label>
+            </FormSection>
           )}
 
           {site.mode === "static" && (
-            <label className="field">
-              Verzeichnis
-              <input value={site.root} placeholder="/var/www/site" onChange={(e) => set("root", e.target.value)} />
-            </label>
+            <FormSection title="Dateien aus">
+              <label className="field">
+                Verzeichnis
+                <input value={site.root} placeholder="/var/www/site" onChange={(e) => set("root", e.target.value)} />
+              </label>
+            </FormSection>
           )}
 
           {site.mode === "raw" && (
-            <label className="field">
-              Blockinhalt
-              <textarea className="editor" style={{ minHeight: 220 }} spellCheck={false} value={site.raw} onChange={(e) => set("raw", e.target.value)} />
-              <span className="hint">Alles zwischen den geschweiften Klammern des Site-Blocks.</span>
-            </label>
+            <FormSection title="Konfiguration">
+              <label className="field">
+                Blockinhalt
+                <textarea className="editor" style={{ minHeight: 220 }} spellCheck={false} value={site.raw} onChange={(e) => set("raw", e.target.value)} />
+                <span className="hint">Alles zwischen den geschweiften Klammern des Site-Blocks.</span>
+              </label>
+            </FormSection>
           )}
 
-          <div className="form-grid">
-            <label className="field">
-              Zertifikat
-              <select value={site.tls} onChange={(e) => set("tls", e.target.value as SiteTLS)}>
-                <option value="auto">Automatisch (Let's Encrypt / ZeroSSL)</option>
-                <option value="dns">DNS-Challenge (Plugin)</option>
-                <option value="internal">Intern (eigene CA, LAN)</option>
-                <option value="off">Kein TLS (nur HTTP)</option>
-              </select>
-            </label>
+          <FormSection title="HTTPS für Besucher">
+            <TlsPicker value={site.tls} onChange={(v) => set("tls", v)} />
             {site.tls === "dns" && (
               <label className="field">
                 DNS-Anbieter
@@ -343,31 +361,28 @@ function SiteEditor({
               </label>
             )}
             {site.mode !== "raw" && (
-              <label className="check">
-                <input type="checkbox" checked={site.compress} onChange={(e) => set("compress", e.target.checked)} /> Komprimierung (zstd/gzip)
-              </label>
+              <ToggleRow checked={site.compress} onChange={(v) => set("compress", v)} label="Komprimierung (zstd/gzip)" hint="Spart Bandbreite bei Text, HTML und JSON." />
             )}
-            <label className="check">
-              <input type="checkbox" checked={site.enabled} onChange={(e) => set("enabled", e.target.checked)} /> Aktiv
+          </FormSection>
+
+          <FormSection title="Zugriff und Schutz">
+            <label className="field">
+              Access List
+              <select value={site.accessList ?? ""} onChange={(e) => set("accessList", e.target.value)}>
+                <option value="">keine – öffentlich erreichbar</option>
+                {(acls.data?.accessLists ?? []).map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.name}
+                  </option>
+                ))}
+              </select>
+              <span className="hint">IP-, Länder- und Login-Regeln. Anlegen unter „Access Lists“.</span>
             </label>
-          </div>
 
-          <label className="field">
-            Access List
-            <select value={site.accessList ?? ""} onChange={(e) => set("accessList", e.target.value)}>
-              <option value="">keine – öffentlich erreichbar</option>
-              {(acls.data?.accessLists ?? []).map((a) => (
-                <option key={a.id} value={a.id}>
-                  {a.name}
-                </option>
-              ))}
-            </select>
-            <span className="hint">IP-, Länder- und Login-Regeln. Anlegen unter „Access Lists“.</span>
-          </label>
-
-          {compiled[FEATURE_PLUGINS.waf] && <WafFields value={site.waf} onChange={(v) => set("waf", v)} />}
-          {compiled[FEATURE_PLUGINS.defender] && <DefenderFields value={site.defender} onChange={(v) => set("defender", v)} />}
-          {compiled[FEATURE_PLUGINS.rateLimit] && <RateLimitFields value={site.rateLimit} onChange={(v) => set("rateLimit", v)} />}
+            {compiled[FEATURE_PLUGINS.waf] && <WafFields value={site.waf} onChange={(v) => set("waf", v)} />}
+            {compiled[FEATURE_PLUGINS.defender] && <DefenderFields value={site.defender} onChange={(v) => set("defender", v)} />}
+            {compiled[FEATURE_PLUGINS.rateLimit] && <RateLimitFields value={site.rateLimit} onChange={(v) => set("rateLimit", v)} />}
+          </FormSection>
 
           {site.mode !== "raw" && (
             <label className="field">
