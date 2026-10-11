@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"caddyevolved/internal/events"
-	"caddyevolved/internal/sites"
 )
 
 var analyticsRanges = map[string]time.Duration{
@@ -140,7 +139,7 @@ func (s *Server) StartBackground(ctx context.Context) {
 		}
 		s.ensureAccessLog()
 	}
-	s.Sites.SetOptions(sites.Options{AccessLog: s.Paths.AccessLog})
+	s.Sites.SetOptions(s.siteOptions())
 	if s.Sites.NeedsSync() {
 		var reloaded bool
 		err := s.Sites.Sync(ctx, s.siteCommit(&reloaded))

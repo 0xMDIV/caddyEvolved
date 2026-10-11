@@ -160,6 +160,9 @@ func (s *Server) routes() *http.ServeMux {
 	m.HandleFunc("GET /api/events", s.auth(s.handleEvents))
 	m.HandleFunc("GET /api/events/stream", s.auth(s.handleEventStream))
 	m.HandleFunc("GET /api/logs", s.auth(s.handleLogs))
+	m.HandleFunc("GET /api/logs/access", s.auth(s.handleAccessLog))
+	m.HandleFunc("GET /api/logging", s.auth(s.handleLoggingGet))
+	m.HandleFunc("PUT /api/logging", s.auth(s.handleLoggingSave))
 
 	m.HandleFunc("POST /api/service/{action}", s.auth(s.handleService))
 

@@ -22,6 +22,7 @@ bestehender Seiten: **[INSTALLATION.md](INSTALLATION.md)**.
 | **Access Lists** | IPs erlauben/sperren, Länder (GeoIP), Benutzer mit Passwort – pro Site. |
 | **Schutz** | WAF (Coraza + OWASP Core Rule Set), Bot- und KI-Crawler-Abwehr, Rate Limit. |
 | **Analytics** | Graphen für Anfragen, Fehler, Geblockte und Antwortzeiten; Top-Pfade, IPs, User-Agents; Live-Liste. |
+| **Logs** | Zugriffe aller Sites mit Filtern (Zeitraum, Site, Status, IP, Pfad, User-Agent, Dauer, Freitext) und Markierungen für Torrent, KI-Crawler, Bots, Scanner, Geblockte und Fehler; liest auch rotierte, komprimierte Dateien. Rotation und gzip-Kompression einstellbar. |
 | **Audit Log** | Wer hat wann was geändert – per Login, API-Token oder KI. |
 | **Backup** | Sites, Access Lists, Einstellungen, Zugangsdaten und optional Zertifikate sichern – verschlüsselt mit Passwort, täglich automatisch, Wiederherstellung mit Vorschau und automatischem Rollback. |
 | **Import** | aus Caddyfile, Zoraxy, Traefik (inkl. docker-compose-Labels) und Nginx Proxy Manager, mit Vorschau. |

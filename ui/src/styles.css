@@ -411,3 +411,17 @@ table.compact th, table.compact td { padding: 6px 8px; }
 }
 .restore-preview { display: flex; flex-direction: column; gap: 10px; padding: 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface-2); }
 .restore-preview .btn { align-self: flex-start; }
+
+/* Access log viewer */
+.log-filters { display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+.log-filters .field { font-size: 12.5px; }
+.log-filters-wide { grid-column: span 2; }
+@media (max-width: 520px) { .log-filters-wide { grid-column: 1 / -1; } }
+.preset-on { border-color: var(--accent); background: var(--accent-soft); color: var(--accent-strong); font-weight: 600; }
+.log-table td { vertical-align: top; }
+.log-row { cursor: pointer; }
+.log-row:hover td { background: var(--surface-2); }
+.log-uri { max-width: 420px; overflow-wrap: anywhere; }
+.nowrap { white-space: nowrap; }
+.link-btn { border: 0; background: none; padding: 0; font: inherit; color: var(--accent-strong); cursor: pointer; text-decoration: underline dotted; }
+.log-detail { margin: 4px 0; }

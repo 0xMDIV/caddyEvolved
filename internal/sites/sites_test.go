@@ -179,3 +179,20 @@ func TestUpstreamSchemeBecomesToggle(t *testing.T) {
 		t.Fatalf("path not explained: %v", err)
 	}
 }
+
+func TestRenderLogRoll(t *testing.T) {
+	def := renderLog("/var/log/caddy/access.log", LogRoll{})
+	if !strings.Contains(def, "roll_size 50MiB") || !strings.Contains(def, "roll_keep 5") || strings.Contains(def, "roll_uncompressed") {
+		t.Fatalf("default:\n%s", def)
+	}
+	custom := renderLog("/x.log", LogRoll{SizeMB: 10, Keep: 20, KeepDays: 14, Uncompressed: true, LocalTime: true})
+	for _, want := range []string{"roll_size 10MiB", "roll_keep 20", "roll_keep_for 336h", "roll_uncompressed", "roll_local_time"} {
+		if !strings.Contains(custom, want) {
+			t.Errorf("missing %q in:\n%s", want, custom)
+		}
+	}
+	off := renderLog("/x.log", LogRoll{Disabled: true, SizeMB: 10})
+	if !strings.Contains(off, "roll_disabled") || strings.Contains(off, "roll_size") {
+		t.Fatalf("disabled:\n%s", off)
+	}
+}

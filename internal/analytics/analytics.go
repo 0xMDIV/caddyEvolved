@@ -19,6 +19,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"caddyevolved/internal/accesslog"
 )
 
 const (
@@ -154,6 +156,7 @@ type Request struct {
 	Duration float64   `json:"durationMs"`
 	IP       string    `json:"ip"`
 	Agent    string    `json:"agent,omitempty"`
+	Tags     []string  `json:"tags,omitempty"`
 }
 
 // Store holds all aggregates.
@@ -181,47 +184,14 @@ func New(snapshot string) *Store {
 }
 
 // logLine is the subset of caddy's access log we read.
-type logLine struct {
-	TS      float64 `json:"ts"`
-	Msg     string  `json:"msg"`
-	Logger  string  `json:"logger"`
-	Status  int     `json:"status"`
-	Size    int64   `json:"size"`
-	Dur     float64 `json:"duration"`
-	Request struct {
-		RemoteIP string              `json:"remote_ip"`
-		ClientIP string              `json:"client_ip"`
-		Method   string              `json:"method"`
-		Host     string              `json:"host"`
-		URI      string              `json:"uri"`
-		Headers  map[string][]string `json:"headers"`
-	} `json:"request"`
-}
-
 // Ingest parses one log line; anything that is not an access entry is
 // ignored, so the follower can read a mixed log safely.
 func (s *Store) Ingest(line []byte) {
-	var l logLine
-	if json.Unmarshal(line, &l) != nil || l.Msg != "handled request" || l.Request.Host == "" {
+	e, ok := accesslog.Parse(line)
+	if !ok {
 		return
 	}
-	ts := time.Unix(int64(l.TS), int64((l.TS-math.Floor(l.TS))*1e9)).UTC()
-	host := strings.ToLower(l.Request.Host)
-	if i := strings.LastIndex(host, ":"); i > 0 && !strings.Contains(host[i:], "]") {
-		host = host[:i]
-	}
-	ip := l.Request.ClientIP
-	if ip == "" {
-		ip = l.Request.RemoteIP
-	}
-	path := l.Request.URI
-	if i := strings.IndexByte(path, '?'); i >= 0 {
-		path = path[:i]
-	}
-	if len(path) > 200 {
-		path = path[:200]
-	}
-	agent := first(l.Request.Headers["User-Agent"])
+	ts, host, ip, path, agent := e.TS, e.Host, e.IP, e.Path, e.Agent
 	if len(agent) > 200 {
 		agent = agent[:200]
 	}
@@ -230,17 +200,17 @@ func (s *Store) Ingest(line []byte) {
 	defer s.mu.Unlock()
 	minute := ts.Unix() / 60
 	hour := ts.Unix() / 3600
-	bucket(s.minutes, minute, host).record(l.Status, l.Size, l.Dur)
-	bucket(s.hours, hour, host).record(l.Status, l.Size, l.Dur)
+	bucket(s.minutes, minute, host).record(e.Status, e.Size, e.Duration/1000)
+	bucket(s.hours, hour, host).record(e.Status, e.Size, e.Duration/1000)
 	t := s.topsFor(hour, host)
 	t.Paths.inc(path)
 	t.IPs.inc(ip)
 	t.Agents.inc(agent)
-	t.Status.inc(itoa(l.Status))
-	t.Referers.inc(refHost(first(l.Request.Headers["Referer"])))
+	t.Status.inc(itoa(e.Status))
+	t.Referers.inc(refHost(e.Referer))
 	s.recent = append(s.recent, Request{
-		TS: ts, Host: host, Method: l.Request.Method, URI: truncate(l.Request.URI, 300), Status: l.Status,
-		Size: l.Size, Duration: math.Round(l.Dur*100000) / 100, IP: ip, Agent: agent,
+		TS: ts, Host: host, Method: e.Method, URI: truncate(e.URI, 300), Status: e.Status,
+		Size: e.Size, Duration: e.Duration, IP: ip, Agent: agent, Tags: e.Tags,
 	})
 	if len(s.recent) > recentKeep {
 		s.recent = s.recent[len(s.recent)-recentKeep:]

@@ -129,6 +129,50 @@ type Options struct {
 	// AccessLog is the shared JSON access log every site writes to; empty
 	// disables request logging (tests, installer).
 	AccessLog string
+	// Roll is the rotation of that file; the zero value is caddy's default
+	// behaviour as caddyEvolved always shipped it (50 MiB, keep 5, gzip).
+	Roll LogRoll
+}
+
+// LogRoll configures caddy's file rotation. Field names follow the zero
+// value = default rule, hence "Disabled" and "Uncompressed".
+type LogRoll struct {
+	Disabled     bool `json:"disabled"`
+	SizeMB       int  `json:"sizeMb"`
+	Keep         int  `json:"keep"`
+	KeepDays     int  `json:"keepDays"`
+	Uncompressed bool `json:"uncompressed"`
+	LocalTime    bool `json:"localTime"`
+}
+
+// renderLog is the log directive every site shares. All sites must render it
+// identically: caddy pools writers by filename and the first config wins.
+func renderLog(path string, r LogRoll) string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "\tlog {\n\t\toutput file %s {\n", path)
+	if r.Disabled {
+		b.WriteString("\t\t\troll_disabled\n")
+	} else {
+		size, keep := r.SizeMB, r.Keep
+		if size <= 0 {
+			size = 50
+		}
+		if keep <= 0 {
+			keep = 5
+		}
+		fmt.Fprintf(&b, "\t\t\troll_size %dMiB\n\t\t\troll_keep %d\n", size, keep)
+		if r.KeepDays > 0 {
+			fmt.Fprintf(&b, "\t\t\troll_keep_for %dh\n", r.KeepDays*24)
+		}
+		if r.Uncompressed {
+			b.WriteString("\t\t\troll_uncompressed\n")
+		}
+		if r.LocalTime {
+			b.WriteString("\t\t\troll_local_time\n")
+		}
+	}
+	b.WriteString("\t\t}\n\t\tformat json\n\t}\n")
+	return b.String()
 }
 
 // Render produces the snippet for a site without an access list.
