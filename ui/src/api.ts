@@ -544,3 +544,16 @@ export interface McpInfo {
 export function defaultMcpEndpoint(): string {
   return `${window.location.origin}/mcp`;
 }
+
+export interface UpdateInfo {
+  current: string;
+  latest: string;
+  available: boolean;
+  dev: boolean;
+  notesUrl: string;
+  checkedAt: string;
+}
+export interface UpdateResponse {
+  update: UpdateInfo;
+  error: string;
+}

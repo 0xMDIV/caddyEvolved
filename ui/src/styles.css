@@ -376,3 +376,5 @@ table.compact th, table.compact td { padding: 6px 8px; }
   .help-table th { white-space: normal; }
 }
 .advanced summary { cursor: pointer; color: var(--muted); font-size: 13px; }
+.update-hint { display: inline-flex; align-items: center; gap: 4px; color: var(--accent-strong); font-weight: 600; text-decoration: none; }
+.update-hint:hover { text-decoration: underline; }

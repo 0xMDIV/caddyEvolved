@@ -125,7 +125,8 @@ ui/                   React + Vite + TypeScript + Tabler Icons
 - [x] Access Lists, WAF/Bot-Abwehr/Rate Limit, Plugin-Seiten in der Sidebar
 - [x] Analytics, Audit Log, Import, API-Tokens, MCP
 - [x] Releases für amd64/arm64 mit Installationsskript, Pfeiltasten-Assistent
-- [x] `caddyevolved doctor`: Ports, Firewall, Weiterleitung, DNS, Zertifikate
+- [x] `caddyevolved doctor`: Ports, Firewall, Weiterleitung, DNS, Zertifikate, Erreichbarkeit jeder Site
+- [x] Selbst-Update per `caddyevolved update` oder Knopf in der WebUI
 - [ ] Caddyfile-Revisionsverlauf
 - [ ] Zertifikate manuell erneuern und hochladen
 - [ ] Mehrbenutzer, 2FA

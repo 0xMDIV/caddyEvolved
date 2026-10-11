@@ -46,6 +46,7 @@ func commandTable() map[string]command {
 		"do":        {run: cmdDo, usage: "caddyevolved do GET /api/status | POST /api/state '{}' [--token T] [--port N] [--root DIR]", summary: "HTTP-Aufruf gegen die eigene API (Token aus der Umgebung)"},
 		"uninstall": {run: cmdUninstall, usage: "caddyevolved uninstall --yes [--keep-config] [--root DIR]", summary: "Dienste entfernen, optionale Daten löschen (geplant für M7)"},
 		"version":   {run: cmdVersion, usage: "caddyevolved version [--json] [--root DIR]", summary: "Version von caddyEvolved und caddy anzeigen"},
+		"update":    {run: cmdUpdate, usage: "caddyevolved update [--check] [--version V] [--root DIR]", summary: "caddyEvolved selbst auf das neueste Release aktualisieren"},
 		"doctor":    {run: cmdDoctor, usage: "caddyevolved doctor [--extern] [--json] [--root DIR]", summary: "Ports, Firewall, Weiterleitung, DNS und Zertifikate prüfen – mit Lösungshinweisen"},
 		"commands":  {run: cmdCommands, usage: "caddyevolved commands --json", summary: "Befehle und Flags maschinenlesbar ausgeben"},
 	}

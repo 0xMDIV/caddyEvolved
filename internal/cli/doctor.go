@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -92,6 +91,7 @@ func cmdDoctor(ctx context.Context, args []string, stdout, stderr io.Writer) err
 	d.checkPublic(enabled)
 	d.checkDomains(enabled)
 	d.checkCertificates(enabled)
+	d.checkSites(enabled)
 	return d.finish(stdout, *jsonOut)
 }
 
@@ -324,30 +324,9 @@ func probeHTTP(ctx context.Context, ip string, port int, host string) (string, e
 // externalTCP asks check-host.net to open a TCP connection from several
 // places on the internet. It only learns the IP and port, not the domain.
 func externalTCP(ctx context.Context, hostport string) (ok, total int, detail string, err error) {
-	get := func(u string, into any) error {
-		c, cancel := context.WithTimeout(ctx, 10*time.Second)
-		defer cancel()
-		req, _ := http.NewRequestWithContext(c, http.MethodGet, u, nil)
-		req.Header.Set("Accept", "application/json")
-		resp, err := http.DefaultClient.Do(req)
-		if err != nil {
-			return err
-		}
-		defer resp.Body.Close()
-		if resp.StatusCode != http.StatusOK {
-			return fmt.Errorf("check-host.net: %s", resp.Status)
-		}
-		return json.NewDecoder(io.LimitReader(resp.Body, 1<<20)).Decode(into)
-	}
-	var start struct {
-		OK        int    `json:"ok"`
-		RequestID string `json:"request_id"`
-	}
-	if err := get("https://check-host.net/check-tcp?max_nodes=4&host="+hostport, &start); err != nil {
+	id, err := checkHostStart(ctx, "check-tcp", hostport)
+	if err != nil {
 		return 0, 0, "", err
-	}
-	if start.OK != 1 || start.RequestID == "" {
-		return 0, 0, "", errors.New("check-host.net hat die Prüfung abgelehnt")
 	}
 	var errs []string
 	for i := 0; i < 8; i++ {
@@ -361,7 +340,7 @@ func externalTCP(ctx context.Context, hostport string) (ok, total int, detail st
 			Time    float64 `json:"time"`
 			Error   string  `json:"error"`
 		}
-		if err := get("https://check-host.net/check-result/"+start.RequestID, &res); err != nil {
+		if err := checkHostGet(ctx, "https://check-host.net/check-result/"+id, &res); err != nil {
 			return 0, 0, "", err
 		}
 		pending := false
@@ -582,6 +561,10 @@ func acmeHint(msg string) string {
 		return "Let's Encrypt erreicht den Server nicht: Portweiterleitung 80/443 und Firewall prüfen (sudo caddyevolved doctor --extern)."
 	case strings.Contains(m, "nxdomain") || strings.Contains(m, "no valid a records") || strings.Contains(m, "dns problem"):
 		return "DNS-Eintrag fehlt oder ist noch nicht verbreitet – A-Eintrag prüfen, ein paar Minuten warten."
+	case strings.Contains(m, "acme:error:tls") || strings.Contains(m, "fetching https://"):
+		// Caddy answers HTTP-01 on port 80 itself; a fetch over https means
+		// something else on port 80 redirected Let's Encrypt.
+		return "Let's Encrypt wurde von Port 80 auf HTTPS umgeleitet – Caddy macht das bei der Challenge nie. Port 80 im Router zeigt wohl auf ein anderes Gerät (alter Proxy?): auf " + orDefault(platform.PrimaryIP(), "diesen Server") + " umstellen."
 	case strings.Contains(m, "rejectedidentifier"):
 		return "Für diesen Namen stellt Let's Encrypt grundsätzlich nicht aus (Test-/gesperrte Domain) – echte Domain verwenden oder TLS „Intern“."
 	case strings.Contains(m, "rate limit") || strings.Contains(m, "ratelimit"):

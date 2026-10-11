@@ -48,6 +48,7 @@ type Server struct {
 	runs     *runs
 	versions versionCache
 	modules  moduleCache
+	update   updateState
 
 	mux *http.ServeMux
 	srv *http.Server
@@ -213,6 +214,9 @@ func (s *Server) routes() *http.ServeMux {
 	m.HandleFunc("DELETE /api/tokens/{id}", s.auth(s.handleTokenRevoke))
 	m.HandleFunc("GET /api/mcp/info", s.auth(s.handleMCPInfo))
 	m.HandleFunc("GET /api/ui.crt", s.auth(s.handleUICert))
+
+	m.HandleFunc("GET /api/update", s.auth(s.handleUpdateCheck))
+	m.HandleFunc("POST /api/update", s.auth(s.handleUpdateApply))
 
 	// MCP authenticates itself (bearer only) and answers JSON-RPC.
 	m.HandleFunc("/mcp", s.handleMCP)

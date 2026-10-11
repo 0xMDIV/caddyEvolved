@@ -16,8 +16,10 @@ import Analytics from "./pages/Analytics";
 import Audit from "./pages/Audit";
 import Import from "./pages/Import";
 import Mcp from "./pages/Mcp";
+import { useUpdateCheck } from "./components/update";
 import {
   Icon,
+  IconArrowUpCircle,
   IconArrowsExchange,
   IconCertificate,
   IconChartLine,
@@ -111,6 +113,7 @@ export default function App() {
   const [version, setVersion] = useState<VersionInfo | null>(null);
   const [theme, setTheme] = useState<Theme>(loadTheme);
   const pluginNav = usePluginNav(authed === true);
+  const update = useUpdateCheck(authed === true);
 
   useEffect(() => {
     if (theme === "system") document.documentElement.removeAttribute("data-theme");
@@ -260,6 +263,18 @@ export default function App() {
             </select>
           </label>
           <span>{version ? `caddyEvolved ${version.version}` : ""}</span>
+          {update?.update.available && (
+            <a
+              href="/settings#update"
+              className="update-hint"
+              onClick={(e) => {
+                e.preventDefault();
+                navigate("/settings");
+              }}
+            >
+              <IconArrowUpCircle size={14} /> Update auf {update.update.latest}
+            </a>
+          )}
         </div>
       </nav>
       <main className="main">{page}</main>
