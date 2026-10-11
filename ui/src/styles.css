@@ -453,8 +453,8 @@ table.compact th, table.compact td { padding: 6px 8px; }
 .site-name { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
 .site-name .link-btn { font-weight: 600; color: var(--text); text-decoration: none; text-align: left; overflow-wrap: anywhere; }
 .site-name .link-btn:hover { color: var(--accent-strong); text-decoration: underline; }
-.site-open { color: var(--muted); display: inline-flex; flex: none; }
-.site-open:hover { color: var(--accent-strong); }
+.site-open, .icon-link { color: var(--muted); display: inline-flex; flex: none; }
+.site-open:hover, .icon-link:hover { color: var(--accent-strong); }
 
 /* WAF fine tuning */
 .waf-tuning { margin-top: 8px; }

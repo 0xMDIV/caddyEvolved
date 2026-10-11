@@ -17,6 +17,7 @@ import {
 import { Badge, ConfirmButton, ErrorBox, PageHead, Spinner, useAction, useLoad, useToast } from "../components/ui";
 import { IconArrowBackUp, IconX } from "@tabler/icons-react";
 import PluginSettings from "./PluginSettings";
+import { PluginLink } from "../components/plugins";
 
 const CATEGORY_LABEL: Record<string, string> = {
   dns: "DNS-Anbieter (DNS-01-Zertifikate)",
@@ -237,7 +238,7 @@ function NewBuild({ plugins, busy, onStarted }: { plugins: PluginsResponse; busy
                   return (
                     <label key={p.id} className={`plugin ${on ? "selected" : ""} ${conflict ? "disabled" : ""}`} title={p.note || p.module}>
                       <input type="checkbox" checked={on} disabled={!!conflict} onChange={() => toggle(p)} />
-                      <div style={{ minWidth: 0 }}>
+                      <div style={{ minWidth: 0, flex: 1 }}>
                         <div className="row" style={{ gap: 6 }}>
                           <span className="name">{p.name}</span>
                           {p.detected && <Badge kind="ok">eingebaut</Badge>}
@@ -248,6 +249,7 @@ function NewBuild({ plugins, busy, onStarted }: { plugins: PluginsResponse; busy
                         {conflict && <div className="small" style={{ color: "var(--warn)" }}>Konflikt mit {conflict}</div>}
                         {p.licenseRisk && on && <div className="small" style={{ color: "var(--warn)" }}>{p.licenseRisk}</div>}
                       </div>
+                      <PluginLink plugin={p} size={15} />
                     </label>
                   );
                 })}

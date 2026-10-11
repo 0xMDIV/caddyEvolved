@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { api, PluginState } from "../api";
 import { Badge, Spinner, useAction } from "./ui";
-import { IconExternalLink } from "@tabler/icons-react";
+import { IconBrandGithub, IconExternalLink } from "@tabler/icons-react";
 
 /**
  * Saves plugin credentials and restarts caddy: the values reach caddy as
@@ -83,13 +83,31 @@ export function CredentialCard({ plugin, onSaved }: { plugin: PluginState; onSav
         {plugin.detected ? <Badge kind="ok">eingebaut</Badge> : <Badge>nicht eingebaut</Badge>}
         {plugin.active && !plugin.complete && <Badge kind="warn">unvollständig</Badge>}
         <span className="spacer" />
-        {plugin.docs && (
-          <a href={plugin.docs} target="_blank" rel="noreferrer" className="small">
-            Doku <IconExternalLink size={13} style={{ verticalAlign: "-2px" }} />
-          </a>
-        )}
+        <PluginLink plugin={plugin} />
       </div>
       <CredentialFields plugin={plugin} onSaved={onSaved} />
     </div>
+  );
+}
+
+// pluginURL points at the plugin's project page: the catalog's docs link, else
+// the repository derived from the Go module path (github.com/a/b/v2 → a/b).
+export function pluginURL(p: { module: string; docs?: string }): string {
+  if (p.docs) return p.docs;
+  const parts = p.module.split("/");
+  if (parts[0] === "github.com" && parts.length >= 3) return `https://${parts.slice(0, 3).join("/")}`;
+  return `https://pkg.go.dev/${p.module}`;
+}
+
+// PluginLink is a small icon that opens the project page in a new tab. Inside
+// a catalog <label> it must not toggle the checkbox.
+export function PluginLink({ plugin, size = 16 }: { plugin: { module: string; docs?: string }; size?: number }) {
+  const url = pluginURL(plugin);
+  const github = url.startsWith("https://github.com/");
+  const label = github ? "Auf GitHub öffnen" : "Projektseite öffnen";
+  return (
+    <a href={url} target="_blank" rel="noreferrer" className="icon-link" title={label} aria-label={label} onClick={(e) => e.stopPropagation()}>
+      {github ? <IconBrandGithub size={size} /> : <IconExternalLink size={size} />}
+    </a>
   );
 }

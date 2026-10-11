@@ -1,10 +1,10 @@
 import { ReactNode } from "react";
 import { api, Build as BuildT, BuildsResponse, GlobalResponse, PluginsResponse, PluginState, Site, SitesResponse } from "../api";
-import { CredentialFields } from "../components/plugins";
+import { CredentialFields, PluginLink } from "../components/plugins";
 import { GlobalPluginSettings, RealIPCard, useGlobal } from "../components/globalcards";
 import { Badge, Spinner, useAction, useLoad } from "../components/ui";
 import { navigate } from "../router";
-import { IconAlertTriangle, IconArrowRight, IconExternalLink, IconPlus } from "@tabler/icons-react";
+import { IconAlertTriangle, IconArrowRight, IconPlus } from "@tabler/icons-react";
 
 // The plugins compiled into the running caddy, grouped by what they are for,
 // each with its settings in one place.
@@ -175,11 +175,7 @@ function PluginCard({ p, waiting, sites, global, onChange }: { p: PluginState; w
         {waiting ? <Badge kind="warn">wartet auf Aktivierung</Badge> : <Badge kind="ok">eingebaut</Badge>}
         {missing && !waiting && <Badge kind="warn">Zugangsdaten fehlen</Badge>}
         <span className="spacer" />
-        {p.docs && (
-          <a href={p.docs} target="_blank" rel="noreferrer" className="small">
-            Doku <IconExternalLink size={13} style={{ verticalAlign: "-2px" }} />
-          </a>
-        )}
+        <PluginLink plugin={p} />
       </div>
       {body}
     </div>
