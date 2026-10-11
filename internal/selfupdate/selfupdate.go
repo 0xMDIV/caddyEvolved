@@ -130,7 +130,7 @@ func Apply(ctx context.Context, version, bin string, logf func(string)) (string,
 
 	logf("caddyevolved " + rel.Version + " laden")
 	archive := filepath.Join(tmp, name)
-	if _, err := fetch.ToFile(ctx, archiveURL, archive, fetch.Options{Digest: "sha256:" + digest, Timeout: 5 * time.Minute}); err != nil {
+	if _, err := fetch.ToFile(ctx, archiveURL, archive, fetch.Options{Digest: digest, Timeout: 5 * time.Minute}); err != nil {
 		return "", err
 	}
 	logf("Prüfsumme ok")
