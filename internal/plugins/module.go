@@ -67,7 +67,7 @@ func ValidateModule(ctx context.Context, raw string) (ModuleCheck, error) {
 	}
 
 	httpc := &http.Client{Timeout: 12 * time.Second}
-	u := ProxyBase + "/" + strings.ToLower(path) + "/@latest"
+	u := ProxyBase + "/" + EscapePath(path) + "/@latest"
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
 	if err != nil {
 		return check, err

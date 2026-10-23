@@ -2,7 +2,7 @@ import { FormEvent, useState } from "react";
 import { api, fmtTime, Session } from "../api";
 import { Badge, ErrorBox, PageHead, Spinner, useAction, useLoad, useToast } from "../components/ui";
 import { TokenCard } from "../components/tokens";
-import { UpdateCard } from "../components/update";
+import { CaddyUpdateCard, UpdateCard } from "../components/update";
 
 export default function Settings({ onLogout }: { onLogout: () => void }) {
   const session = useLoad(() => api.get<{ sessionId: string; remote: string; sessions: Session[] | null }>("/api/session"));
@@ -91,6 +91,9 @@ export default function Settings({ onLogout }: { onLogout: () => void }) {
       </div>
       <div style={{ marginTop: 16 }}>
         <UpdateCard />
+      </div>
+      <div style={{ marginTop: 16 }}>
+        <CaddyUpdateCard />
       </div>
       <div style={{ marginTop: 16 }}>
         <TokenCard />

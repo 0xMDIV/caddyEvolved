@@ -67,6 +67,6 @@ func cmdUpdate(ctx context.Context, args []string, stdout, stderr io.Writer) err
 		msg = "WebUI-Dienst neu starten (systemctl restart caddyevolved), dann im Browser neu laden."
 	}
 	tui.Done(stdout, "caddyEvolved "+got+" ist installiert", []tui.Row{{Label: "Vorher", Value: info.Current}, {Label: "Jetzt", Value: got}},
-		msg, "Caddy, Sites und Einstellungen sind unverändert. Alte Binary: "+l.paths.Bin+".prev")
+		msg, "Caddy, Sites und Einstellungen sind unverändert – Caddy und Plugins aktualisiert die WebUI unter Einstellungen → Caddy & Plugins. Alte Binary: "+l.paths.Bin+".prev")
 	return nil
 }

@@ -51,10 +51,11 @@ type Server struct {
 	Port     int
 	Insecure bool
 
-	runs     *runs
-	versions versionCache
-	modules  moduleCache
-	update   updateState
+	runs       *runs
+	versions   versionCache
+	modules    moduleCache
+	update     updateState
+	latestMods moduleLatestCache
 
 	mux *http.ServeMux
 	srv *http.Server
@@ -253,6 +254,8 @@ func (s *Server) routes() *http.ServeMux {
 
 	m.HandleFunc("GET /api/update", s.auth(s.handleUpdateCheck))
 	m.HandleFunc("POST /api/update", s.auth(s.handleUpdateApply))
+	m.HandleFunc("GET /api/update/caddy", s.auth(s.handleCaddyUpdateCheck))
+	m.HandleFunc("POST /api/update/caddy", s.auth(s.needBuilder(s.handleCaddyUpdateApply)))
 
 	m.HandleFunc("GET /api/backups", s.auth(s.handleBackupList))
 	m.HandleFunc("POST /api/backups", s.auth(s.handleBackupCreate))

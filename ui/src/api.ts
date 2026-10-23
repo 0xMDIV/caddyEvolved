@@ -732,6 +732,28 @@ export interface UpdateResponse {
   container?: boolean;
 }
 
+export interface PluginVersion {
+  id: string;
+  name: string;
+  module: string;
+  installed?: string;
+  latest?: string;
+  available: boolean;
+  /** Carries an @version and stays on it in every rebuild. */
+  pinned?: boolean;
+  error?: string;
+}
+export interface CaddyUpdateInfo {
+  installed?: string;
+  latest?: string;
+  available: boolean;
+  plugins: PluginVersion[];
+  pluginUpdates: number;
+  canBuild: boolean;
+  runningBuildId?: string;
+  error?: string;
+}
+
 export interface BackupEntry {
   name: string;
   size: number;

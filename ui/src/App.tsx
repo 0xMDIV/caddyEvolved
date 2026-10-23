@@ -20,7 +20,7 @@ import Backup from "./pages/Backup";
 import System from "./pages/System";
 import Toolbox from "./pages/Toolbox";
 import FirewallPage from "./pages/Firewall";
-import { useUpdateCheck } from "./components/update";
+import { useCaddyUpdateCheck, useUpdateCheck } from "./components/update";
 import {
   Icon,
   IconArrowUpCircle,
@@ -125,6 +125,7 @@ export default function App() {
   const [theme, setTheme] = useState<Theme>(loadTheme);
   const pluginNav = usePluginNav(authed === true);
   const update = useUpdateCheck(authed === true);
+  const caddyUpdate = useCaddyUpdateCheck(authed === true);
 
   useEffect(() => {
     if (theme === "system") document.documentElement.removeAttribute("data-theme");
@@ -296,6 +297,19 @@ export default function App() {
               }}
             >
               <IconArrowUpCircle size={14} /> Update auf {update.update.latest}
+            </a>
+          )}
+          {(caddyUpdate?.available || !!caddyUpdate?.pluginUpdates) && (
+            <a
+              href="/settings#caddy-update"
+              className="update-hint"
+              onClick={(e) => {
+                e.preventDefault();
+                navigate("/settings");
+              }}
+            >
+              <IconArrowUpCircle size={14} />{" "}
+              {caddyUpdate.available ? `Caddy ${caddyUpdate.latest}` : `${caddyUpdate.pluginUpdates} Plugin-Update${caddyUpdate.pluginUpdates > 1 ? "s" : ""}`}
             </a>
           )}
         </div>

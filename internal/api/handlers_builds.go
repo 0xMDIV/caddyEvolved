@@ -92,12 +92,45 @@ func (s *Server) handleBuildStart(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusBadRequest, "bad_request", errText(err))
 		return
 	}
-	version := strings.TrimSpace(req.CaddyVersion)
+	b, notes, err := s.startBuild(r.Context(), req.CaddyVersion, req.Plugins, req.Activate)
+	if err != nil {
+		s.failBuildStart(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusAccepted, map[string]any{"build": b, "notes": notes})
+}
+
+// buildStartError is a refusal the operator can act on, with its HTTP status.
+type buildStartError struct {
+	status    int
+	code, msg string
+	hint      string
+}
+
+func (e *buildStartError) Error() string { return e.msg }
+
+func (s *Server) failBuildStart(w http.ResponseWriter, r *http.Request, err error) {
+	var be *buildStartError
+	switch {
+	case errors.As(err, &be) && be.hint != "":
+		writeErr(w, be.status, be.code, be.msg, be.hint)
+	case errors.As(err, &be):
+		writeErr(w, be.status, be.code, be.msg)
+	case errors.Is(err, builder.ErrBusy):
+		writeErr(w, http.StatusConflict, "busy", errText(err))
+	default:
+		s.fail(w, r, err, 0)
+	}
+}
+
+// startBuild resolves version and plugins and queues the build. An empty
+// version or "latest" means the newest caddy release.
+func (s *Server) startBuild(ctx context.Context, version string, pluginIDs []string, activate bool) (builder.Build, []string, error) {
+	version = strings.TrimSpace(version)
 	if version == "" || version == "latest" {
-		recent, err := s.recentVersions(r.Context())
+		recent, err := s.recentVersions(ctx)
 		if len(recent) == 0 {
-			writeErr(w, http.StatusBadGateway, "no_version", "Neueste caddy-Version nicht ermittelbar – bitte eine Version wie v2.11.7 angeben", errText(err))
-			return
+			return builder.Build{}, nil, &buildStartError{http.StatusBadGateway, "no_version", "Neueste caddy-Version nicht ermittelbar – bitte eine Version wie v2.11.7 angeben", errText(err)}
 		}
 		version = recent[0]
 	}
@@ -105,44 +138,36 @@ func (s *Server) handleBuildStart(w http.ResponseWriter, r *http.Request) {
 		version = "v" + version
 	}
 	if !reCaddyTag.MatchString(version) {
-		writeErr(w, http.StatusBadRequest, "bad_version", "caddy-Version muss wie v2.11.7 aussehen")
-		return
+		return builder.Build{}, nil, &buildStartError{http.StatusBadRequest, "bad_version", "caddy-Version muss wie v2.11.7 aussehen", ""}
 	}
 	var ids []string
-	for _, p := range req.Plugins {
+	for _, p := range pluginIDs {
 		if p = strings.TrimSpace(p); p != "" {
 			ids = append(ids, p)
 		}
 	}
 	res, err := plugins.Resolve(ids)
 	if err != nil {
-		writeErr(w, http.StatusBadRequest, "bad_plugin", errText(err))
-		return
+		return builder.Build{}, nil, &buildStartError{http.StatusBadRequest, "bad_plugin", errText(err), ""}
 	}
 	for _, m := range res.Modules {
 		// Module paths reach xcaddy as argv, never through a shell; still,
 		// refuse anything that is not shaped like a module path.
 		if strings.ContainsAny(m, " \t\n;|&$`'\"\\") || strings.HasPrefix(m, "-") {
-			writeErr(w, http.StatusBadRequest, "bad_plugin", "ungültiger Modulpfad: "+m)
-			return
+			return builder.Build{}, nil, &buildStartError{http.StatusBadRequest, "bad_plugin", "ungültiger Modulpfad: " + m, ""}
 		}
 	}
 	b, err := s.Builder.Start(builder.Spec{CaddyVersion: version, Plugins: ids, Modules: res.Modules})
-	if errors.Is(err, builder.ErrBusy) {
-		writeErr(w, http.StatusConflict, "busy", errText(err))
-		return
-	}
 	if err != nil {
-		s.fail(w, r, err, 0)
-		return
+		return b, nil, err
 	}
 	s.Events.Record(events.Event{
 		Kind: events.KindPlugin, Step: "build", OK: true,
 		Summary: fmt.Sprintf("Build %s gestartet: caddy %s, %d Modul(e)", b.ID, version, len(res.Modules)),
 		Meta:    map[string]any{"build": b.ID, "modules": res.Modules},
 	})
-	go s.recordBuildOutcome(b.ID, req.Activate)
-	writeJSON(w, http.StatusAccepted, map[string]any{"build": b, "notes": res.Notes})
+	go s.recordBuildOutcome(b.ID, activate)
+	return b, res.Notes, nil
 }
 
 // recordBuildOutcome writes one event when the build ends, so the dashboard
