@@ -40,6 +40,7 @@ func TestTrapBansAtOnce(t *testing.T) {
 	}
 	// Persisted.
 	s2 := Open(s.path)
+	s2.now = s.now
 	s2.Configure(sites.Firewall{Enabled: true, AutoBan: sites.AutoBan{Enabled: true}}, nil)
 	if len(s2.Active()) != 2 {
 		t.Fatalf("reloaded = %v", s2.Active())
