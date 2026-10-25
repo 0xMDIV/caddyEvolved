@@ -145,7 +145,7 @@ func (s *Service) Journal(ctx context.Context, unit string, lines int) (string, 
 	}
 	out, err := s.runner.Output(ctx, cmdx.Cmd{
 		Name: "journalctl",
-		Args: []string{"--no-pager", "--tail", strconv.Itoa(lines), "-u", unit},
+		Args: []string{"--no-pager", "--lines", strconv.Itoa(lines), "-u", unit},
 	})
 	return string(out), err
 }
