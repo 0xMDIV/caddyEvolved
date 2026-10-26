@@ -159,5 +159,12 @@ func (s *Server) handleAccessLog(w http.ResponseWriter, r *http.Request) {
 	}
 	limit, _ := strconv.Atoi(q.Get("limit"))
 	res := accesslog.Query(s.Paths.AccessLog, f, limit, 0)
-	writeJSON(w, http.StatusOK, res)
+	ips := make([]string, len(res.Entries))
+	for i, e := range res.Entries {
+		ips[i] = e.IP
+	}
+	writeJSON(w, http.StatusOK, struct {
+		accesslog.Result
+		Geo map[string]ipGeo `json:"ipGeo"`
+	}{res, s.geoFor(ips)})
 }

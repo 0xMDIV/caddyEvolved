@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"caddyevolved/internal/analytics"
+	"caddyevolved/internal/autoban"
 	"caddyevolved/internal/blocklists"
 
 	"caddyevolved/internal/sites"
@@ -85,6 +86,11 @@ func (s *Server) handleFirewallGet(w http.ResponseWriter, r *http.Request) {
 		"yourIp":         clientIP(r),
 		"bans":           s.Bans.List(),
 	}
+	banIPs := []string{}
+	for _, b := range out["bans"].([]autoban.Ban) {
+		banIPs = append(banIPs, b.IP)
+	}
+	out["ipGeo"] = s.geoFor(banIPs)
 	writeJSON(w, http.StatusOK, out)
 }
 
@@ -307,13 +313,23 @@ func (s *Server) firewallLoop(ctx context.Context) {
 
 // handleFirewallLog lists the latest refused requests and WAF matches.
 func (s *Server) handleFirewallLog(w http.ResponseWriter, r *http.Request) {
-	out := map[string]any{"blocked": []analytics.Request{}, "waf": wafEvents(s.wafLog(), 100)}
+	waf := wafEvents(s.wafLog(), 100)
+	out := map[string]any{"blocked": []analytics.Request{}, "waf": waf}
+	var ips []string
+	for _, e := range waf {
+		ips = append(ips, e.IP)
+	}
 	if s.Analytics != nil {
-		out["blocked"] = s.Analytics.RecentBlocked(200)
+		blocked := s.Analytics.RecentBlocked(200)
+		out["blocked"] = blocked
 		rep := s.Analytics.Query(24*time.Hour, nil)
 		out["reasons"] = rep.Top["blocks"]
 		out["ips"] = rep.Top["blockedIps"]
+		for _, b := range blocked {
+			ips = append(ips, b.IP)
+		}
 	}
+	out["ipGeo"] = s.geoFor(ips)
 	writeJSON(w, http.StatusOK, out)
 }
 

@@ -65,7 +65,12 @@ func (s *Server) handleAnalyticsRecent(w http.ResponseWriter, r *http.Request) {
 	}
 	q := r.URL.Query()
 	limit := parseIntDefault(q.Get("limit"), 100, 1, 300)
-	writeJSON(w, http.StatusOK, map[string]any{"requests": s.Analytics.Recent(limit, s.hostsFor(q.Get("site")))})
+	reqs := s.Analytics.Recent(limit, s.hostsFor(q.Get("site")))
+	ips := make([]string, len(reqs))
+	for i, r := range reqs {
+		ips[i] = r.IP
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"requests": reqs, "ipGeo": s.geoFor(ips)})
 }
 
 // handleAudit lists mutating API calls, newest first.

@@ -23,6 +23,7 @@ import (
 	"caddyevolved/internal/cmdx"
 	"caddyevolved/internal/config"
 	"caddyevolved/internal/events"
+	"caddyevolved/internal/geo"
 	"caddyevolved/internal/sites"
 	"caddyevolved/internal/supervisor"
 	"caddyevolved/internal/sysstat"
@@ -45,6 +46,7 @@ type Server struct {
 	Analytics *analytics.Store
 	// Bans is the auto-ban; nil (tests) disables it.
 	Bans *autoban.Store
+	Geo  *geo.Resolver
 	// Sys samples host and process load; nil disables the system page.
 	Sys      *sysstat.Sampler
 	Bind     string
@@ -98,6 +100,9 @@ func New(s *Server) *Server {
 	}
 	if s.Sys == nil {
 		s.Sys = sysstat.New(720, nil) // one hour at 5 s
+	}
+	if s.Geo == nil {
+		s.Geo = s.newGeo()
 	}
 	if s.runs == nil {
 		s.runs = newRuns()

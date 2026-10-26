@@ -7,13 +7,13 @@ import (
 
 func TestRedactURI(t *testing.T) {
 	cases := map[string]string{
-		"/a?token=abcdefghij&x=1":     "/a?token=abcd******&x=1",
-		"/a?API_KEY=abcdefghij":       "/a?API_KEY=abcd******",
-		"/a?key=abc":                  "/a?key=******",
-		"/a?q=hello":                  "/a?q=hello",
+		"/a?token=abcdefghij&x=1":       "/a?token=abcd******&x=1",
+		"/a?API_KEY=abcdefghij":         "/a?API_KEY=abcd******",
+		"/a?key=abc":                    "/a?key=******",
+		"/a?q=hello":                    "/a?q=hello",
 		"/a?x=1&secret=abcd%2Fefghij#f": "/a?x=1&secret=abcd******#f",
-		"/a?monkey=bananabanana":      "/a?monkey=bananabanana",
-		"/plain":                      "/plain",
+		"/a?monkey=bananabanana":        "/a?monkey=bananabanana",
+		"/plain":                        "/plain",
 	}
 	for in, want := range cases {
 		if got := RedactURI(in, DefaultRedactParams); got != want {
