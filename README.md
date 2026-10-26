@@ -28,16 +28,16 @@ Container: im Log). Router, DNS und Übernahme bestehender Seiten:
 | **Firewall** | Für alle Sites: Whitelist und Blacklist (IPs und Bereiche), 11 öffentliche Sperrlisten (Spamhaus, FireHOL, blocklist.de, CINS, IPsum, Tor-Exits …) nach Strenge sortiert plus eigene Listen per URL mit Test, Länder und Netzbetreiber (ASN) mit kostenlosen DB-IP-Geodaten ohne Account. Blockierte Anfragen mit Grund, WAF-Treffer mit Regel-ID – sperren, freigeben oder Regel ausschalten per Klick. **Auto-Bann:** Fallen-Pfade (z. B. `/phpmyadmin*`) und Zugriffe auf `.env` & Co. sperren sofort, zu viele Abweisungen oder 404-Scans ebenso; Sperrdauer mit Eskalation bis dauerhaft, IPv6 als /64. |
 | **Access Lists** | IPs erlauben/sperren, Länder, Benutzer mit Passwort – pro Site. |
 | **Schutz** | WAF (Coraza + OWASP Core Rule Set) mit allen CRS-Optionen: Paranoia-Level, Schwellwerte, erlaubte Methoden und Content-Types, Body-Limit, Regelgruppen, Ausnahmen pro Regel und Pfad, eigene SecLang-Regeln. CrowdSec-Bouncer mit AppSec, Bot-Abwehr mit allen Reaktionen und Netzen, Rate Limit mit eigenen Grenzen pro Pfad. |
-| **Netzwerk** | Echte Besucher-IPs hinter Cloudflare oder anderen Proxys, DynDNS für Anschlüsse ohne feste IP, Sites nur im Tailnet (Tailscale), Brotli, HTTP-Cache (Souin), WebDAV als Site-Art. |
+| **Netzwerk** | Echte Besucher-IPs hinter Cloudflare, Fastly, Bunny CDN, AWS CloudFront (zum Anhaken, Adresslisten bleiben aktuell) oder eigenen Proxys, DynDNS für Anschlüsse ohne feste IP, Sites nur im Tailnet (Tailscale), Brotli, HTTP-Cache (Souin), WebDAV als Site-Art. |
 | **Analytics** | Anfragen, Fehler, Geblockte und Antwortzeiten; Traffic rein und raus, gesamt und pro Site; Top-Pfade, IPs, User-Agents, Markierungen; Live-Liste. |
 | **System** | Wie stark Caddy und caddyEvolved den Server belasten: CPU, RAM, Platte und Netzwerk im Verhältnis zum ganzen System, letzte Stunde. |
 | **Toolbox** | Netzwerk-Werkzeuge vom Server aus: CIDR-Rechner und IP-Bereich → CIDR, Ping, Traceroute, Port-Scan, IP-Scan des LANs (Name, MAC), mDNS-Browser, DNS-Abfrage. |
-| **Logs** | Zugriffe aller Sites mit Filtern (Zeitraum, Site, Status, IP, Pfad, User-Agent, Dauer, Freitext) und Markierungen für Torrent, KI-Crawler, Bots, Scanner, Geblockte und Fehler; liest auch rotierte, komprimierte Dateien. Rotation einstellbar. |
+| **Logs** | Zugriffe aller Sites mit Filtern (Zeitraum, Site, Status, IP, Pfad, User-Agent, Dauer, Freitext) und Markierungen für Torrent, KI-Crawler, Bots, Scanner, Geblockte und Fehler; liest auch rotierte, komprimierte Dateien. Rotation einstellbar. Neben jeder IP Land und Netzbetreiber (DB-IP, ohne externen Dienst), Kopieren und „IP prüfen“ (Lookup-Seite einstellbar). Tokens in URLs und API-Key-Header stehen nur gekürzt im Log. |
 | **Audit Log** | Wer hat wann was geändert – per Login, API-Token oder KI. |
 | **Backup** | Sites, Access Lists, Einstellungen, Zugangsdaten und optional Zertifikate – verschlüsselt mit Passwort, täglich automatisch, Wiederherstellung mit Vorschau und Rollback. |
 | **Import** | aus Caddyfile, Zoraxy, Traefik (inkl. docker-compose-Labels) und Nginx Proxy Manager, mit Vorschau. |
 | **Diagnose & Update** | `caddyevolved doctor` prüft Ports, Firewall, Weiterleitung, DNS und Zertifikate mit Lösungshinweisen; Selbst-Update per Knopf oder `caddyevolved update` (im Container: neues Image). |
-| **API und KI** | REST-API mit Tokens (lesen/schreiben) und eingebauter **MCP-Server**: Claude & Co. können Sites anlegen, Logs lesen und Builds starten. |
+| **API und KI** | REST-API mit Tokens (lesen/schreiben) und eingebauter **MCP-Server**: Claude & Co. können Sites anlegen, Logs lesen und Builds starten. **KI-Chat** direkt in der WebUI (Claude oder jeder OpenAI-kompatible Anbieter wie OpenRouter, Requesty, Ollama): eigene Seite und Chat-Knopf auf jeder Seite; die KI fragt vor jeder Änderung, ausgeführt wird nur, was du freigibst. Alles landet im nicht löschbaren **KI-Protokoll** mit Prüfsummen-Kette. |
 
 Plugins mit eigener Seite (WAF, Bot-Abwehr, Geo-Blocking, Rate Limit) erscheinen
 automatisch in der Sidebar, sobald sie in der laufenden Caddy-Binary stecken.
@@ -134,7 +134,10 @@ internal/sites/       Sites, Firewall, Access Lists, Schutz-Rendering, Sperre se
 internal/certs/       Zertifikate aus Caddys Speicher lesen
 internal/probe/       Site-Test, Cloudflare-Erkennung, ACME-Fehler mit Lösungshinweis
 internal/analytics/   Access-Log-Follower und Aggregation (Minute/Stunde, Top-Listen)
-internal/accesslog/   Zugriffs-Log lesen, filtern, markieren (auch rotiert/gzip)
+internal/accesslog/   Zugriffs-Log lesen, filtern, markieren (auch rotiert/gzip), Tokens kürzen
+internal/geo/         Land und Netzbetreiber zu einer IP (DB-IP Lite)
+internal/ai/          KI-Anbindung (Anthropic, OpenAI-kompatibel), Chats, Freigabe-Schleife
+internal/aiaudit/     KI-Protokoll: nur anhängen, Hash-Kette
 internal/sysstat/     CPU/RAM/Netz/Platte von System, Caddy und caddyEvolved
 internal/toolbox/     Netzwerk-Werkzeuge: CIDR, Ping/Traceroute (ICMP), Port- und Host-Scan, mDNS, DNS
 internal/backup/      Backup/Restore, Verschlüsselung, Zeitplan
@@ -167,6 +170,8 @@ unraid/               Unraid-Vorlage und Symbol
 - [x] Docker-Image und Unraid-Vorlage
 - [x] Globale Optionen aus der WebUI: echte Client-IPs, DynDNS, CrowdSec, Tailscale, Cache, Brotli, WebDAV
 - [x] 41 DNS-Anbieter, jeder gegen die aktuelle Caddy-Version gebaut und geprüft
+- [x] KI-Chat mit Freigabe pro Änderung und KI-Protokoll, IP-Herkunft im Log, CDN-Proxys zum Anhaken
+- [ ] Eigener MMDB-Leser statt `maxminddb-golang` (weniger Abhängigkeiten)
 - [ ] Oberfläche für Storage (Redis/Postgres) und Layer 4
 - [ ] Anzeige „Update verfügbar“ für Plugins
 - [ ] Zugangsdaten verschlüsselt ablegen (`systemd-creds`)

@@ -321,8 +321,57 @@ laufenden Binary steckt, werden gerendert (`caps`).
 
 | Route | Antwort |
 |---|---|
-| `GET /api/global` | `{global, caps, dnsProviders:[{id,name,ready}], file}` |
-| `PUT /api/global` `{realIp:{cloudflare, proxies[]}, dynDns:{enabled, provider, domains:[{zone, names[]}], interval, ipv6}, crowdsec:{enabled, apiUrl, appsecUrl}, tailscale:{enabled, ephemeral}, cache:{enabled, ttl}}` | validieren, Zugangsdaten prüfen, schreiben, reload; 422 mit `details` |
+| `GET /api/global` | `{global, caps, dnsProviders:[{id,name,ready}], file, proxyProviders:[{id,label,ranges,builtin,updated}]}` |
+| `PUT /api/global` `{realIp:{providers:["cloudflare", "fastly", "bunny", "cloudfront"], proxies[]}, dynDns:{enabled, provider, domains:[{zone, names[]}], interval, ipv6}, crowdsec:{enabled, apiUrl, appsecUrl}, tailscale:{enabled, ephemeral}, cache:{enabled, ttl}}` | validieren, Zugangsdaten prüfen, schreiben, reload; 422 mit `details` |
 
 Site-Felder dazu: `noCrowdsec`, `cache`, `tailnet`, Modus `webdav` (mit `root`), `waf.paranoia` (1–4),
 `waf.threshold`, `waf.exclude` (CRS-Regel-IDs).
+
+`realIp.providers` schaltet die Adressbereiche bekannter CDNs als `trusted_proxies` frei; die Listen werden beim
+Speichern und alle 6 Stunden vom Anbieter geladen (bei Ausfall bleibt die alte). `client_ip_headers` setzt die
+Header der aktiven Anbieter vor `X-Forwarded-For`. Ältere Dateien mit `realIp.cloudflare: true` werden beim
+Lesen übernommen.
+
+## Logs: IP-Herkunft, Lookup und Token-Schwärzung
+
+| Route | Antwort |
+|---|---|
+| `GET /api/logs/access?…` | wie bisher plus `ipGeo:{"<ip>":{country, asn, asnOrg}}` aus DB-IP Lite (nur bekannte IPs) |
+| `GET /api/firewall/log` | plus `ipGeo` für Blockiert-Log und WAF-Treffer |
+| `GET /api/firewall` | plus `ipGeo` für die Auto-Bann-Liste |
+| `GET /api/analytics/recent` | plus `ipGeo` |
+| `GET /api/logging` / `PUT /api/logging` | Einstellungen zusätzlich `lookupUrl` (http(s) mit `{ip}`, Standard `https://ipinfo.io/{ip}`) und `redactParams[]` |
+
+Caddy schreibt Werte der Query-Parameter `token access_token api_key apikey key secret password pass auth sig
+signature code session` (plus `redactParams`) sowie der Header `X-Api-Key`, `X-Auth-Token`,
+`Proxy-Authorization` und Tokens im `Referer` nur mit den ersten vier Zeichen und `******` ins Log
+(`format filter`, `regexp`). Der Parser kürzt ältere Zeilen beim Lesen ebenso.
+
+## KI-Chat
+
+Der Chat läuft in der Browser-Sitzung (API-Tokens und CLI bekommen 403 `ai_session_only`; sie nutzen `/mcp`).
+Lesende Werkzeuge laufen sofort, jedes ändernde wird zum Vorschlag und erst mit
+`POST …/proposals/{pid} {approve:true}` ausgeführt – als normaler API-Aufruf mit dieser Sitzung, im Audit Log
+als `ai (chat <id>, session <id>)`. Offene Vorschläge verfallen nach 1 Stunde oder beim Neustart.
+
+| Route | Antwort |
+|---|---|
+| `GET /api/ai/settings` | `{kind, baseUrl, model, keyHint, configured, presets[], defaultModel}` – der Key nie im Klartext |
+| `PUT /api/ai/settings` `{kind:"anthropic"\|"openai", baseUrl, model, apiKey?}` | speichert `/etc/caddyevolved/ai.json` (0600); ohne `apiKey` bleibt der alte |
+| `POST /api/ai/test` | `{reply, ms}` – kurze Testanfrage an den Anbieter |
+| `GET /api/ai/models` | `{models[]}` vom Anbieter |
+| `GET /api/ai/chats` / `POST /api/ai/chats` | `{chats:[{id,title,updated,pending}], configured}` / neuer Chat |
+| `GET /api/ai/chats/{id}` / `DELETE` | `{id, title, display[], proposals[], pending}` / löschen (das Protokoll bleibt) |
+| `POST /api/ai/chats/{id}/messages` `{text, context}` | Chat nach der Runde (fertig oder wartet auf Freigabe), ggf. `error` |
+| `POST /api/ai/chats/{id}/proposals/{pid}` `{approve}` | Chat; 409 `decided`, wenn schon entschieden oder verfallen |
+
+## KI-Protokoll
+
+`/var/lib/caddyevolved/ai-audit.jsonl` (0600): Anfragen, Vorschläge, Freigaben, Ablehnungen, Ausführungen und
+Notizen der KI (`write_ai_log`). Nur Anhängen, Rotation ab 10 MB ohne Löschen, jeder Eintrag mit SHA-256 des
+vorigen. Es gibt keine Route zum Ändern oder Löschen.
+
+| Route | Antwort |
+|---|---|
+| `GET /api/ai/audit?offset&limit&chat` | `{entries[], total, ok, brokenAt, sizeBytes}` neueste zuerst; `ok:false` mit der Nummer des ersten Eintrags, der nicht zur Kette passt |
+| `GET /api/ai/audit/export` | alle Dateien als JSONL-Download |
