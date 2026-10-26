@@ -2,6 +2,7 @@ import { useState } from "react";
 import { api, FirewallLogResponse, FirewallResponse, Site, SitesResponse, WafEvent } from "../api";
 import { FirewallRules } from "../components/firewall";
 import { AutoBanPanel } from "../components/autoban";
+import { IPCell } from "../components/ip";
 import { Badge, ErrorBox, PageHead, Spinner, useAction, useLoad } from "../components/ui";
 
 /** Labels for the reasons the access log carries (cev_block). */
@@ -120,7 +121,9 @@ export default function FirewallPage() {
                       <tr key={i}>
                         <td className="nowrap">{fmtTime(b.ts)}</td>
                         <td>{BLOCK_REASON[b.block] ?? b.block}</td>
-                        <td className="mono">{b.ip}</td>
+                        <td>
+                          <IPCell ip={b.ip} geo={log.data?.ipGeo?.[b.ip]} />
+                        </td>
                         <td className="mono" title={b.agent}>
                           {b.method} {b.host}
                           {b.uri}
@@ -158,7 +161,9 @@ export default function FirewallPage() {
                 <div className="row">
                   {ev.blocked ? <Badge kind="err">blockiert</Badge> : <Badge kind="warn">nur erkannt</Badge>}
                   <span className="small">{fmtTime(ev.ts)}</span>
-                  <span className="mono small">{ev.ip}</span>
+                  <span className="small">
+                    <IPCell ip={ev.ip} geo={log.data?.ipGeo?.[ev.ip]} />
+                  </span>
                   <span className="mono small" style={{ wordBreak: "break-all" }}>
                     {ev.host}
                     {ev.uri}

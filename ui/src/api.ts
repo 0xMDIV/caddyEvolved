@@ -418,6 +418,7 @@ export interface FirewallResponse {
   file: string;
   yourIp?: string;
   bans?: Ban[];
+  ipGeo?: Record<string, { country?: string; asn?: number; asnOrg?: string }>;
 }
 export interface BlockedRequest {
   ts: string;
@@ -443,6 +444,7 @@ export interface FirewallLogResponse {
   waf: WafEvent[];
   reasons?: { key: string; count: number }[];
   ips?: { key: string; count: number }[];
+  ipGeo?: Record<string, { country?: string; asn?: number; asnOrg?: string }>;
 }
 
 export const defaultWaf = (): SiteWaf => ({ enabled: true, mode: "block" });

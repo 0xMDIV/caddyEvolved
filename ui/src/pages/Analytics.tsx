@@ -11,6 +11,7 @@ import {
 } from "../api";
 import { Chart, Series, TopList } from "../components/charts";
 import { ErrorBox, PageHead, Spinner, useLoad } from "../components/ui";
+import { IPCell, IPGeoMap } from "../components/ip";
 import { navigate } from "../router";
 import { IconRefresh } from "@tabler/icons-react";
 
@@ -46,7 +47,7 @@ export default function Analytics() {
   const q = `range=${range}${site ? `&site=${encodeURIComponent(site)}` : ""}`;
   const data = useLoad(() => api.get<AnalyticsResponse>(`/api/analytics?${q}`), [q]);
   const recent = useLoad(
-    () => api.get<{ requests: RecentRequest[] | null }>(`/api/analytics/recent?limit=50${site ? `&site=${encodeURIComponent(site)}` : ""}`),
+    () => api.get<{ requests: RecentRequest[] | null; ipGeo?: IPGeoMap }>(`/api/analytics/recent?limit=50${site ? `&site=${encodeURIComponent(site)}` : ""}`),
     [site],
   );
 
@@ -225,7 +226,9 @@ export default function Analytics() {
                         <td className="mono small" style={{ wordBreak: "break-all" }} title={r.agent}>
                           <b>{r.method}</b> {r.uri}
                         </td>
-                        <td className="mono small">{r.ip}</td>
+                        <td className="small">
+                          <IPCell ip={r.ip} geo={recent.data?.ipGeo?.[r.ip]} />
+                        </td>
                         <td className="small" style={{ whiteSpace: "nowrap" }}>
                           {fmtMs(r.durationMs)}
                         </td>

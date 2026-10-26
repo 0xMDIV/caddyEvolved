@@ -30,6 +30,21 @@ type logSettings struct {
 	// RedactParams are query parameters shortened in the log on top of the
 	// built-in list (accesslog.DefaultRedactParams).
 	RedactParams []string `json:"redactParams"`
+	// LookupURL opens an IP in an external lookup service; {ip} is replaced.
+	LookupURL string `json:"lookupUrl"`
+}
+
+const defaultLookupURL = "https://ipinfo.io/{ip}"
+
+// validLookupURL accepts only http(s) links that carry the {ip} placeholder.
+func validLookupURL(u string) error {
+	if !strings.HasPrefix(u, "https://") && !strings.HasPrefix(u, "http://") {
+		return errors.New("Lookup-URL muss mit http:// oder https:// beginnen")
+	}
+	if !strings.Contains(u, "{ip}") {
+		return errors.New("Lookup-URL braucht den Platzhalter {ip}")
+	}
+	return nil
 }
 
 var reParamName = regexp.MustCompile(`^[A-Za-z0-9_.-]{1,40}$`)
@@ -37,7 +52,7 @@ var reParamName = regexp.MustCompile(`^[A-Za-z0-9_.-]{1,40}$`)
 func (s *Server) loggingFile() string { return filepath.Join(s.Paths.Etc, "logging.json") }
 
 func defaultLogSettings() logSettings {
-	return logSettings{Rotate: true, SizeMB: 50, Keep: 5, Compress: true}
+	return logSettings{Rotate: true, SizeMB: 50, Keep: 5, Compress: true, LookupURL: defaultLookupURL}
 }
 
 func (s *Server) loadLogSettings() logSettings {
@@ -62,6 +77,9 @@ func (ls logSettings) validate() error {
 		return errors.New("Aufbewahrung zwischen 0 (unbegrenzt) und 3650 Tagen")
 	case len(ls.RedactParams) > 50:
 		return errors.New("Höchstens 50 eigene Token-Parameter")
+	}
+	if err := validLookupURL(ls.LookupURL); err != nil {
+		return err
 	}
 	for _, p := range ls.RedactParams {
 		if !reParamName.MatchString(p) {
@@ -108,6 +126,9 @@ func (s *Server) handleLoggingSave(w http.ResponseWriter, r *http.Request) {
 	if err := decode(r, &ls); err != nil {
 		writeErr(w, http.StatusBadRequest, "bad_request", errText(err))
 		return
+	}
+	if ls.LookupURL == "" {
+		ls.LookupURL = defaultLookupURL
 	}
 	if err := ls.validate(); err != nil {
 		writeErr(w, http.StatusBadRequest, "bad_settings", errText(err))

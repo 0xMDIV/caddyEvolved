@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { api, AutoBan, Ban, FirewallResponse } from "../api";
 import { ListArea } from "./features";
+import { IPCell } from "./ip";
 import { Badge, Switch, useAction } from "./ui";
 
 // Paths only scanners ask for. Each preset is safe unless such an app runs
@@ -207,7 +208,9 @@ export function AutoBanPanel({ data, onSaved }: { data: FirewallResponse; onSave
               <tbody>
                 {shown.slice(0, 500).map((b: Ban) => (
                   <tr key={b.ip}>
-                    <td className="mono">{b.ip}</td>
+                    <td>
+                      <IPCell ip={b.ip} geo={data.ipGeo?.[b.ip]} />
+                    </td>
                     <td className="nowrap">
                       {REASON[b.reason] ?? b.reason}
                       {b.times > 1 && <span className="muted small"> · {b.times}. Mal</span>}

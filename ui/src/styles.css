@@ -465,3 +465,11 @@ table.compact th, table.compact td { padding: 6px 8px; }
 /* WAF fine tuning */
 .waf-tuning { margin-top: 8px; }
 .waf-tuning summary { cursor: pointer; color: var(--muted); }
+
+/* IP cells: country, address, copy and lookup */
+.ip-cell { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+.ip-country { font-size: 12px; color: var(--muted); cursor: help; }
+.icon-btn { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; padding: 0; border: 0; border-radius: 4px; background: none; color: var(--muted); cursor: pointer; }
+.icon-btn:hover { background: var(--border); color: var(--text); }
+.redacted { filter: blur(4px); cursor: pointer; transition: filter 0.15s; }
+.redacted.shown { filter: none; cursor: help; text-decoration: underline dotted; }

@@ -2,6 +2,7 @@ import { Fragment, useEffect, useRef, useState } from "react";
 import { IconFileZip, IconFilter, IconRefresh, IconX } from "@tabler/icons-react";
 import { api, fmtTime } from "../api";
 import { ToggleRow } from "../components/siteform";
+import { IPCell, IPGeoMap, LOOKUP_PRESETS, Redacted, setLookupUrl } from "../components/ip";
 import { Badge, ErrorBox, PageHead, Spinner, useLoad, useToast } from "../components/ui";
 
 type Tab = "access" | "process" | "settings";
@@ -58,6 +59,7 @@ interface AccessResult {
   files: number;
   tags: Record<string, number>;
   partial: boolean;
+  ipGeo?: IPGeoMap;
 }
 interface TagInfo {
   Tag: string;
@@ -275,7 +277,7 @@ function AccessLog() {
                     <td className="small nowrap">{fmtTime(e.ts)}</td>
                     <td className="small">{e.host}</td>
                     <td className="mono small log-uri">
-                      <b>{e.method}</b> {e.uri}
+                      <b>{e.method}</b> <Redacted text={e.uri} />
                     </td>
                     <td>
                       <Badge kind={statusKind(e.status)}>{e.status}</Badge>
@@ -283,9 +285,7 @@ function AccessLog() {
                     <td className="small nowrap">{fmtBytes(e.size)}</td>
                     <td className="small nowrap">{e.durationMs < 1 ? "<1" : Math.round(e.durationMs)} ms</td>
                     <td className="mono small">
-                      <button className="link-btn" title="Nach dieser IP filtern" onClick={(ev) => (ev.stopPropagation(), set("ip", e.ip))}>
-                        {e.ip}
-                      </button>
+                      <IPCell ip={e.ip} geo={data.ipGeo?.[e.ip]} onFilter={() => set("ip", e.ip)} />
                     </td>
                     <td>
                       <div className="chips">
@@ -306,7 +306,7 @@ function AccessLog() {
                           <dt>URL</dt>
                           <dd className="mono">
                             {e.method} {e.host}
-                            {e.uri} {e.proto && <span className="muted">({e.proto})</span>}
+                            <Redacted text={e.uri} /> {e.proto && <span className="muted">({e.proto})</span>}
                           </dd>
                           <dt>Übertragen</dt>
                           <dd>
@@ -315,7 +315,7 @@ function AccessLog() {
                           <dt>User-Agent</dt>
                           <dd className="mono">{e.agent || "–"}</dd>
                           <dt>Referer</dt>
-                          <dd className="mono">{e.referer || "–"}</dd>
+                          <dd className="mono">{e.referer ? <Redacted text={e.referer} /> : "–"}</dd>
                         </dl>
                       </td>
                     </tr>
@@ -428,6 +428,8 @@ interface LogSettingsT {
   keepDays: number;
   compress: boolean;
   localTime: boolean;
+  redactParams?: string[] | null;
+  lookupUrl?: string;
 }
 interface LoggingResp {
   settings: LogSettingsT;
@@ -439,6 +441,7 @@ interface LoggingResp {
 function LogSettings() {
   const data = useLoad(() => api.get<LoggingResp>("/api/logging"));
   const [draft, setDraft] = useState<LogSettingsT | null>(null);
+  const [redactText, setRedactText] = useState<string | null>(null);
   const [err, setErr] = useState<unknown>(null);
   const [saving, setSaving] = useState(false);
   const toast = useToast();
@@ -450,8 +453,10 @@ function LogSettings() {
     setErr(null);
     try {
       await api.put("/api/logging", v);
+      if (v.lookupUrl) setLookupUrl(v.lookupUrl);
       toast("ok", "Gespeichert – alle Sites neu geschrieben und Caddy neu geladen");
       setDraft(null);
+      setRedactText(null);
       data.reload();
     } catch (e) {
       setErr(e);
@@ -494,6 +499,40 @@ function LogSettings() {
               </p>
             )}
             {!v.rotate && <div className="alert warn">Ohne Rotation wächst die Datei unbegrenzt.</div>}
+            <h3 style={{ margin: "8px 0 0", fontSize: 14 }}>IP-Lookup</h3>
+            <label className="field">
+              Seite für „IP prüfen“
+              <input className="mono" value={v.lookupUrl ?? ""} placeholder="https://ipinfo.io/{ip}" onChange={(e) => upd({ lookupUrl: e.target.value })} />
+              <span className="hint">
+                {"{ip}"} wird durch die Adresse ersetzt. Vorlagen:{" "}
+                {LOOKUP_PRESETS.map((p, i) => (
+                  <span key={p.url}>
+                    {i > 0 && " · "}
+                    <button type="button" className="link-btn" onClick={() => upd({ lookupUrl: p.url })}>
+                      {p.label}
+                    </button>
+                  </span>
+                ))}
+              </span>
+            </label>
+            <h3 style={{ margin: "8px 0 0", fontSize: 14 }}>Tokens im Log</h3>
+            <label className="field">
+              Weitere Parameter kürzen (einer pro Zeile)
+              <textarea
+                className="mono"
+                rows={2}
+                value={redactText ?? (v.redactParams ?? []).join("\n")}
+                placeholder="z. B. hash oder ticket"
+                onChange={(e) => {
+                  setRedactText(e.target.value);
+                  upd({ redactParams: e.target.value.split(/\s+/).filter(Boolean) });
+                }}
+              />
+              <span className="hint">
+                Immer gekürzt: token, access_token, api_key, apikey, key, secret, password, pass, auth, sig, signature, code, session sowie die Header X-Api-Key, X-Auth-Token
+                und Proxy-Authorization. Im Log stehen nur die ersten vier Zeichen.
+              </span>
+            </label>
             <ErrorBox error={err} />
             <button className="btn primary" style={{ alignSelf: "flex-start" }} disabled={!draft || saving} onClick={save}>
               {saving && <Spinner />} Speichern & anwenden
