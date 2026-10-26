@@ -17,6 +17,8 @@ export function AISettingsCard() {
   const [err, setErr] = useState<unknown>(null);
   const [busy, setBusy] = useState("");
   const [models, setModels] = useState<string[]>([]);
+  const [filter, setFilter] = useState("");
+  const shown = models.filter((m) => m.toLowerCase().includes(filter.trim().toLowerCase()));
   const [test, setTest] = useState("");
   const toast = useToast();
 
@@ -120,12 +122,27 @@ export function AISettingsCard() {
         </label>
         <label className="field">
           Modell
-          <input className="mono" list="ai-models" value={d.model} placeholder={s.defaultModel} onChange={(e) => setD({ ...d, model: e.target.value })} />
-          <datalist id="ai-models">
-            {models.map((m) => (
-              <option key={m} value={m} />
-            ))}
-          </datalist>
+          <input className="mono" value={d.model} placeholder={s.defaultModel} onChange={(e) => setD({ ...d, model: e.target.value })} />
+          {/* A real list instead of a datalist: browsers filter a datalist by the
+              field's text, so with a model already entered it showed nothing. */}
+          {models.length > 0 && (
+            <>
+              <input placeholder={`${models.length} Modelle durchsuchen …`} value={filter} onChange={(e) => setFilter(e.target.value)} />
+              <select
+                className="mono"
+                size={Math.min(8, Math.max(2, shown.length))}
+                value={shown.includes(d.model) ? d.model : ""}
+                onChange={(e) => setD({ ...d, model: e.target.value })}
+              >
+                {shown.map((m) => (
+                  <option key={m} value={m}>
+                    {m}
+                  </option>
+                ))}
+              </select>
+              {shown.length === 0 && <span className="hint">Kein Modell enthält „{filter}“.</span>}
+            </>
+          )}
           <span className="hint">
             <button type="button" className="link-btn" disabled={!s.configured || !!busy} onClick={loadModels}>
               Modelle vom Anbieter laden
