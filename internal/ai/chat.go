@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -39,6 +40,8 @@ var (
 	ErrDecided  = errors.New("Über diesen Vorschlag wurde schon entschieden")
 	ErrExpired  = errors.New("Der Vorschlag ist verfallen – es wurde nichts ausgeführt")
 	ErrNotFound = errors.New("Nicht gefunden")
+	// ErrNoAudit: without its protocol the AI does nothing.
+	ErrNoAudit = errors.New("KI-Protokoll nicht verfügbar – die KI ist gesperrt, bis es wieder geschrieben werden kann")
 )
 
 // Proposal is a change the AI wants to make, waiting for the user.
@@ -80,6 +83,10 @@ type Chat struct {
 	// them wait for a decision; Partial the results collected so far.
 	Round   []string     `json:"round,omitempty"`
 	Partial []ToolResult `json:"partial,omitempty"`
+
+	// Page is where the user wrote the last message; the model keeps
+	// seeing it after an approval.
+	Page string `json:"page,omitempty"`
 
 	boot time.Time // daemon start: proposals from before it expired
 }
@@ -328,12 +335,19 @@ func (e *Engine) tools() ([]ToolDef, map[string]ToolSpec) {
 	return defs, specs
 }
 
-func (e *Engine) audit(c *Chat, en aiaudit.Entry) {
+func (e *Engine) audit(c *Chat, en aiaudit.Entry) error {
 	if e.Audit == nil {
-		return
+		return ErrNoAudit
 	}
 	en.Chat, en.Actor, en.Model = c.ID, e.Actor, e.Model
-	_, _ = e.Audit.Append(en)
+	_, err := e.Audit.Append(en)
+	return err
+}
+
+// isObject accepts a JSON object or nothing (a call without arguments).
+func isObject(raw json.RawMessage) bool {
+	t := strings.TrimSpace(string(raw))
+	return t == "" || (strings.HasPrefix(t, "{") && json.Valid(raw))
 }
 
 func clip(s string, n int) string {
@@ -369,6 +383,9 @@ func (e *Engine) settleOpen(c *Chat) {
 // Send adds the user's message and runs the model until it is done or
 // waits for a decision.
 func (e *Engine) Send(ctx context.Context, c *Chat, text, page string) error {
+	if e.Audit == nil {
+		return ErrNoAudit
+	}
 	e.settleOpen(c)
 	text = strings.TrimSpace(text)
 	if c.Title == "" || c.Title == "Neuer Chat" {
@@ -376,14 +393,18 @@ func (e *Engine) Send(ctx context.Context, c *Chat, text, page string) error {
 	}
 	c.History = append(c.History, Message{Role: RoleUser, Text: text})
 	c.show("user", text, nil)
-	e.audit(c, aiaudit.Entry{Kind: aiaudit.KindRequest, Text: text, Path: page})
-	return e.loop(ctx, c, page)
+	c.Page = page
+	if err := e.audit(c, aiaudit.Entry{Kind: aiaudit.KindRequest, Text: text, Path: page}); err != nil {
+		c.show("error", "KI-Protokoll nicht schreibbar – Anfrage nicht gesendet.", nil)
+		return err
+	}
+	return e.loop(ctx, c)
 }
 
-func (e *Engine) loop(ctx context.Context, c *Chat, page string) error {
+func (e *Engine) loop(ctx context.Context, c *Chat) error {
 	defs, specs := e.tools()
 	for range maxRounds {
-		msg, err := e.Provider.Turn(ctx, e.system(page), defs, c.History)
+		msg, err := e.Provider.Turn(ctx, e.system(c.Page), defs, c.History)
 		if err != nil {
 			c.show("error", err.Error(), nil)
 			return err
@@ -420,6 +441,11 @@ func (e *Engine) handleCall(ctx context.Context, c *Chat, call ToolCall, specs m
 		c.show("tool", "Protokoll: "+clip(in.Text, 200), func(d *DisplayItem) { d.Tool = call.Name })
 		return
 	}
+	if !isObject(call.Args) {
+		c.addResult(call.ID, "Ungültige Argumente: erwartet wird ein JSON-Objekt.", true)
+		c.show("tool", "Ungültige Argumente", func(d *DisplayItem) { d.Tool, d.IsError = call.Name, true })
+		return
+	}
 	spec, ok := specs[call.Name]
 	if !ok {
 		c.addResult(call.ID, "Unbekanntes Werkzeug "+call.Name, true)
@@ -444,8 +470,11 @@ func (e *Engine) handleCall(ctx context.Context, c *Chat, call ToolCall, specs m
 		ID: hex.EncodeToString(id), CallID: call.ID, Tool: call.Name, Args: call.Args, Summary: strings.TrimSpace(said),
 		Method: method, Path: path, Created: time.Now().UTC(), State: StatePending,
 	}
+	if err := e.audit(c, aiaudit.Entry{Kind: aiaudit.KindProposal, Tool: p.Tool, Args: p.Args, Method: method, Path: path, Text: p.Summary}); err != nil {
+		c.addResult(call.ID, "KI-Protokoll nicht schreibbar – Vorschlag verworfen.", true)
+		return
+	}
 	c.Proposals = append(c.Proposals, p)
-	e.audit(c, aiaudit.Entry{Kind: aiaudit.KindProposal, Tool: p.Tool, Args: p.Args, Method: method, Path: path, Text: p.Summary})
 	c.show("proposal", p.Summary, func(d *DisplayItem) { d.Tool, d.ProposalID = call.Name, p.ID })
 }
 
@@ -474,7 +503,11 @@ func (e *Engine) Decide(ctx context.Context, c *Chat, proposalID string, approve
 		return ErrExpired
 	case approve:
 		entry.Kind = aiaudit.KindApproved
-		e.audit(c, entry)
+		// No change without its protocol entry.
+		if err := e.audit(c, entry); err != nil {
+			p.Decided = time.Time{}
+			return fmt.Errorf("KI-Protokoll nicht schreibbar – nichts ausgeführt: %w", err)
+		}
 		r := e.Exec.Run(ctx, p.Tool, p.Args)
 		p.State, p.Result, p.Failed = StateApproved, clip(r.Text, maxShown), r.IsError
 		entry.Kind, entry.Status, entry.Result = aiaudit.KindExecuted, r.Status, r.Text
@@ -491,5 +524,5 @@ func (e *Engine) Decide(ctx context.Context, c *Chat, proposalID string, approve
 		return nil
 	}
 	c.closeRound()
-	return e.loop(ctx, c, "")
+	return e.loop(ctx, c)
 }

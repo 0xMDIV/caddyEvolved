@@ -77,7 +77,8 @@ export function RealIPCard({ data, onSaved }: { data: GlobalResponse; onSaved: (
   const current = g.realIp.providers ?? (g.realIp.cloudflare ? ["cloudflare"] : []);
   const [d, setD, dirty] = useDraft({ providers: current, proxies: (g.realIp.proxies ?? []).join("\n") });
   const { err, save } = useSaver(g, onSaved);
-  const toggle = (id: string, on: boolean) => setD({ ...d, providers: on ? [...d.providers, id] : d.providers.filter((p) => p !== id) });
+  // One CDN at a time: with two, a visitor could send the other CDN's header with an invented IP.
+  const toggle = (id: string, on: boolean) => setD({ ...d, providers: on ? [id] : [] });
   return (
     <div className="card stack" style={{ gap: 12 }}>
       <div className="row">
@@ -86,7 +87,7 @@ export function RealIPCard({ data, onSaved }: { data: GlobalResponse; onSaved: (
       </div>
       <div className="small muted">
         Steht ein CDN oder Proxy vor Caddy (z. B. die orange Wolke von Cloudflare), sieht Caddy sonst nur dessen Adresse – Access Lists, Rate Limit, CrowdSec,
-        Auto-Bann und Logs arbeiten dann mit der falschen IP. Nur anhaken, was wirklich davor steht: sonst kann jeder seine IP per Header fälschen.
+        Auto-Bann und Logs arbeiten dann mit der falschen IP. Nur das CDN anhaken, das wirklich davor steht – höchstens eines, sonst kann ein Besucher seine IP per Header fälschen.
       </div>
       {(data.proxyProviders ?? []).map((p) => (
         <label key={p.id} className="toggle-row">

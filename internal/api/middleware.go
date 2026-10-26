@@ -42,6 +42,10 @@ func sessionFromContext(ctx context.Context) (Session, bool) {
 // middleware wraps every route with transport-level headers.
 func (s *Server) middleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Only internalCall may say a request came from the AI or MCP; it
+		// calls the mux directly and never passes here.
+		r.Header.Del("X-CaddyEvolved-Via")
+		r.Header.Del("X-CaddyEvolved-Chat")
 		h := w.Header()
 		// A management UI on a LAN must not be embeddable by another origin.
 		h.Set("X-Content-Type-Options", "nosniff")

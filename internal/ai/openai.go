@@ -149,7 +149,9 @@ func (o *openAI) Turn(ctx context.Context, system string, tools []ToolDef, histo
 	for _, c := range m.ToolCalls {
 		args := json.RawMessage(c.Function.Arguments)
 		if !json.Valid(args) {
-			args = json.RawMessage("{}")
+			// Never turn a broken call into an empty one: "{}" on a replace
+			// tool would wipe the object. Kept as a string, the engine refuses it.
+			args, _ = json.Marshal(c.Function.Arguments)
 		}
 		out.Calls = append(out.Calls, ToolCall{ID: c.ID, Name: c.Function.Name, Args: args})
 	}

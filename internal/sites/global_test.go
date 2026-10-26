@@ -180,3 +180,15 @@ func TestRenderProxyProviders(t *testing.T) {
 		t.Error("unbekannter Anbieter angenommen")
 	}
 }
+
+func TestTrustedProxiesStrictAndSingleCDN(t *testing.T) {
+	g := Global{RealIP: RealIP{Providers: []string{"bunny"}}}
+	out := RenderGlobal(Options{Global: g, ProxyRanges: map[string][]string{"bunny": {"89.187.188.227"}}})
+	if !strings.Contains(out, "trusted_proxies_strict") {
+		t.Errorf("ohne trusted_proxies_strict:\n%s", out)
+	}
+	g = Global{RealIP: RealIP{Providers: []string{"cloudflare", "fastly"}}}
+	if err := g.Validate(); err == nil {
+		t.Error("zwei CDNs angenommen – Besucher könnten den Header des anderen fälschen")
+	}
+}

@@ -145,3 +145,35 @@ func (s *Server) auditEventsVia(via string) []events.Event {
 	}
 	return out
 }
+
+func TestAIChatRefusedWithoutProtocol(t *testing.T) {
+	s, do, _ := aiServer(t)
+	s.AIAudit = nil
+	_, chat := do("POST", "/api/ai/chats", `{}`)
+	if code, _ := do("POST", "/api/ai/chats/"+chat["id"].(string)+"/messages", `{"text":"x"}`); code != http.StatusServiceUnavailable {
+		t.Fatalf("ohne Protokoll: %d", code)
+	}
+}
+
+func TestAISettingsDropKeyOnNewURL(t *testing.T) {
+	s, do, _ := aiServer(t)
+	do("PUT", "/api/ai/settings", `{"kind":"openai","baseUrl":"https://openrouter.ai/api/v1","model":"m","apiKey":"sk-or-1234567890"}`)
+	do("PUT", "/api/ai/settings", `{"kind":"openai","baseUrl":"https://evil.example/v1","model":"m"}`)
+	if c, _ := ai.LoadConfig(s.aiConfigFile()); c.APIKey != "" {
+		t.Fatalf("Key an neue URL weitergegeben: %+v", c)
+	}
+}
+
+func TestViaHeaderFromOutsideIgnored(t *testing.T) {
+	s, _, _ := aiServer(t)
+	sess, _ := s.Auth.Login("Sehr-Geheim-123!", "test", "127.0.0.1", time.Hour)
+	req := httptest.NewRequest("POST", "/api/ai/chats", bytes.NewBufferString(`{}`))
+	req.AddCookie(&http.Cookie{Name: sessionCookie, Value: sess.ID})
+	req.Header.Set(HeaderGate, "1")
+	req.Header.Set("X-CaddyEvolved-Via", "ai")
+	req.Header.Set("X-CaddyEvolved-Chat", "gefaelscht")
+	s.Handler().ServeHTTP(httptest.NewRecorder(), req)
+	if ev := s.auditEventsVia("ai"); len(ev) != 0 {
+		t.Fatalf("Absender gefälscht: %+v", ev)
+	}
+}

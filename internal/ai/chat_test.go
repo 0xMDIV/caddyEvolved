@@ -4,7 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"os"
+	"path/filepath"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 
@@ -258,3 +261,62 @@ func TestApprovedButFailedIsMarked(t *testing.T) {
 		t.Fatalf("proposal %+v", p)
 	}
 }
+
+func TestNoAuditRefuses(t *testing.T) {
+	e, p, _, st, _ := setup(t)
+	e.Audit = nil
+	c, _ := st.Create()
+	if err := e.Send(context.Background(), c, "x", ""); !errors.Is(err, ErrNoAudit) || len(p.seen) != 0 {
+		t.Fatalf("ohne Protokoll: %v, Runden %d", err, len(p.seen))
+	}
+}
+
+func TestApproveAbortsWhenAuditFails(t *testing.T) {
+	dir := t.TempDir()
+	log, _ := aiaudit.Open(dir)
+	e, _, x, st, _ := setup(t, Message{Role: RoleAssistant, Calls: []ToolCall{call("1", "delete_site", `{}`)}})
+	e.Audit = log
+	c, _ := st.Create()
+	e.Send(context.Background(), c, "x", "")
+	// The protocol file becomes unwritable.
+	os.Remove(filepath.Join(dir, "ai-audit.jsonl"))
+	os.Mkdir(filepath.Join(dir, "ai-audit.jsonl"), 0o700)
+	if err := e.Decide(context.Background(), c, c.Proposals[0].ID, true); err == nil {
+		t.Fatal("Freigabe ohne Protokolleintrag")
+	}
+	if len(x.ran) != 0 || c.Proposals[0].State != StatePending {
+		t.Fatalf("trotzdem ausgeführt: ran %v state %s", x.ran, c.Proposals[0].State)
+	}
+}
+
+func TestNonObjectArgsRejected(t *testing.T) {
+	e, _, x, st, _ := setup(t, Message{Role: RoleAssistant, Calls: []ToolCall{call("1", "delete_site", `"kaputt"`)}})
+	c, _ := st.Create()
+	e.Send(context.Background(), c, "x", "")
+	tm := toolMessages(c)
+	if len(c.Proposals) != 0 || len(x.ran) != 0 || len(tm) != 1 || !tm[0].Results[0].IsError {
+		t.Fatalf("ungültige Argumente: proposals %d tool %+v", len(c.Proposals), tm)
+	}
+}
+
+func TestPageContextKeptAfterApproval(t *testing.T) {
+	e, p, _, st, _ := setup(t, Message{Role: RoleAssistant, Calls: []ToolCall{call("1", "delete_site", `{}`)}})
+	var systems []string
+	e.Provider = providerFunc(func(system string, h []Message) (Message, error) {
+		systems = append(systems, system)
+		return p.Turn(context.Background(), system, nil, h)
+	})
+	c, _ := st.Create()
+	e.Send(context.Background(), c, "x", "/firewall")
+	e.Decide(context.Background(), c, c.Proposals[0].ID, true)
+	if len(systems) != 2 || !strings.Contains(systems[1], "/firewall") {
+		t.Fatalf("Seitenkontext verloren: %q", systems)
+	}
+}
+
+type providerFunc func(system string, h []Message) (Message, error)
+
+func (f providerFunc) Turn(_ context.Context, system string, _ []ToolDef, h []Message) (Message, error) {
+	return f(system, h)
+}
+func (f providerFunc) Models(context.Context) ([]string, error) { return nil, nil }

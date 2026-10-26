@@ -292,6 +292,7 @@ func (s *Server) firewallLoop(ctx context.Context) {
 		case <-tick.C:
 		}
 		g := s.loadGlobal()
+		g.Normalize() // old files still carry realIp.cloudflare
 		geo := g.Firewall.UsesGeo()
 		if acls, err := s.Sites.ListACL(); err == nil {
 			for _, a := range acls {

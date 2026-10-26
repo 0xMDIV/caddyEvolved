@@ -145,23 +145,29 @@ function ProposalCard({ p, busy }: { p: AIProposal; busy: boolean }) {
   return (
     <div className={`ai-proposal ${p.failed ? "rejected" : p.state}`}>
       <div className="row">
-        <b>Vorschlag</b>
-        <span className="mono small">{p.tool}</span>
+        <b>Änderung</b>
+        <span className="mono small">
+          {p.method} {p.path}
+        </span>
         <span className="spacer" />
         <Badge kind={kind}>{label}</Badge>
       </div>
-      {p.summary && <div className="ai-text">{p.summary}</div>}
-      <div className="mono small muted">
-        {p.method} {p.path}
+      <div className="small muted">
+        Werkzeug <span className="mono">{p.tool}</span>
       </div>
-      {args && args !== "{}" && (
-        <details>
-          <summary className="small muted">Genaue Änderung</summary>
-          <pre className="ai-pre">
-            <Redacted text={args} />
-          </pre>
-        </details>
+      {p.summary && (
+        <div className="ai-text">
+          <span className="small muted">Begründung der KI: </span>
+          {p.summary}
+        </div>
       )}
+      {/* What really runs: open by default for replace and delete calls. */}
+      <details open={p.state === "pending" && (p.method === "PUT" || p.method === "DELETE")}>
+        <summary className="small muted">Genaue Änderung (wird so gesendet)</summary>
+        <pre className="ai-pre">
+          <Redacted text={args || "(keine Argumente)"} />
+        </pre>
+      </details>
       {p.state === "pending" && (
         <div className="row">
           <button className="btn primary sm" disabled={busy} onClick={() => decide(p, true)}>

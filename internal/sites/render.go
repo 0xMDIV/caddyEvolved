@@ -212,7 +212,7 @@ func renderLog(path string, r LogRoll) string {
 	fmt.Fprintf(&b, "\t\t\trequest>uri regexp `%s` ${1}${2}******\n", pattern)
 	fmt.Fprintf(&b, "\t\t\trequest>headers>Referer regexp `%s` ${1}${2}******\n", pattern)
 	for _, h := range accesslog.DefaultRedactHeaders {
-		fmt.Fprintf(&b, "\t\t\trequest>headers>%s regexp `^(.{0,4}).*` ${1}******\n", h)
+		fmt.Fprintf(&b, "\t\t\trequest>headers>%s regexp `%s` ${1}******\n", h, accesslog.RedactHeaderPattern)
 	}
 	b.WriteString("\t\t}\n\t}\n")
 	return b.String()

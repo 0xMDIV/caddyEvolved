@@ -560,6 +560,9 @@ var mcpTools = []mcpTool{
 	{Name: "update_firewall", Description: "Replace the firewall rules (send the complete firewall object; read it with get_firewall first).",
 		Schema: map[string]any{"type": "object", "description": "the firewall object from get_firewall"},
 		Request: func(a map[string]any) (string, string, any, error) {
+			if len(a) == 0 {
+				return "", "", nil, fmt.Errorf("das vollständige Firewall-Objekt aus get_firewall fehlt")
+			}
 			return http.MethodPut, "/api/firewall", a, nil
 		}},
 	{Name: "query_access_log", ReadOnly: true, Description: "Search the access log (rotated files included), newest first.",
@@ -578,6 +581,9 @@ var mcpTools = []mcpTool{
 	{Name: "update_global_options", Description: "Replace the host-wide options (send the complete global object from get_global_options; the firewall part is ignored).",
 		Schema: map[string]any{"type": "object", "description": "the global object from get_global_options"},
 		Request: func(a map[string]any) (string, string, any, error) {
+			if len(a) == 0 {
+				return "", "", nil, fmt.Errorf("das vollständige Objekt aus get_global_options fehlt")
+			}
 			return http.MethodPut, "/api/global", a, nil
 		}},
 }

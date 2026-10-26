@@ -161,3 +161,12 @@ func TestMCPFirewallAndSettingsTools(t *testing.T) {
 		}
 	}
 }
+
+func TestReplaceToolsRefuseEmptyBody(t *testing.T) {
+	for _, name := range []string{"update_firewall", "update_global_options"} {
+		tool, _ := mcpToolByName(name)
+		if _, _, _, err := tool.Request(map[string]any{}); err == nil {
+			t.Errorf("%s mit leerem Objekt angenommen", name)
+		}
+	}
+}

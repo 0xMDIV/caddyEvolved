@@ -122,3 +122,15 @@ func TestAnthropicFallbacksOnDirectAPI(t *testing.T) {
 		t.Fatal("useFallbacks")
 	}
 }
+
+func TestOpenAIInvalidArgsNotEmptied(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		io.WriteString(w, `{"choices":[{"message":{"role":"assistant","content":null,"tool_calls":[{"id":"c","type":"function","function":{"name":"update_firewall","arguments":"{\"enab"}}]}}]}`)
+	}))
+	defer srv.Close()
+	p, _ := NewProvider(Config{Kind: KindOpenAI, BaseURL: srv.URL, Model: "m"})
+	m, err := p.Turn(context.Background(), "s", nil, []Message{{Role: RoleUser, Text: "x"}})
+	if err != nil || string(m.Calls[0].Args) == "{}" || !json.Valid(m.Calls[0].Args) {
+		t.Fatalf("args %q %v", m.Calls[0].Args, err)
+	}
+}

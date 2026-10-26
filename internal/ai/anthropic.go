@@ -151,7 +151,7 @@ func (a *anthropicAPI) Turn(ctx context.Context, system string, tools []ToolDef,
 		case "tool_use":
 			args := json.RawMessage(b.Input)
 			if !json.Valid(args) {
-				args = json.RawMessage("{}")
+				args, _ = json.Marshal(string(b.Input)) // refused by the engine, see openai.go
 			}
 			out.Calls = append(out.Calls, ToolCall{ID: b.ID, Name: b.Name, Args: args})
 		}

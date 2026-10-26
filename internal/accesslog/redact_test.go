@@ -51,3 +51,20 @@ func TestParseRedactsURIAndReferer(t *testing.T) {
 		t.Fatalf("got %+v", e)
 	}
 }
+
+// Short values must not keep four characters: neither caddy's filter nor
+// the parser reading the filtered line may show a 6-digit code.
+func TestShortValueFullyHidden(t *testing.T) {
+	re := regexp.MustCompile(RedactPattern(DefaultRedactParams))
+	file := re.ReplaceAllString("/a?code=123456&b=2", "${1}${2}******")
+	if file != "/a?code=******&b=2" {
+		t.Fatalf("Datei: %q", file)
+	}
+	if got := RedactURI(file, DefaultRedactParams); got != "/a?code=******&b=2" {
+		t.Fatalf("Parser: %q", got)
+	}
+	long := re.ReplaceAllString("/a?token=abcdefghij", "${1}${2}******")
+	if got := RedactURI(long, DefaultRedactParams); got != "/a?token=abcd******" {
+		t.Fatalf("lang: %q", got)
+	}
+}

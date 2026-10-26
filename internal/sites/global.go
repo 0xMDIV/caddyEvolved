@@ -177,6 +177,12 @@ func (g Global) Validate() error {
 			problems = append(problems, fmt.Sprintf("Unbekannter Proxy-Anbieter %q", id))
 		}
 	}
+	if len(g.RealIP.Providers) > 1 {
+		// Caddy takes the first visitor header present from any trusted
+		// address, so a visitor coming through one CDN could send the
+		// other's header with an invented IP.
+		problems = append(problems, "Nur ein CDN gleichzeitig: sonst kann ein Besucher über das eine CDN den Header des anderen fälschen")
+	}
 	for _, p := range g.RealIP.Proxies {
 		if _, err := netip.ParsePrefix(p); err == nil {
 			continue
@@ -271,10 +277,13 @@ func RenderGlobal(o Options) string {
 				fmt.Fprintf(&b, "\ttrusted_proxies static %s\n", strings.Join(ranges, " "))
 			}
 			if len(headers) > 0 {
-				// Each provider names the visitor in its own header;
+				// The provider names the visitor in its own header;
 				// X-Forwarded-For stays as fallback for the other proxies.
 				fmt.Fprintf(&b, "\tclient_ip_headers %s X-Forwarded-For\n", strings.Join(headers, " "))
 			}
+			// Read X-Forwarded-For from the right and skip trusted hops: the
+			// leftmost entry is whatever the visitor sent.
+			b.WriteString("\ttrusted_proxies_strict\n")
 			b.WriteString("}\n")
 		}
 	}

@@ -54,8 +54,10 @@ func (s *Server) handleAISettingsSave(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusBadRequest, "bad_request", errText(err))
 		return
 	}
-	if in.APIKey == "" {
-		in.APIKey = s.loadAIConfig().APIKey // the UI never sees the key, so empty keeps it
+	// The UI never sees the key, so empty keeps it – but only for the same
+	// endpoint: otherwise anyone could point the URL at their host and test.
+	if old := s.loadAIConfig(); in.APIKey == "" && old.Kind == in.Kind && old.BaseURL == in.BaseURL {
+		in.APIKey = old.APIKey
 	}
 	if err := in.Validate(); err != nil {
 		writeErr(w, http.StatusBadRequest, "bad_settings", errText(err))
@@ -164,6 +166,10 @@ func (s *Server) handleAIChatDelete(w http.ResponseWriter, r *http.Request) {
 
 // engine builds the engine for one request of the logged-in user.
 func (s *Server) engine(w http.ResponseWriter, r *http.Request, chat string) (*ai.Engine, bool) {
+	if s.AIAudit == nil {
+		writeErr(w, http.StatusServiceUnavailable, "no_ai_audit", errText(ai.ErrNoAudit))
+		return nil, false
+	}
 	cfg := s.loadAIConfig()
 	if !cfg.Configured() {
 		writeErr(w, http.StatusBadRequest, "ai_unconfigured", "KI ist nicht eingerichtet – Einstellungen → KI")

@@ -67,13 +67,16 @@ func isRedacted(name string, params []string) bool {
 }
 
 // RedactPattern is the RE2 expression for caddy's regexp log filter, used
-// with the replacement ${1}${2}******. RE2 has no lookahead, so values
-// shorter than eight characters keep up to four in the file; the parser
-// hides those completely when it reads them.
+// with the replacement ${1}${2}******. Like RedactValue: eight characters
+// or more keep four, shorter values (an OTP code) keep none – the second
+// alternative leaves group 2 empty.
 func RedactPattern(params []string) string {
 	q := make([]string, len(params))
 	for i, p := range params {
 		q[i] = regexp.QuoteMeta(p)
 	}
-	return `(?i)([?&](?:` + strings.Join(q, "|") + `)=)([^&#]{0,4})[^&#]*`
+	return `(?i)([?&](?:` + strings.Join(q, "|") + `)=)(?:([^&#]{4})[^&#]{4,}|[^&#]+)`
 }
+
+// RedactHeaderPattern does the same for a whole header value.
+const RedactHeaderPattern = `^(?:(.{4}).{4,}|.+)$`
