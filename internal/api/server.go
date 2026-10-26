@@ -13,8 +13,10 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"path/filepath"
 	"time"
 
+	"caddyevolved/internal/ai"
 	"caddyevolved/internal/aiaudit"
 	"caddyevolved/internal/analytics"
 	"caddyevolved/internal/auth"
@@ -50,6 +52,10 @@ type Server struct {
 	Geo  *geo.Resolver
 	// AIAudit is the append-only protocol of the AI chat.
 	AIAudit *aiaudit.Log
+	// AIChats keeps the conversations of the AI chat.
+	AIChats *ai.Store
+
+	aiProvider func(ai.Config) (ai.Provider, error) // tests swap the model
 	// Sys samples host and process load; nil disables the system page.
 	Sys      *sysstat.Sampler
 	Bind     string
@@ -110,6 +116,9 @@ func New(s *Server) *Server {
 		} else {
 			fmt.Fprintf(os.Stderr, "caddyevolved: KI-Protokoll: %v\n", err)
 		}
+	}
+	if s.AIChats == nil {
+		s.AIChats = ai.NewStore(filepath.Join(s.Paths.StateDir, "ai-chats"), time.Now())
 	}
 	if s.Geo == nil {
 		s.Geo = s.newGeo()
@@ -259,6 +268,16 @@ func (s *Server) routes() *http.ServeMux {
 	m.HandleFunc("GET /api/audit", s.auth(s.handleAudit))
 	m.HandleFunc("GET /api/ai/audit", s.auth(s.handleAIAudit))
 	m.HandleFunc("GET /api/ai/audit/export", s.auth(s.handleAIAuditExport))
+	m.HandleFunc("GET /api/ai/settings", s.auth(s.handleAISettingsGet))
+	m.HandleFunc("PUT /api/ai/settings", s.auth(s.browserOnly(s.handleAISettingsSave)))
+	m.HandleFunc("POST /api/ai/test", s.auth(s.browserOnly(s.handleAITest)))
+	m.HandleFunc("GET /api/ai/models", s.auth(s.browserOnly(s.handleAIModels)))
+	m.HandleFunc("GET /api/ai/chats", s.auth(s.browserOnly(s.handleAIChatList)))
+	m.HandleFunc("POST /api/ai/chats", s.auth(s.browserOnly(s.handleAIChatCreate)))
+	m.HandleFunc("GET /api/ai/chats/{id}", s.auth(s.browserOnly(s.handleAIChatGet)))
+	m.HandleFunc("DELETE /api/ai/chats/{id}", s.auth(s.browserOnly(s.handleAIChatDelete)))
+	m.HandleFunc("POST /api/ai/chats/{id}/messages", s.auth(s.browserOnly(s.handleAIChatMessage)))
+	m.HandleFunc("POST /api/ai/chats/{id}/proposals/{pid}", s.auth(s.browserOnly(s.handleAIProposal)))
 
 	m.HandleFunc("POST /api/import/preview", s.auth(s.handleImportPreview))
 	m.HandleFunc("POST /api/import/apply", s.auth(s.handleImportApply))

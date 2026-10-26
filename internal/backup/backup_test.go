@@ -159,3 +159,17 @@ func TestStorePrune(t *testing.T) {
 		t.Fatal("ValidName too lax")
 	}
 }
+
+func TestAISettingsCountAsSecret(t *testing.T) {
+	p := config.NewPaths(t.TempDir())
+	write(t, p.SitesFile, `{"schema":1,"sites":[]}`)
+	write(t, filepath.Join(p.Etc, "ai.json"), `{"apiKey":"sk-geheim"}`)
+	var buf bytes.Buffer
+	m, err := Create(p, &buf, Options{Version: "test"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !m.Secrets {
+		t.Fatal("ai.json nicht als Geheimnis markiert")
+	}
+}

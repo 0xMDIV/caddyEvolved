@@ -2,6 +2,7 @@ package api
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -186,12 +187,19 @@ func (s *Server) runTool(r *http.Request, t mcpTool, args map[string]any) (strin
 	if args == nil {
 		args = map[string]any{}
 	}
+	text, isErr, _, _, _ := s.callTool(r.Context(), r, t, args, "mcp", "")
+	return text, isErr
+}
+
+// callTool runs one tool in-process as the caller of r. via names the
+// client in the audit log ("mcp", "ai"); chat is the AI chat it came from.
+func (s *Server) callTool(ctx context.Context, r *http.Request, t mcpTool, args map[string]any, via, chat string) (text string, isErr bool, method, path string, status int) {
 	method, path, body, err := t.Request(args)
 	if err != nil {
-		return "Argumentfehler: " + err.Error(), true
+		return "Argumentfehler: " + err.Error(), true, method, path, 0
 	}
-	status, data := s.internalCall(r, method, path, body)
-	text := string(bytes.TrimSpace(data))
+	status, data := s.internalCall(ctx, r, method, path, body, via, chat)
+	text = string(bytes.TrimSpace(data))
 	if t.Shape != nil && status < 400 {
 		var v any
 		if json.Unmarshal(data, &v) == nil {
@@ -201,28 +209,40 @@ func (s *Server) runTool(r *http.Request, t mcpTool, args map[string]any) (strin
 		}
 	}
 	if status >= 400 {
-		return fmt.Sprintf("HTTP %d: %s", status, text), true
+		return fmt.Sprintf("HTTP %d: %s", status, text), true, method, path, status
 	}
-	return text, false
+	return text, false, method, path, status
 }
 
-// internalCall runs a REST request in-process with the MCP caller's
-// credential.
-func (s *Server) internalCall(r *http.Request, method, path string, body any) (int, []byte) {
+// internalCall runs a REST request in-process with the caller's own
+// credential: the bearer token of an MCP client, or the browser session of
+// the user who approved an AI proposal. Validation, scope and the audit
+// log apply exactly as for any other client.
+func (s *Server) internalCall(ctx context.Context, r *http.Request, method, path string, body any, via, chat string) (int, []byte) {
 	var rd io.Reader
 	if body != nil {
 		data, _ := json.Marshal(body)
 		rd = bytes.NewReader(data)
 	}
-	req, err := http.NewRequestWithContext(r.Context(), method, path, rd)
+	req, err := http.NewRequestWithContext(ctx, method, path, rd)
 	if err != nil {
 		return http.StatusBadRequest, []byte(err.Error())
 	}
 	req.Host = r.Host
 	req.RemoteAddr = r.RemoteAddr
-	req.Header.Set("Authorization", r.Header.Get("Authorization"))
+	if a := r.Header.Get("Authorization"); a != "" {
+		req.Header.Set("Authorization", a)
+	}
+	if c := r.Header.Get("Cookie"); c != "" && via == "ai" {
+		req.Header.Set("Cookie", c)
+		// The user's click on "Ausführen" passed the CSRF gate already.
+		req.Header.Set(HeaderGate, "1")
+	}
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("X-CaddyEvolved-Via", "mcp")
+	req.Header.Set("X-CaddyEvolved-Via", via)
+	if chat != "" {
+		req.Header.Set("X-CaddyEvolved-Chat", chat)
+	}
 	rec := httptest.NewRecorder()
 	s.mux.ServeHTTP(rec, req)
 	return rec.Code, rec.Body.Bytes()

@@ -116,7 +116,7 @@ func Create(paths config.Paths, w io.Writer, o Options) (Manifest, error) {
 			}
 			m.Files++
 			m.Bytes += int64(len(data))
-			if prefix == prefixEtc && (rel == "env" || rel == "auth.json") {
+			if prefix == prefixEtc && (rel == "env" || rel == "auth.json" || rel == "ai.json") {
 				m.Secrets = true
 			}
 			return nil

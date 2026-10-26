@@ -113,6 +113,9 @@ func (s *Server) audit(w http.ResponseWriter, r *http.Request, sess Session, nex
 		}
 	case sess.Bearer:
 		actor = "cli " + shortID(sess.ID)
+	case r.Header.Get("X-CaddyEvolved-Via") == "ai":
+		// An AI proposal the user of this session approved.
+		actor = "ai (chat " + r.Header.Get("X-CaddyEvolved-Chat") + ", " + actor + ")"
 	}
 	s.Events.Record(events.Event{
 		Kind: events.KindAudit, Step: r.Method + " " + r.URL.Path, OK: rec.status < 400,
