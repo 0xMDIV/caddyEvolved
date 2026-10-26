@@ -53,6 +53,7 @@ type Proposal struct {
 	Created time.Time       `json:"created"`
 	State   string          `json:"state"`
 	Result  string          `json:"result,omitempty"`
+	Failed  bool            `json:"failed,omitempty"` // approved, but the request was refused
 	Decided time.Time       `json:"decided,omitzero"`
 }
 
@@ -475,7 +476,7 @@ func (e *Engine) Decide(ctx context.Context, c *Chat, proposalID string, approve
 		entry.Kind = aiaudit.KindApproved
 		e.audit(c, entry)
 		r := e.Exec.Run(ctx, p.Tool, p.Args)
-		p.State, p.Result = StateApproved, clip(r.Text, maxShown)
+		p.State, p.Result, p.Failed = StateApproved, clip(r.Text, maxShown), r.IsError
 		entry.Kind, entry.Status, entry.Result = aiaudit.KindExecuted, r.Status, r.Text
 		entry.Method, entry.Path = r.Method, r.Path
 		e.audit(c, entry)

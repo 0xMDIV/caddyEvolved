@@ -241,3 +241,20 @@ func TestStoreListDelete(t *testing.T) {
 		t.Fatal("Pfad außerhalb angenommen")
 	}
 }
+
+type failingExec struct{ fakeExec }
+
+func (f *failingExec) Run(_ context.Context, tool string, _ json.RawMessage) RunResult {
+	return RunResult{Text: "HTTP 422: abgelehnt", IsError: true, Method: "POST", Path: "/api/x", Status: 422}
+}
+
+func TestApprovedButFailedIsMarked(t *testing.T) {
+	e, _, _, st, _ := setup(t, Message{Role: RoleAssistant, Calls: []ToolCall{call("1", "delete_site", `{}`)}})
+	e.Exec = &failingExec{}
+	c, _ := st.Create()
+	e.Send(context.Background(), c, "x", "")
+	e.Decide(context.Background(), c, c.Proposals[0].ID, true)
+	if p := c.Proposals[0]; p.State != StateApproved || !p.Failed || p.Result != "HTTP 422: abgelehnt" {
+		t.Fatalf("proposal %+v", p)
+	}
+}

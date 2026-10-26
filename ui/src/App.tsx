@@ -20,6 +20,8 @@ import Backup from "./pages/Backup";
 import System from "./pages/System";
 import Toolbox from "./pages/Toolbox";
 import FirewallPage from "./pages/Firewall";
+import Ai from "./pages/Ai";
+import { AIFab } from "./components/aichat";
 import { useCaddyUpdateCheck, useUpdateCheck } from "./components/update";
 import {
   Icon,
@@ -37,6 +39,7 @@ import {
   IconKey,
   IconLayoutDashboard,
   IconList,
+  IconMessageChatbot,
   IconPlug,
   IconPuzzle,
   IconRobot,
@@ -61,6 +64,7 @@ const NAV: { path: string; label: string; icon: Icon }[] = [
   { path: "/caddyfile", label: "Caddyfile", icon: IconFileText },
   { path: "/logs", label: "Logs", icon: IconList },
   { path: "/audit", label: "Audit Log", icon: IconHistory },
+  { path: "/ai", label: "KI-Chat", icon: IconMessageChatbot },
   { path: "/mcp", label: "KI / MCP", icon: IconSparkles },
   { path: "/backup", label: "Backup", icon: IconDatabaseExport },
   { path: "/settings", label: "Einstellungen", icon: IconSettings },
@@ -207,6 +211,9 @@ export default function App() {
     case "/audit":
       page = <Audit />;
       break;
+    case "/ai":
+      page = <Ai />;
+      break;
     case "/mcp":
       page = <Mcp />;
       break;
@@ -315,6 +322,7 @@ export default function App() {
         </div>
       </nav>
       <main className="main">{page}</main>
+      {path !== "/ai" && <AIFab />}
     </div>
   );
 }

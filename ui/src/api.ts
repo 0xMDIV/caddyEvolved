@@ -825,3 +825,80 @@ export interface ProxyProviderState {
   builtin: boolean;
   updated?: string;
 }
+
+// ---------- KI ----------
+
+export interface AIPreset {
+  id: string;
+  label: string;
+  kind: "anthropic" | "openai";
+  baseUrl: string;
+  model?: string;
+}
+export interface AISettings {
+  kind: string;
+  baseUrl: string;
+  model: string;
+  keyHint: string;
+  configured: boolean;
+  presets?: AIPreset[];
+  defaultModel?: string;
+}
+export interface AIDisplayItem {
+  kind: "user" | "assistant" | "tool" | "proposal" | "error";
+  text?: string;
+  tool?: string;
+  proposalId?: string;
+  isError?: boolean;
+  ts: string;
+}
+export interface AIProposal {
+  id: string;
+  tool: string;
+  args?: unknown;
+  summary?: string;
+  method: string;
+  path: string;
+  created: string;
+  state: "pending" | "approved" | "rejected" | "expired";
+  result?: string;
+  failed?: boolean;
+  decided?: string;
+}
+export interface AIChat {
+  id: string;
+  title: string;
+  updated: string;
+  display: AIDisplayItem[] | null;
+  proposals: AIProposal[] | null;
+  pending: number;
+  error?: string;
+}
+export interface AIChatSummary {
+  id: string;
+  title: string;
+  updated: string;
+  pending: number;
+}
+export interface AIAuditEntry {
+  n: number;
+  ts: string;
+  chat?: string;
+  actor?: string;
+  kind: string;
+  text?: string;
+  tool?: string;
+  args?: unknown;
+  method?: string;
+  path?: string;
+  status?: number;
+  result?: string;
+  model?: string;
+}
+export interface AIAuditResponse {
+  entries: AIAuditEntry[];
+  total: number;
+  ok: boolean;
+  brokenAt: number;
+  sizeBytes: number;
+}

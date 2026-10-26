@@ -2,6 +2,7 @@ import { FormEvent, useState } from "react";
 import { api, fmtTime, Session } from "../api";
 import { Badge, ErrorBox, PageHead, Spinner, useAction, useLoad, useToast } from "../components/ui";
 import { TokenCard } from "../components/tokens";
+import { AISettingsCard } from "../components/aisettings";
 import { CaddyUpdateCard, UpdateCard } from "../components/update";
 
 export default function Settings({ onLogout }: { onLogout: () => void }) {
@@ -97,6 +98,7 @@ export default function Settings({ onLogout }: { onLogout: () => void }) {
       </div>
       <div style={{ marginTop: 16 }}>
         <TokenCard />
+        <AISettingsCard />
       </div>
     </>
   );
