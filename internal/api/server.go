@@ -15,6 +15,7 @@ import (
 	"os"
 	"time"
 
+	"caddyevolved/internal/aiaudit"
 	"caddyevolved/internal/analytics"
 	"caddyevolved/internal/auth"
 	"caddyevolved/internal/autoban"
@@ -47,6 +48,8 @@ type Server struct {
 	// Bans is the auto-ban; nil (tests) disables it.
 	Bans *autoban.Store
 	Geo  *geo.Resolver
+	// AIAudit is the append-only protocol of the AI chat.
+	AIAudit *aiaudit.Log
 	// Sys samples host and process load; nil disables the system page.
 	Sys      *sysstat.Sampler
 	Bind     string
@@ -100,6 +103,13 @@ func New(s *Server) *Server {
 	}
 	if s.Sys == nil {
 		s.Sys = sysstat.New(720, nil) // one hour at 5 s
+	}
+	if s.AIAudit == nil && s.Paths.StateDir != "" {
+		if l, err := aiaudit.Open(s.Paths.StateDir); err == nil {
+			s.AIAudit = l
+		} else {
+			fmt.Fprintf(os.Stderr, "caddyevolved: KI-Protokoll: %v\n", err)
+		}
 	}
 	if s.Geo == nil {
 		s.Geo = s.newGeo()
@@ -247,6 +257,8 @@ func (s *Server) routes() *http.ServeMux {
 	m.HandleFunc("GET /api/analytics", s.auth(s.handleAnalytics))
 	m.HandleFunc("GET /api/analytics/recent", s.auth(s.handleAnalyticsRecent))
 	m.HandleFunc("GET /api/audit", s.auth(s.handleAudit))
+	m.HandleFunc("GET /api/ai/audit", s.auth(s.handleAIAudit))
+	m.HandleFunc("GET /api/ai/audit/export", s.auth(s.handleAIAuditExport))
 
 	m.HandleFunc("POST /api/import/preview", s.auth(s.handleImportPreview))
 	m.HandleFunc("POST /api/import/apply", s.auth(s.handleImportApply))
