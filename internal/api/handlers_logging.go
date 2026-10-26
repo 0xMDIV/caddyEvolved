@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -26,7 +27,12 @@ type logSettings struct {
 	KeepDays  int  `json:"keepDays"`
 	Compress  bool `json:"compress"`
 	LocalTime bool `json:"localTime"`
+	// RedactParams are query parameters shortened in the log on top of the
+	// built-in list (accesslog.DefaultRedactParams).
+	RedactParams []string `json:"redactParams"`
 }
+
+var reParamName = regexp.MustCompile(`^[A-Za-z0-9_.-]{1,40}$`)
 
 func (s *Server) loggingFile() string { return filepath.Join(s.Paths.Etc, "logging.json") }
 
@@ -43,7 +49,7 @@ func (s *Server) loadLogSettings() logSettings {
 }
 
 func (ls logSettings) roll() sites.LogRoll {
-	return sites.LogRoll{Disabled: !ls.Rotate, SizeMB: ls.SizeMB, Keep: ls.Keep, KeepDays: ls.KeepDays, Uncompressed: !ls.Compress, LocalTime: ls.LocalTime}
+	return sites.LogRoll{Disabled: !ls.Rotate, SizeMB: ls.SizeMB, Keep: ls.Keep, KeepDays: ls.KeepDays, Uncompressed: !ls.Compress, LocalTime: ls.LocalTime, RedactParams: ls.RedactParams}
 }
 
 func (ls logSettings) validate() error {
@@ -54,6 +60,13 @@ func (ls logSettings) validate() error {
 		return errors.New("Anzahl Dateien zwischen 1 und 1000")
 	case ls.KeepDays < 0 || ls.KeepDays > 3650:
 		return errors.New("Aufbewahrung zwischen 0 (unbegrenzt) und 3650 Tagen")
+	case len(ls.RedactParams) > 50:
+		return errors.New("Höchstens 50 eigene Token-Parameter")
+	}
+	for _, p := range ls.RedactParams {
+		if !reParamName.MatchString(p) {
+			return errors.New("Ungültiger Parametername: " + p)
+		}
 	}
 	return nil
 }

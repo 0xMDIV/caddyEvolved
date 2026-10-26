@@ -75,7 +75,7 @@ func Parse(raw []byte) (Entry, bool) {
 		TS:        time.Unix(int64(l.TS), int64((l.TS-math.Floor(l.TS))*1e9)).UTC(),
 		Host:      host,
 		Method:    l.Request.Method,
-		URI:       cut(l.Request.URI, 500),
+		URI:       cut(RedactURI(l.Request.URI, DefaultRedactParams), 500),
 		Path:      cut(path, 200),
 		Proto:     l.Request.Proto,
 		Status:    l.Status,
@@ -84,7 +84,7 @@ func Parse(raw []byte) (Entry, bool) {
 		Duration:  math.Round(l.Dur*100000) / 100,
 		IP:        ip,
 		Agent:     cut(first(l.Request.Headers["User-Agent"]), 300),
-		Referer:   cut(first(l.Request.Headers["Referer"]), 300),
+		Referer:   cut(RedactURI(first(l.Request.Headers["Referer"]), DefaultRedactParams), 300),
 		Block:     cut(l.Block, 40),
 	}
 	if e.Block == "" && l.Status == 429 {

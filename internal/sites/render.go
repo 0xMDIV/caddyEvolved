@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"strings"
 
+	"caddyevolved/internal/accesslog"
 	"caddyevolved/internal/plugins"
 )
 
@@ -169,6 +170,9 @@ type LogRoll struct {
 	KeepDays     int  `json:"keepDays"`
 	Uncompressed bool `json:"uncompressed"`
 	LocalTime    bool `json:"localTime"`
+	// RedactParams are query parameters shortened in the log on top of
+	// accesslog.DefaultRedactParams.
+	RedactParams []string `json:"redactParams,omitempty"`
 }
 
 // renderLog is the log directive every site shares. All sites must render it
@@ -197,7 +201,17 @@ func renderLog(path string, r LogRoll) string {
 			b.WriteString("\t\t\troll_local_time\n")
 		}
 	}
-	b.WriteString("\t\t}\n\t\tformat json\n\t}\n")
+	b.WriteString("\t\t}\n")
+	// Credentials in URLs and API-key headers are cut to four characters
+	// before they reach the file.
+	pattern := accesslog.RedactPattern(append(append([]string{}, accesslog.DefaultRedactParams...), r.RedactParams...))
+	b.WriteString("\t\tformat filter {\n\t\t\twrap json\n")
+	fmt.Fprintf(&b, "\t\t\trequest>uri regexp `%s` ${1}${2}******\n", pattern)
+	fmt.Fprintf(&b, "\t\t\trequest>headers>Referer regexp `%s` ${1}${2}******\n", pattern)
+	for _, h := range accesslog.DefaultRedactHeaders {
+		fmt.Fprintf(&b, "\t\t\trequest>headers>%s regexp `^(.{0,4}).*` ${1}******\n", h)
+	}
+	b.WriteString("\t\t}\n\t}\n")
 	return b.String()
 }
 

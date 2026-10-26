@@ -196,3 +196,15 @@ func TestRenderLogRoll(t *testing.T) {
 		t.Fatalf("disabled:\n%s", off)
 	}
 }
+
+func TestRenderLogRedacts(t *testing.T) {
+	out := renderLog("/x.log", LogRoll{RedactParams: []string{"mytok"}})
+	for _, want := range []string{"format filter {", "wrap json", "request>uri regexp `", "mytok", "request>headers>X-Api-Key regexp", "${1}${2}******"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("missing %q in:\n%s", want, out)
+		}
+	}
+	if strings.Contains(out, "format json") {
+		t.Errorf("plain json format left in:\n%s", out)
+	}
+}
