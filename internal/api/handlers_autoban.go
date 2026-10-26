@@ -24,6 +24,7 @@ func (s *Server) autobanActive(g sites.Global) []string {
 	exempt := append([]string{}, g.Firewall.Allow...)
 	exempt = append(exempt, g.RealIP.Proxies...)
 	exempt = append(exempt, sites.CloudflareRanges...)
+	exempt = append(exempt, s.proxyExempt(g)...)
 	s.Bans.Configure(g.Firewall, exempt)
 	return s.Bans.Active()
 }

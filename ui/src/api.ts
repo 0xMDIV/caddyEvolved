@@ -791,7 +791,7 @@ export interface BackupsResponse {
 // ---------- Global options (sites/global.go) ----------
 
 export interface GlobalOptions {
-  realIp: { cloudflare: boolean; proxies?: string[] | null };
+  realIp: { providers?: string[] | null; cloudflare?: boolean; proxies?: string[] | null };
   dynDns: { enabled: boolean; provider?: string; domains?: { zone: string; names: string[] }[] | null; interval?: string; ipv6: boolean };
   crowdsec: { enabled: boolean; apiUrl?: string; appsecUrl?: string };
   tailscale: { enabled: boolean; ephemeral: boolean };
@@ -816,4 +816,12 @@ export interface GlobalResponse {
   caps: Caps;
   dnsProviders: { id: string; name: string; ready: boolean }[];
   file: string;
+  proxyProviders?: ProxyProviderState[];
+}
+export interface ProxyProviderState {
+  id: string;
+  label: string;
+  ranges: number;
+  builtin: boolean;
+  updated?: string;
 }

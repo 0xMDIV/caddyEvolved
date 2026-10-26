@@ -6,8 +6,10 @@ import (
 	"net/url"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 
+	"caddyevolved/internal/blocklists"
 	"caddyevolved/internal/plugins"
 )
 
@@ -26,8 +28,17 @@ type Global struct {
 // RealIP makes caddy trust proxies in front of it, so access lists, rate
 // limits and logs see the visitor instead of the proxy.
 type RealIP struct {
-	Cloudflare bool     `json:"cloudflare"`
+	// Providers are CDNs from blocklists.ProxyProviders, e.g. "cloudflare".
+	Providers []string `json:"providers,omitempty"`
+	// Cloudflare is the setting before providers existed; Normalize moves
+	// it into Providers, so it is only read from old files.
+	Cloudflare bool     `json:"cloudflare,omitempty"`
 	Proxies    []string `json:"proxies,omitempty"` // further proxies, IPs or CIDRs
+}
+
+// Has reports whether a provider is switched on.
+func (r RealIP) Has(id string) bool {
+	return slices.Contains(r.Providers, id) || (id == "cloudflare" && r.Cloudflare)
 }
 
 // DynDNS keeps DNS records pointed at this host's public IP (caddy-dynamicdns).
@@ -104,15 +115,8 @@ func CapsFromModules(mods map[string]bool) Caps {
 	return c
 }
 
-// CloudflareRanges are Cloudflare's published proxy ranges
-// (cloudflare.com/ips-v4, ips-v6). The cloudflare-ip plugin fetches them live.
-var CloudflareRanges = []string{
-	"173.245.48.0/20", "103.21.244.0/22", "103.22.200.0/22", "103.31.4.0/22", "141.101.64.0/18",
-	"108.162.192.0/18", "190.93.240.0/20", "188.114.96.0/20", "197.234.240.0/22", "198.41.128.0/17",
-	"162.158.0.0/15", "104.16.0.0/13", "104.24.0.0/14", "172.64.0.0/13", "131.0.72.0/22",
-	"2400:cb00::/32", "2606:4700::/32", "2803:f800::/32", "2405:b500::/32", "2405:8100::/32",
-	"2a06:98c0::/29", "2c0f:f248::/32",
-}
+// CloudflareRanges are Cloudflare's built-in proxy ranges.
+var CloudflareRanges = blocklists.CloudflareRanges
 
 var (
 	reZone     = regexp.MustCompile(`^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$`)
@@ -123,6 +127,13 @@ var (
 // Normalize trims input and fills defaults.
 func (g *Global) Normalize() {
 	g.RealIP.Proxies = cleanList(g.RealIP.Proxies)
+	if g.RealIP.Cloudflare {
+		g.RealIP.Providers = append(g.RealIP.Providers, "cloudflare")
+		g.RealIP.Cloudflare = false
+	}
+	g.RealIP.Providers = cleanList(g.RealIP.Providers)
+	slices.Sort(g.RealIP.Providers)
+	g.RealIP.Providers = slices.Compact(g.RealIP.Providers)
 	d := &g.DynDNS
 	d.Provider = strings.TrimSpace(d.Provider)
 	var doms []DynDomain
@@ -161,6 +172,11 @@ func (g *Global) Normalize() {
 // Validate reports every problem, worded for the UI.
 func (g Global) Validate() error {
 	var problems []string
+	for _, id := range g.RealIP.Providers {
+		if _, ok := blocklists.ProxyByID(id); !ok {
+			problems = append(problems, fmt.Sprintf("Unbekannter Proxy-Anbieter %q", id))
+		}
+	}
 	for _, p := range g.RealIP.Proxies {
 		if _, err := netip.ParsePrefix(p); err == nil {
 			continue
@@ -227,25 +243,40 @@ func RenderGlobal(o Options) string {
 	b.WriteString("# Globale Optionen – verwaltet von caddyEvolved (WebUI → Plugins & Einstellungen).\n")
 	b.WriteString("# Wird überschrieben; eigene globale Optionen gehören direkt in die Caddyfile.\n")
 
-	if g.RealIP.Cloudflare || len(g.RealIP.Proxies) > 0 {
-		b.WriteString("servers {\n")
-		switch {
-		case g.RealIP.Cloudflare && len(g.RealIP.Proxies) == 0 && c.CloudflareIP:
-			b.WriteString("\ttrusted_proxies cloudflare {\n\t\tinterval 12h\n\t\ttimeout 15s\n\t}\n")
-		default:
-			var ranges []string
-			if g.RealIP.Cloudflare {
-				ranges = append(ranges, CloudflareRanges...)
+	if len(g.RealIP.Providers) > 0 || g.RealIP.Cloudflare || len(g.RealIP.Proxies) > 0 {
+		var ranges, headers []string
+		active := 0
+		for _, p := range blocklists.ProxyProviders {
+			if !g.RealIP.Has(p.ID) {
+				continue
 			}
-			ranges = append(ranges, g.RealIP.Proxies...)
-			fmt.Fprintf(&b, "\ttrusted_proxies static %s\n", strings.Join(ranges, " "))
+			active++
+			r, ok := o.ProxyRanges[p.ID]
+			if !ok {
+				r = p.Builtin
+			}
+			ranges = append(ranges, r...)
+			if p.Header != "" {
+				headers = append(headers, p.Header)
+			}
 		}
-		if g.RealIP.Cloudflare {
-			// Cloudflare names the visitor in its own header; X-Forwarded-For
-			// stays as fallback for the other proxies.
-			b.WriteString("\tclient_ip_headers Cf-Connecting-Ip X-Forwarded-For\n")
+		ranges = append(ranges, g.RealIP.Proxies...)
+		// The plugin keeps Cloudflare's list fresh but cannot hold other ranges.
+		onlyCloudflare := g.RealIP.Has("cloudflare") && active == 1 && len(g.RealIP.Proxies) == 0
+		if len(ranges) > 0 {
+			b.WriteString("servers {\n")
+			if onlyCloudflare && c.CloudflareIP {
+				b.WriteString("\ttrusted_proxies cloudflare {\n\t\tinterval 12h\n\t\ttimeout 15s\n\t}\n")
+			} else {
+				fmt.Fprintf(&b, "\ttrusted_proxies static %s\n", strings.Join(ranges, " "))
+			}
+			if len(headers) > 0 {
+				// Each provider names the visitor in its own header;
+				// X-Forwarded-For stays as fallback for the other proxies.
+				fmt.Fprintf(&b, "\tclient_ip_headers %s X-Forwarded-For\n", strings.Join(headers, " "))
+			}
+			b.WriteString("}\n")
 		}
-		b.WriteString("}\n")
 	}
 
 	if d := g.DynDNS; d.Enabled && c.DynDNS && len(d.Domains) > 0 {

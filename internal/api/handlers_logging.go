@@ -98,6 +98,7 @@ func (s *Server) siteOptions() sites.Options {
 		AccessLog: s.Paths.AccessLog, Roll: s.loadLogSettings().roll(), GuardExtra: s.loadProtect().Extra,
 		Global: g, Caps: s.caps(), StateDir: s.Paths.CaddyData,
 		FirewallLists: blocklists.Load(s.listDir(), g.Firewall.Lists),
+		ProxyRanges:   s.proxyRanges(g),
 		GeoDB:         blocklists.GeoPath(s.geoDir(), blocklists.GeoCountry),
 		ASNDB:         blocklists.GeoPath(s.geoDir(), blocklists.GeoASN),
 		WAFLog:        s.wafLog(),

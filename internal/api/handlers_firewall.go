@@ -302,7 +302,8 @@ func (s *Server) firewallLoop(ctx context.Context) {
 		rctx, cancel := context.WithTimeout(ctx, 5*time.Minute)
 		_ = s.ensureFirewallData(rctx, g.Firewall, false)
 		_ = s.ensureGeoRules(rctx, geo, g.Firewall.UsesASN())
-		if after := s.siteOptions(); after.GeoDB != before.GeoDB || after.ASNDB != before.ASNDB || len(g.Firewall.Lists) > 0 {
+		_ = s.ensureProxyRanges(rctx, g, true)
+		if after := s.siteOptions(); after.GeoDB != before.GeoDB || after.ASNDB != before.ASNDB || len(g.Firewall.Lists) > 0 || len(g.RealIP.Providers) > 0 {
 			s.resyncSites(rctx, "Firewall-Listen aktualisiert")
 		}
 		cancel()

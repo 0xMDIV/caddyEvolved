@@ -74,29 +74,35 @@ export function useSaver(g: GlobalOptions, onSaved: () => void) {
 
 export function RealIPCard({ data, onSaved }: { data: GlobalResponse; onSaved: () => void }) {
   const g = data.global;
-  const [d, setD, dirty] = useDraft({ cloudflare: g.realIp.cloudflare, proxies: (g.realIp.proxies ?? []).join("\n") });
+  const current = g.realIp.providers ?? (g.realIp.cloudflare ? ["cloudflare"] : []);
+  const [d, setD, dirty] = useDraft({ providers: current, proxies: (g.realIp.proxies ?? []).join("\n") });
   const { err, save } = useSaver(g, onSaved);
+  const toggle = (id: string, on: boolean) => setD({ ...d, providers: on ? [...d.providers, id] : d.providers.filter((p) => p !== id) });
   return (
     <div className="card stack" style={{ gap: 12 }}>
       <div className="row">
         <h2 style={{ margin: 0, fontSize: 15 }}>Echte Besucher-IPs</h2>
-        {g.realIp.cloudflare || (g.realIp.proxies ?? []).length ? <Badge kind="ok">aktiv</Badge> : <Badge>aus</Badge>}
+        {current.length || (g.realIp.proxies ?? []).length ? <Badge kind="ok">aktiv</Badge> : <Badge>aus</Badge>}
       </div>
       <div className="small muted">
-        Steht ein Proxy vor Caddy (z. B. die orange Wolke von Cloudflare), sieht Caddy sonst nur dessen Adresse – Access Lists, Rate Limit, CrowdSec und
-        Logs arbeiten dann mit der falschen IP. Kein Plugin nötig.
+        Steht ein CDN oder Proxy vor Caddy (z. B. die orange Wolke von Cloudflare), sieht Caddy sonst nur dessen Adresse – Access Lists, Rate Limit, CrowdSec,
+        Auto-Bann und Logs arbeiten dann mit der falschen IP. Nur anhaken, was wirklich davor steht: sonst kann jeder seine IP per Header fälschen.
       </div>
-      <label className="toggle-row">
-        <Switch checked={d.cloudflare} onChange={(v) => setD({ ...d, cloudflare: v })} label="Cloudflare" />
-        <span>
-          <span className="toggle-label">Domains laufen über den Cloudflare-Proxy</span>
-          <span className="hint">
-            {data.caps.cloudflareIp
-              ? "Die Liste der Cloudflare-Adressen holt das Plugin alle 12 Stunden frisch."
-              : "Nutzt die eingebaute Liste der Cloudflare-Adressen. Mit dem Plugin „Cloudflare-IP-Liste“ bleibt sie automatisch aktuell."}
+      {(data.proxyProviders ?? []).map((p) => (
+        <label key={p.id} className="toggle-row">
+          <Switch checked={d.providers.includes(p.id)} onChange={(v) => toggle(p.id, v)} label={p.label} />
+          <span>
+            <span className="toggle-label">{p.label}</span>
+            <span className="hint">
+              {p.id === "cloudflare" && data.caps.cloudflareIp && d.providers.length === 1 && !d.proxies.trim()
+                ? "Die Liste der Cloudflare-Adressen holt das Plugin alle 12 Stunden frisch."
+                : p.ranges > 0
+                  ? `${p.ranges.toLocaleString("de-DE")} Adressbereiche${p.builtin ? " (eingebaute Liste)" : p.updated ? `, Stand ${new Date(p.updated).toLocaleDateString("de-DE")}` : ""} · wird alle 6 Stunden aktualisiert`
+                  : "Die Adressliste wird beim Speichern vom Anbieter geladen."}
+            </span>
           </span>
-        </span>
-      </label>
+        </label>
+      ))}
       <label className="field">
         Weitere Proxys davor (IP oder Bereich, einer pro Zeile)
         <textarea className="mono" rows={2} value={d.proxies} placeholder="z. B. 192.168.10.1 oder 10.0.0.0/8" onChange={(e) => setD({ ...d, proxies: e.target.value })} />
@@ -104,7 +110,7 @@ export function RealIPCard({ data, onSaved }: { data: GlobalResponse; onSaved: (
       <SaveRow
         dirty={dirty}
         err={err}
-        onSave={() => save({ realIp: { cloudflare: d.cloudflare, proxies: d.proxies.split(/\s+/).filter(Boolean) } })}
+        onSave={() => save({ realIp: { providers: d.providers, proxies: d.proxies.split(/\s+/).filter(Boolean) } })}
       />
     </div>
   );

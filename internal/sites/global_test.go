@@ -1,6 +1,7 @@
 package sites
 
 import (
+	"slices"
 	"strings"
 	"testing"
 )
@@ -138,5 +139,44 @@ func TestWAFTuning(t *testing.T) {
 	s.WAF.Paranoia = 5
 	if s.Validate() == nil {
 		t.Error("Paranoia 5 sollte abgelehnt werden")
+	}
+}
+
+func TestRealIPMigratesCloudflare(t *testing.T) {
+	g := Global{RealIP: RealIP{Cloudflare: true}}
+	g.Normalize()
+	if g.RealIP.Cloudflare || !slices.Equal(g.RealIP.Providers, []string{"cloudflare"}) {
+		t.Fatalf("nicht migriert: %+v", g.RealIP)
+	}
+	g.Normalize()
+	if !slices.Equal(g.RealIP.Providers, []string{"cloudflare"}) {
+		t.Fatalf("doppelt: %+v", g.RealIP)
+	}
+}
+
+func TestRenderProxyProviders(t *testing.T) {
+	g := Global{RealIP: RealIP{Providers: []string{"fastly", "bunny"}}}
+	g.Normalize()
+	out := RenderGlobal(Options{Global: g, ProxyRanges: map[string][]string{"bunny": {"89.187.188.227"}, "fastly": {"151.101.0.0/16"}}})
+	for _, want := range []string{"trusted_proxies static ", "89.187.188.227", "151.101.0.0/16", "client_ip_headers Fastly-Client-Ip X-Forwarded-For"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("fehlt %q in\n%s", want, out)
+		}
+	}
+	if strings.Contains(out, "Cf-Connecting-Ip") {
+		t.Errorf("Cloudflare-Header ohne Cloudflare:\n%s", out)
+	}
+	g = Global{RealIP: RealIP{Providers: []string{"cloudflare"}}}
+	if out := RenderGlobal(Options{Global: g, Caps: Caps{CloudflareIP: true}}); !strings.Contains(out, "trusted_proxies cloudflare {") {
+		t.Errorf("Plugin nicht genutzt:\n%s", out)
+	}
+	g = Global{RealIP: RealIP{Providers: []string{"cloudflare", "fastly"}}}
+	out = RenderGlobal(Options{Global: g, Caps: Caps{CloudflareIP: true}, ProxyRanges: map[string][]string{"fastly": {"151.101.0.0/16"}}})
+	if !strings.Contains(out, "trusted_proxies static 173.245.48.0/20") || !strings.Contains(out, "client_ip_headers Cf-Connecting-Ip Fastly-Client-Ip X-Forwarded-For") {
+		t.Errorf("gemischt:\n%s", out)
+	}
+	g = Global{RealIP: RealIP{Providers: []string{"nope"}}}
+	if err := g.Validate(); err == nil {
+		t.Error("unbekannter Anbieter angenommen")
 	}
 }

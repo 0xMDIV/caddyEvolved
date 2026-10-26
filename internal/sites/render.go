@@ -152,8 +152,11 @@ type Options struct {
 	// ASNDB the DB-IP databases ("" while not downloaded). FirewallPath is
 	// set by the Manager: the rule file the sites import.
 	FirewallLists map[string][]string
-	GeoDB, ASNDB  string
-	FirewallPath  string
+	// ProxyRanges are the downloaded ranges of the trusted proxy providers by
+	// id; a missing id falls back to the provider's built-in list.
+	ProxyRanges  map[string][]string
+	GeoDB, ASNDB string
+	FirewallPath string
 	// WAFLog receives Coraza's rule matches, so the UI can name the rule
 	// behind a block; empty leaves them in caddy's own log.
 	WAFLog string

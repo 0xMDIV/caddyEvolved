@@ -73,8 +73,11 @@ func (s *Server) handleGlobalGet(w http.ResponseWriter, r *http.Request) {
 	if dns == nil {
 		dns = []dnsChoice{}
 	}
+	g := s.loadGlobal()
+	g.Normalize() // old files still carry realIp.cloudflare
 	writeJSON(w, http.StatusOK, map[string]any{
-		"global": s.loadGlobal(), "caps": s.Sites.Options().Caps, "dnsProviders": dns, "file": s.Sites.GlobalFile(),
+		"global": g, "caps": s.Sites.Options().Caps, "dnsProviders": dns, "file": s.Sites.GlobalFile(),
+		"proxyProviders": s.proxyInfo(),
 	})
 }
 
@@ -100,6 +103,10 @@ func (s *Server) handleGlobalSave(w http.ResponseWriter, r *http.Request) {
 	g.Normalize()
 	if err := g.Validate(); err != nil {
 		s.siteError(w, r, err)
+		return
+	}
+	if err := s.ensureProxyRanges(r.Context(), g, false); err != nil {
+		s.siteError(w, r, &sites.ValidationError{Problems: []string{"Adressliste nicht geladen: " + err.Error()}})
 		return
 	}
 	if missing := s.missingCredentials(g); len(missing) > 0 {
