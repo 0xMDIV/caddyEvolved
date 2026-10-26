@@ -51,6 +51,7 @@ Sites are virtual hosts (domains -> upstreams) stored as one Caddyfile snippet e
 Typical flow: list_sites, then create_site/update_site with the full site object. Use get_site_preview to see the generated Caddyfile before writing.
 Plugins are compiled into the caddy binary: list_plugins shows what is built in; start_build + activate_build change the binary (caddy restarts briefly).
 Security per site: accessList (IP/basic-auth lists), waf (Coraza, plugin coraza), defender (bot ranges), rateLimit. Read analytics with get_analytics before suggesting rate limits.
+Host-wide: get_firewall/firewall_ip block or allow single IPs on every site; query_access_log and get_firewall_log show who did what; get_global_options holds the trusted proxies.
 Prefer read tools first; ask the user before destructive actions (delete_site, activate_build, rollback_build, service_action stop).`
 
 func (s *Server) handleMCP(w http.ResponseWriter, r *http.Request) {
@@ -521,5 +522,42 @@ var mcpTools = []mcpTool{
 				a["limit"] = float64(50)
 			}
 			return http.MethodGet, withQuery("/api/audit", a, "limit"), nil, nil
+		}},
+	{Name: "get_firewall", ReadOnly: true, Description: "Firewall rules (allow/deny IPs, countries, ASNs, blocklists, auto-ban) and the current auto-bans.",
+		Request: get("/api/firewall")},
+	{Name: "get_firewall_log", ReadOnly: true, Description: "Recently blocked requests, WAF matches and the most blocked IPs of the last 24 hours.",
+		Request: get("/api/firewall/log")},
+	{Name: "firewall_ip", Description: "Block or allow one IP or CIDR on every site, or lift a block or auto-ban.",
+		Schema: obj(map[string]any{"ip": str("IP or CIDR"), "action": enum("", "block", "allow", "unblock", "unban")}, "ip", "action"),
+		Request: func(a map[string]any) (string, string, any, error) {
+			switch argString(a, "action") {
+			case "block", "allow", "unblock", "unban":
+			default:
+				return "", "", nil, fmt.Errorf("action: block, allow, unblock oder unban")
+			}
+			return http.MethodPost, "/api/firewall/quick", map[string]any{"ip": argString(a, "ip"), "action": argString(a, "action")}, nil
+		}},
+	{Name: "update_firewall", Description: "Replace the firewall rules (send the complete firewall object; read it with get_firewall first).",
+		Schema: map[string]any{"type": "object", "description": "the firewall object from get_firewall"},
+		Request: func(a map[string]any) (string, string, any, error) {
+			return http.MethodPut, "/api/firewall", a, nil
+		}},
+	{Name: "query_access_log", ReadOnly: true, Description: "Search the access log (rotated files included), newest first.",
+		Schema: obj(map[string]any{
+			"ip": str("client IP or prefix"), "host": str("site domain"), "status": str("e.g. 404 or 5xx"), "path": str("path contains"),
+			"q": str("free text"), "tag": str("e.g. scanner, crawler, blocked"), "since": str("e.g. 1h, 24h"), "limit": integer("default 50"),
+		}),
+		Request: func(a map[string]any) (string, string, any, error) {
+			if _, ok := a["limit"]; !ok {
+				a["limit"] = float64(50)
+			}
+			return http.MethodGet, withQuery("/api/logs/access", a, "ip", "host", "status", "path", "q", "tag", "since", "limit"), nil, nil
+		}},
+	{Name: "get_global_options", ReadOnly: true, Description: "Host-wide options: trusted proxies (real visitor IP), DynDNS, CrowdSec, Tailscale, cache.",
+		Request: get("/api/global")},
+	{Name: "update_global_options", Description: "Replace the host-wide options (send the complete global object from get_global_options; the firewall part is ignored).",
+		Schema: map[string]any{"type": "object", "description": "the global object from get_global_options"},
+		Request: func(a map[string]any) (string, string, any, error) {
+			return http.MethodPut, "/api/global", a, nil
 		}},
 }

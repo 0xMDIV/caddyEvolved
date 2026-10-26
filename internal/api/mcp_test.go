@@ -125,3 +125,39 @@ func firstText(res map[string]any) string {
 	s, _ := m["text"].(string)
 	return s
 }
+
+func TestMCPFirewallAndSettingsTools(t *testing.T) {
+	cases := []struct {
+		tool, method, path string
+		args               map[string]any
+		readOnly           bool
+	}{
+		{"get_firewall", "GET", "/api/firewall", nil, true},
+		{"get_firewall_log", "GET", "/api/firewall/log", nil, true},
+		{"firewall_ip", "POST", "/api/firewall/quick", map[string]any{"ip": "203.0.113.7", "action": "block"}, false},
+		{"update_firewall", "PUT", "/api/firewall", map[string]any{"enabled": true}, false},
+		{"query_access_log", "GET", "/api/logs/access?ip=203.0.113.7&limit=50", map[string]any{"ip": "203.0.113.7"}, true},
+		{"get_global_options", "GET", "/api/global", nil, true},
+		{"update_global_options", "PUT", "/api/global", map[string]any{"realIp": map[string]any{}}, false},
+	}
+	for _, c := range cases {
+		tool, ok := mcpToolByName(c.tool)
+		if !ok {
+			t.Errorf("%s fehlt", c.tool)
+			continue
+		}
+		args := c.args
+		if args == nil {
+			args = map[string]any{}
+		}
+		m, p, _, err := tool.Request(args)
+		if err != nil || m != c.method || p != c.path || tool.ReadOnly != c.readOnly {
+			t.Errorf("%s: %s %s ro=%v err=%v", c.tool, m, p, tool.ReadOnly, err)
+		}
+	}
+	if tool, _ := mcpToolByName("firewall_ip"); tool.Request != nil {
+		if _, _, _, err := tool.Request(map[string]any{"ip": "1.2.3.4", "action": "explode"}); err == nil {
+			t.Error("unbekannte Aktion angenommen")
+		}
+	}
+}
