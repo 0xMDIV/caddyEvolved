@@ -3,6 +3,7 @@ import { IconCheck, IconMessageChatbot, IconPlus, IconSend, IconX } from "@table
 import { AIChat, AIProposal, ApiError, api, errMsg } from "../api";
 import { navigate } from "../router";
 import { Redacted } from "./ip";
+import { Markdown } from "./markdown";
 import { Badge, Spinner } from "./ui";
 
 // One active chat shared by the page and the floating panel: both read this
@@ -157,8 +158,8 @@ function ProposalCard({ p, busy }: { p: AIProposal; busy: boolean }) {
       </div>
       {p.summary && (
         <div className="ai-text">
-          <span className="small muted">Begründung der KI: </span>
-          {p.summary}
+          <span className="small muted">Begründung der KI:</span>
+          <Markdown text={p.summary} />
         </div>
       )}
       {/* What really runs: open by default for replace and delete calls. */}
@@ -258,7 +259,7 @@ export function ChatView({ compact }: { compact?: boolean }) {
           if (d.kind === "assistant" && next?.kind === "proposal" && proposals.get(next.proposalId ?? "")?.summary === d.text?.trim()) return null;
           return (
             <div key={i} className={`ai-msg ${d.kind}`}>
-              <div className="ai-text">{d.text}</div>
+              {d.kind === "assistant" ? <Markdown text={d.text ?? ""} /> : <div className="ai-text">{d.text}</div>}
             </div>
           );
         })}
