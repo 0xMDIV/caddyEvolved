@@ -347,6 +347,26 @@ signature code session` (plus `redactParams`) sowie der Header `X-Api-Key`, `X-A
 `Proxy-Authorization` und Tokens im `Referer` nur mit den ersten vier Zeichen und `******` ins Log
 (`format filter`, `regexp`). Der Parser kürzt ältere Zeilen beim Lesen ebenso.
 
+## Cloudflare-DNS
+
+Sites mit `"cloudflare": {"proxied": true|false}` bekommen bei `POST /api/sites`, `PUT /api/sites/{id}` und
+beim Aktivieren ihren DNS-Eintrag bei Cloudflare. Pro Domain: passende Zone suchen (längstes Suffix), gibt es
+dort schon A/AAAA/CNAME, bleibt das Ziel und nur `proxied` wird angeglichen; sonst wird ein Eintrag angelegt
+(A/AAAA/CNAME je nach Ziel, TTL auto, Kommentar „angelegt von caddyEvolved“). Gelöscht wird nie etwas.
+Das Speichern der Site scheitert nicht an DNS: die Antwort enthält zusätzlich
+`dns: [{name, action:"created"|"updated"|"exists"|"skipped"|"error", zone, type, content, proxied, message}]`,
+Änderungen und Fehler stehen im Audit Log (`cloudflare`).
+
+Token: der eigene aus den Einstellungen, sonst `CF_API_TOKEN` des Cloudflare-DNS-Plugins. Er braucht
+Zone: Lesen und DNS: Bearbeiten. Mit `email` gilt er als Global API Key.
+
+| Route | Antwort |
+|---|---|
+| `GET /api/cloudflare` | `{keyHint, email, target, proxied, source:"own"\|"plugin"\|"", configured}` |
+| `PUT /api/cloudflare` `{apiToken?, email, target, proxied}` | speichert `/etc/caddyevolved/cloudflare.json` (0600); ohne `apiToken` bleibt der alte. `target` leer = öffentliche IPv4 |
+| `DELETE /api/cloudflare/token` | entfernt den eigenen Token (der des Plugins bleibt) |
+| `POST /api/cloudflare/test` | `{zones[], target, type, targetError}` |
+
 ## KI-Chat
 
 Der Chat läuft in der Browser-Sitzung (API-Tokens und CLI bekommen 403 `ai_session_only`; sie nutzen `/mcp`).

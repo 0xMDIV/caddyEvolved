@@ -326,6 +326,7 @@ var siteSchema = obj(map[string]any{
 	"extra":            str("extra Caddyfile directives inside the site block"),
 	"raw":              str("full block body for mode=raw"),
 	"accessList":       str("access list id"),
+	"cloudflare":       obj(map[string]any{"proxied": boolean("route visitors through Cloudflare (orange cloud)")}),
 	"enabled":          boolean("site is active"),
 	"waf":              obj(map[string]any{"enabled": boolean(""), "mode": enum("", "block", "detect")}),
 	"defender":         obj(map[string]any{"enabled": boolean(""), "responder": enum("", "block", "tarpit", "garbage", "drop"), "ranges": strList("openai, aws, deepseek, githubcopilot, … or CIDRs")}),

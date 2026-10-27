@@ -67,9 +67,17 @@ type Site struct {
 	// Cache stores responses in the Souin cache.
 	Cache bool `json:"cache,omitempty"`
 	// Tailnet serves the site on the tailnet only, as this node name.
-	Tailnet   string    `json:"tailnet,omitempty"`
-	Enabled   bool      `json:"enabled"`
-	UpdatedAt time.Time `json:"updatedAt,omitzero"`
+	Tailnet string `json:"tailnet,omitempty"`
+	// Cloudflare creates missing DNS records for the domains on save.
+	Cloudflare *CloudflareDNS `json:"cloudflare,omitempty"`
+	Enabled    bool           `json:"enabled"`
+	UpdatedAt  time.Time      `json:"updatedAt,omitzero"`
+}
+
+// CloudflareDNS is the per-site switch for the Cloudflare DNS record.
+type CloudflareDNS struct {
+	// Proxied routes visitors through Cloudflare (orange cloud).
+	Proxied bool `json:"proxied"`
 }
 
 // Commit validates and activates the files on disk. It returns caddy's output

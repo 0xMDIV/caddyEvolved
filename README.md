@@ -21,7 +21,7 @@ Container: im Log). Router, DNS und Übernahme bestehender Seiten:
 
 | | |
 |---|---|
-| **Sites** | Reverse Proxy, Weiterleitung, statische Dateien oder eigene Konfiguration. Mehrere Upstreams mit Lastverteilung und Health-Check, Upstreams mit HTTPS. Jede Änderung prüft Caddy, bevor sie live geht – sonst bleibt der alte Stand. Ein Klick testet eine Site wie ein Besucher (DNS, Cloudflare-Proxy, Zertifikat, Weg zum Ziel). |
+| **Sites** | Reverse Proxy, Weiterleitung, statische Dateien oder eigene Konfiguration. Mehrere Upstreams mit Lastverteilung und Health-Check, Upstreams mit HTTPS. Jede Änderung prüft Caddy, bevor sie live geht – sonst bleibt der alte Stand. Ein Klick testet eine Site wie ein Besucher (DNS, Cloudflare-Proxy, Zertifikat, Weg zum Ziel). Mit Cloudflare-Token legt caddyEvolved fehlende DNS-Einträge neuer Sites selbst an, Proxy (orange Wolke) pro Site schaltbar. |
 | **Automatisches HTTPS** | Zertifikat pro Domain über Let's Encrypt/ZeroSSL, DNS-Challenge mit 41 DNS-Anbietern (auch Wildcards, auch hinter dem Cloudflare-Proxy), interne CA fürs LAN. Domains, die noch auf ein Zertifikat warten, zeigen den Grund aus dem Caddy-Log und den passenden Knopf zur Lösung. |
 | **Plugins per Klick** | Caddy-Plugins werden einkompiliert – caddyEvolved baut die Binary direkt auf dem Server bzw. im Container, mit Live-Log, Prüfung, sofortiger Aktivierung und automatischem Rollback. Einstellungen aller eingebauten Plugins (z. B. API-Token für Cloudflare-DNS) an einer Stelle, nach Thema geordnet. |
 | **Sensible Dateien** | `.env`, `.git`, Schlüssel, Datenbank-Dumps, Backups, `docker-compose.yml` und Ähnliches sind bei jeder Site **immer gesperrt** (404), bevor die Anfrage den Dienst erreicht – nicht abschaltbar, eigene Muster ergänzbar. |
@@ -138,6 +138,7 @@ internal/accesslog/   Zugriffs-Log lesen, filtern, markieren (auch rotiert/gzip)
 internal/geo/         Land und Netzbetreiber zu einer IP (DB-IP Lite)
 internal/ai/          KI-Anbindung (Anthropic, OpenAI-kompatibel), Chats, Freigabe-Schleife
 internal/aiaudit/     KI-Protokoll: nur anhängen, Hash-Kette
+internal/cloudflare/  DNS-Einträge neuer Sites bei Cloudflare anlegen
 internal/sysstat/     CPU/RAM/Netz/Platte von System, Caddy und caddyEvolved
 internal/toolbox/     Netzwerk-Werkzeuge: CIDR, Ping/Traceroute (ICMP), Port- und Host-Scan, mDNS, DNS
 internal/backup/      Backup/Restore, Verschlüsselung, Zeitplan
@@ -171,6 +172,7 @@ unraid/               Unraid-Vorlage und Symbol
 - [x] Globale Optionen aus der WebUI: echte Client-IPs, DynDNS, CrowdSec, Tailscale, Cache, Brotli, WebDAV
 - [x] 41 DNS-Anbieter, jeder gegen die aktuelle Caddy-Version gebaut und geprüft
 - [x] KI-Chat mit Freigabe pro Änderung und KI-Protokoll, IP-Herkunft im Log, CDN-Proxys zum Anhaken
+- [x] Cloudflare-DNS: fehlende Einträge neuer Sites anlegen, Proxy pro Site schaltbar; KI-Antworten als Markdown
 - [ ] Eigener MMDB-Leser statt `maxminddb-golang` (weniger Abhängigkeiten)
 - [ ] Oberfläche für Storage (Redis/Postgres) und Layer 4
 - [ ] Anzeige „Update verfügbar“ für Plugins

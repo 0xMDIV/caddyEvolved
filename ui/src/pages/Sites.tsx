@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { AccessListsResponse, api, emptySite, PluginsResponse, Site, SiteMode, SitesResponse } from "../api";
+import { AccessListsResponse, api, CloudflareSettings, DnsResult, emptySite, PluginsResponse, Site, SiteMode, SitesResponse } from "../api";
 import { CredentialFields } from "../components/plugins";
 import { useGlobal } from "../components/globalcards";
 import { DefenderFields, FEATURE_PLUGINS, RateLimitFields, useCompiledPlugins, WafFields } from "../components/features";
@@ -199,6 +199,25 @@ const lines = (s: string) =>
     .map((x) => x.trim())
     .filter(Boolean);
 
+const DNS_VERB: Record<DnsResult["action"], string> = {
+  created: "angelegt",
+  updated: "Proxy umgestellt",
+  exists: "vorhanden",
+  skipped: "übersprungen",
+  error: "Fehler",
+};
+
+/** dnsToasts reports what Cloudflare did; unchanged records stay quiet. */
+function dnsToasts(res: DnsResult[]): ["ok" | "err", string][] {
+  return res
+    .filter((r) => r.action !== "exists")
+    .map((r) => {
+      const what = r.type ? ` (${r.type} → ${r.content}${r.proxied ? ", Proxy" : ", nur DNS"})` : "";
+      const msg = `Cloudflare: ${r.name || "DNS"} ${DNS_VERB[r.action]}${what}${r.message ? " – " + r.message : ""}`;
+      return [r.action === "error" ? "err" : "ok", msg];
+    });
+}
+
 function SiteEditor({
   initial,
   isNew,
@@ -232,6 +251,12 @@ function SiteEditor({
   const caps = global?.caps;
   const g = global?.global;
   const acls = useLoad(() => api.get<AccessListsResponse>("/api/access-lists"));
+  const cf = useLoad(() => api.get<CloudflareSettings>("/api/cloudflare"));
+  // New sites get the DNS switch on as soon as Cloudflare is set up.
+  useEffect(() => {
+    if (isNew && cf.data?.configured && !site.cloudflare) set("cloudflare", { proxied: cf.data.proxied });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cf.data]);
 
   // Disabled feature blocks are not sent: the server treats a missing block
   // as "off", and a binary without the plugin then has nothing to reject.
@@ -266,9 +291,10 @@ function SiteEditor({
     setSaveErr(null);
     try {
       const r = isNew
-        ? await api.post<{ site: Site; reloaded: boolean }>("/api/sites", full)
-        : await api.put<{ site: Site; reloaded: boolean }>(`/api/sites/${encodeURIComponent(initial.id)}`, full);
+        ? await api.post<{ site: Site; reloaded: boolean; dns?: DnsResult[] }>("/api/sites", full)
+        : await api.put<{ site: Site; reloaded: boolean; dns?: DnsResult[] }>(`/api/sites/${encodeURIComponent(initial.id)}`, full);
       toast("ok", r.reloaded ? "Gespeichert und Caddy neu geladen" : "Gespeichert");
+      dnsToasts(r.dns ?? []).forEach(([kind, msg]) => toast(kind, msg));
       onDone(r.site);
     } catch (e) {
       setSaveErr(e);
@@ -325,6 +351,26 @@ function SiteEditor({
                 <span className="mono">:8080</span>.
               </span>
             </label>
+            {cf.data?.configured ? (
+              <>
+                <ToggleRow
+                  checked={!!site.cloudflare}
+                  onChange={(v) => set("cloudflare", v ? { proxied: cf.data?.proxied ?? false } : undefined)}
+                  label="DNS-Eintrag bei Cloudflare anlegen"
+                  hint={`Beim Speichern: fehlender Eintrag wird angelegt (Ziel ${cf.data.target || "öffentliche IP"}), ein vorhandener bleibt, nur Proxy an/aus wird angepasst.`}
+                />
+                {site.cloudflare && (
+                  <ToggleRow
+                    checked={site.cloudflare.proxied}
+                    onChange={(v) => set("cloudflare", { proxied: v })}
+                    label="Über Cloudflare leiten (Proxy, orange Wolke)"
+                    hint="Aus = nur DNS (graue Wolke), Besucher kommen direkt. An = Cloudflare steht davor; für echte Besucher-IPs Cloudflare in den globalen Einstellungen als CDN anhaken."
+                  />
+                )}
+              </>
+            ) : (
+              site.cloudflare && <span className="hint">Cloudflare-DNS ist an, aber kein Token eingerichtet (Einstellungen → Cloudflare-DNS).</span>
+            )}
           </FormSection>
 
           {site.mode === "proxy" && (

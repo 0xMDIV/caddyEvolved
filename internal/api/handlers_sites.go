@@ -209,7 +209,7 @@ func (s *Server) upsertSite(w http.ResponseWriter, r *http.Request, create bool)
 	if create {
 		status = http.StatusCreated
 	}
-	writeJSON(w, status, map[string]any{"site": saved, "reloaded": reloaded})
+	writeJSON(w, status, map[string]any{"site": saved, "reloaded": reloaded, "dns": s.syncCloudflare(r.Context(), saved)})
 }
 
 func (s *Server) handleSiteDelete(w http.ResponseWriter, r *http.Request) {
@@ -244,7 +244,7 @@ func (s *Server) handleSiteEnabled(w http.ResponseWriter, r *http.Request) {
 		s.siteError(w, r, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"site": site, "reloaded": reloaded})
+	writeJSON(w, http.StatusOK, map[string]any{"site": site, "reloaded": reloaded, "dns": s.syncCloudflare(r.Context(), site)})
 }
 
 func (s *Server) recordSite(id, fallback, verb string, err error) {

@@ -56,6 +56,9 @@ type Server struct {
 	AIChats *ai.Store
 
 	aiProvider func(ai.Config) (ai.Provider, error) // tests swap the model
+	// Tests point Cloudflare at a fake and skip the public IP lookup.
+	cloudflareAPI string
+	publicIP      func(context.Context) (string, error)
 	// Sys samples host and process load; nil disables the system page.
 	Sys      *sysstat.Sampler
 	Bind     string
@@ -268,6 +271,10 @@ func (s *Server) routes() *http.ServeMux {
 	m.HandleFunc("GET /api/audit", s.auth(s.handleAudit))
 	m.HandleFunc("GET /api/ai/audit", s.auth(s.handleAIAudit))
 	m.HandleFunc("GET /api/ai/audit/export", s.auth(s.handleAIAuditExport))
+	m.HandleFunc("GET /api/cloudflare", s.auth(s.handleCloudflareGet))
+	m.HandleFunc("PUT /api/cloudflare", s.auth(s.browserOnly(s.handleCloudflareSave)))
+	m.HandleFunc("DELETE /api/cloudflare/token", s.auth(s.browserOnly(s.handleCloudflareForget)))
+	m.HandleFunc("POST /api/cloudflare/test", s.auth(s.handleCloudflareTest))
 	m.HandleFunc("GET /api/ai/settings", s.auth(s.handleAISettingsGet))
 	m.HandleFunc("PUT /api/ai/settings", s.auth(s.browserOnly(s.handleAISettingsSave)))
 	m.HandleFunc("POST /api/ai/test", s.auth(s.browserOnly(s.handleAITest)))

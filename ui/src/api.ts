@@ -274,6 +274,8 @@ export interface Site {
   cache?: boolean;
   /** Serve on the tailnet only, as this node name. */
   tailnet?: string;
+  /** Create missing DNS records at Cloudflare on save. */
+  cloudflare?: { proxied: boolean };
   enabled: boolean;
   updatedAt?: string;
 }
@@ -834,6 +836,26 @@ export interface AIPreset {
   kind: "anthropic" | "openai";
   baseUrl: string;
   model?: string;
+}
+export interface CloudflareSettings {
+  keyHint: string;
+  email: string;
+  /** Empty: this host's public IPv4. */
+  target: string;
+  /** Default for new sites. */
+  proxied: boolean;
+  /** Where the token comes from: own, the DNS plugin's CF_API_TOKEN, or none. */
+  source: "own" | "plugin" | "";
+  configured: boolean;
+}
+export interface DnsResult {
+  name: string;
+  action: "created" | "updated" | "exists" | "skipped" | "error";
+  zone?: string;
+  type?: string;
+  content?: string;
+  proxied: boolean;
+  message?: string;
 }
 export interface AISettings {
   kind: string;
